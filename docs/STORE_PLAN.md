@@ -31,9 +31,17 @@
 - [x] `tools/build_store.py` 產生商店版，`install.py` 共用
 - [x] 測試：商店輸出與原始碼同步、無個人路徑、大小在限制內
 - [x] 用商店的 `tools/owl.jar review` 檢查
-- [ ] 在手機上實測：`owl-check`、按「安裝」、播放、語音輸入送出
-- [ ] 用手機實測後的截圖更新 `preview.png`
-- [ ] **擁有者確認後**：fork 商店倉庫，複製 `store/widgets/weebowiz/` 並開 PR
+- [x] 在手機上實測：`owl-check`、內嵌安裝腳本、自然語音播放、語音輸入送出、麥克風
+- [x] 用手機重繪的乾淨截圖更新 `preview.png`（保存在 `store/` 內，打包腳本不會覆蓋）
+- [x] 擁有者確認後開 PR：https://github.com/SimonSchubert/omarchy-widgets/pull/82 （CI 通過，等待維護者審核）
+- [ ] 手機複驗最後一次修改：小工具改以 `python …/oma_voice.py`、`bash …/speak` 呼叫程式
+- [ ] PR 合併後把 `store-release` 合併回 `main`
+
+## 投稿時踩到的商店 CI 規則
+
+- 檔案不能帶可執行權限（從 Windows 磁碟複製時會帶上，提交前 `chmod 644`）。
+- 命令的第一個字必須是 Arch 套件提供的程式；自己安裝的 `oma-voice`、`speak` 會讓套件檢查中止，所以改由 `python`、`bash` 呼叫。
+- 在 proot 內 `id -u` 是 0，但行程屬於 App 的實際使用者，不要用 `pkill -u`。
 
 ## 改了程式之後
 
