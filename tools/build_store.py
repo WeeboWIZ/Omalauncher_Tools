@@ -3,17 +3,13 @@
 import hashlib
 from pathlib import Path
 import re
-import shutil
 import sys
 
 ROOT = Path(__file__).resolve().parent.parent
 VERSION = '3.1'
 AUTHOR = 'weebowiz'
-# template -> (store folder, preview image)
-WIDGETS = {
-    '46-speak.owl': ('terminal-voice', 'docs/codex-voice-en.png'),
-    '47-voice-input.owl': ('dictation', 'docs/dictation-en.png'),
-}
+# template -> store folder. Each folder's preview.png and README.md are kept by hand.
+WIDGETS = {'46-speak.owl': 'terminal-voice', '47-voice-input.owl': 'dictation'}
 # repo folder -> (folder under $HOME, executable)
 PAYLOAD = [('voice', '.local/share/oma-voice', False), ('dictation', '.local/share/oma-speak', False), ('bin', '.local/bin', True)]
 MARKER = '.local/share/oma-voice/store-version'
@@ -95,14 +91,13 @@ def render(template):
 
 def build(out=ROOT/'store'/'widgets'/AUTHOR):
     written = {}
-    for template, (name, preview) in WIDGETS.items():
+    for template, name in WIDGETS.items():
         folder = out/name
         folder.mkdir(parents=True, exist_ok=True)
         data = render((ROOT/'widgets'/template).read_text()).encode()
         if len(data) > MAX_BYTES:
             sys.exit('%s is %d KB; the store limit is %d KB' % (name, len(data)//1024, MAX_BYTES//1024))
         (folder/'widget.owl').write_bytes(data)
-        shutil.copyfile(ROOT/preview, folder/'preview.png')
         written[name] = len(data)
     return written
 
