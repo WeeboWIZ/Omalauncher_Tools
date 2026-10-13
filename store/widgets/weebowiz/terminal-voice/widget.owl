@@ -3,27 +3,29 @@ widget "Terminal Voice" {
   order: 6
   size: 3x4
   minSize: 3x4
-  meta { owl: 6; description: "Reads Codex replies or a tmux terminal aloud, for Codex, Claude or any CLI. Reads a finished task with the screen off. English and Chinese."; version: "3.3"; license: "MIT"; category: "productivity" }
+  meta { owl: 6; description: "Reads Codex replies or a tmux terminal aloud, also a task finished with the screen off. For Codex, Claude or any CLI. English, Chinese, Spanish, German, French, Japanese, Korean."; version: "3.3"; license: "MIT"; category: "productivity" }
   requires { pacman: ["python", "espeak-ng", "libpulse", "mpg123", "tmux", "curl", "util-linux"] }
   source uiLanguage = file("~/.config/omalauncher/voice-ui-language")
-  let zh = uiLanguage == "zh"
+  let nextLanguage = (uiLanguage == "zh" ? "es" : uiLanguage == "es" ? "de" : uiLanguage == "de" ? "fr" : uiLanguage == "fr" ? "ja" : uiLanguage == "ja" ? "ko" : uiLanguage == "ko" ? "en" : "zh")
+  let languageName = (uiLanguage == "zh" ? "中文" : uiLanguage == "es" ? "Español" : uiLanguage == "de" ? "Deutsch" : uiLanguage == "fr" ? "Français" : uiLanguage == "ja" ? "日本語" : uiLanguage == "ko" ? "한국어" : "English")
+  let languageShort = (uiLanguage == "zh" ? "中" : uiLanguage == "es" ? "ES" : uiLanguage == "de" ? "DE" : uiLanguage == "fr" ? "FR" : uiLanguage == "ja" ? "日" : uiLanguage == "ko" ? "한" : "EN")
   source installed = file("~/.local/share/oma-voice/store-version")
   source setupState = file("~/.cache/oma-voice/setup-state")
-  let ready = installed == "3.3-91d32174"
-  let setupText = setupState == "installing" && !ready ? (zh ? "安裝中，約需一分鐘…" : "Installing, about a minute…") : setupState == "failed" ? (zh ? "安裝失敗，請查看 ~/.cache/oma-voice/setup.log" : "Setup failed: see ~/.cache/oma-voice/setup.log") : installed == "" ? (zh ? "首次使用：把播報與聽寫程式寫入 ~/.local，並下載 edge-tts 線上語音。" : "First use: writes the voice and dictation programs to ~/.local and downloads edge-tts for online speech.") : (zh ? "程式有新版，更新後才能使用。" : "The programs have an update; install it to continue.")
+  let ready = installed == "3.3-4e14e8c3"
+  let setupText = setupState == "installing" && !ready ? (uiLanguage == "zh" ? "安裝中，約需一分鐘…" : uiLanguage == "es" ? "Instalando, cerca de un minuto…" : uiLanguage == "de" ? "Installation läuft, etwa eine Minute…" : uiLanguage == "fr" ? "Installation, environ une minute…" : uiLanguage == "ja" ? "インストール中、約1分…" : uiLanguage == "ko" ? "설치 중, 약 1분…" : "Installing, about a minute…") : setupState == "failed" ? (uiLanguage == "zh" ? "安裝失敗，請查看 ~/.cache/oma-voice/setup.log" : uiLanguage == "es" ? "La instalación falló: consulta ~/.cache/oma-voice/setup.log" : uiLanguage == "de" ? "Installation fehlgeschlagen: siehe ~/.cache/oma-voice/setup.log" : uiLanguage == "fr" ? "Échec de l’installation : voir ~/.cache/oma-voice/setup.log" : uiLanguage == "ja" ? "インストール失敗：~/.cache/oma-voice/setup.log を確認" : uiLanguage == "ko" ? "설치 실패: ~/.cache/oma-voice/setup.log 확인" : "Setup failed: see ~/.cache/oma-voice/setup.log") : installed == "" ? (uiLanguage == "zh" ? "首次使用：把播報與聽寫程式寫入 ~/.local，並下載 edge-tts 線上語音。" : uiLanguage == "es" ? "Primer uso: escribe los programas de voz y dictado en ~/.local y descarga edge-tts para la voz en línea." : uiLanguage == "de" ? "Erste Nutzung: schreibt die Programme für Sprachausgabe und Diktat nach ~/.local und lädt edge-tts für die Online-Stimme." : uiLanguage == "fr" ? "Première utilisation : écrit les programmes de voix et de dictée dans ~/.local et télécharge edge-tts pour la voix en ligne." : uiLanguage == "ja" ? "初回：読み上げと音声入力のプログラムを ~/.local に書き込み、オンライン音声用の edge-tts をダウンロードします。" : uiLanguage == "ko" ? "처음 사용: 음성 읽기와 받아쓰기 프로그램을 ~/.local 에 쓰고 온라인 음성용 edge-tts 를 내려받습니다." : "First use: writes the voice and dictation programs to ~/.local and downloads edge-tts for online speech.") : (uiLanguage == "zh" ? "程式有新版，更新後才能使用。" : uiLanguage == "es" ? "Hay una actualización de los programas; instálala para continuar." : uiLanguage == "de" ? "Für die Programme gibt es ein Update; zum Fortfahren installieren." : uiLanguage == "fr" ? "Les programmes ont une mise à jour ; installez-la pour continuer." : uiLanguage == "ja" ? "プログラムの更新があります。続けるには更新してください。" : uiLanguage == "ko" ? "프로그램 업데이트가 있습니다. 계속하려면 설치하세요." : "The programs have an update; install it to continue.")
   source service = cmd("if [ -f ~/.local/share/oma-voice/oma_voice.py ]; then python ~/.local/share/oma-voice/oma_voice.py ensure; fi") every 30s status
   source voice = file("~/.cache/oma-voice/state.json") json
   let offline = service.ok == false
-  let replyTime = voice.reply_at == null ? (zh ? "尚無可讀內容" : "Nothing to read yet") : (zh ? "回覆 ${fmtTime(voice.reply_at, 'MM-dd HH:mm')}" : "Reply ${fmtTime(voice.reply_at, 'MM-dd HH:mm')}")
-  let statusText = offline ? (zh ? "服務未更新 · 點同步重試" : "Service offline · tap Sync") : voice.awaiting ? (zh ? "正在回覆 · 下方為上次內容" : "Working · previous reply below") : (zh ? voice.status : voice.status_en) ?? (zh ? "連接中…" : "Connecting…")
+  let replyTime = voice.reply_at == null ? (uiLanguage == "zh" ? "尚無可讀內容" : uiLanguage == "es" ? "Aún no hay nada que leer" : uiLanguage == "de" ? "Noch nichts zum Vorlesen" : uiLanguage == "fr" ? "Rien à lire pour l’instant" : uiLanguage == "ja" ? "読み上げる内容はまだありません" : uiLanguage == "ko" ? "아직 읽을 내용이 없습니다" : "Nothing to read yet") : (uiLanguage == "zh" ? "回覆 ${fmtTime(voice.reply_at, 'MM-dd HH:mm')}" : uiLanguage == "es" ? "Respuesta ${fmtTime(voice.reply_at, 'MM-dd HH:mm')}" : uiLanguage == "de" ? "Antwort ${fmtTime(voice.reply_at, 'MM-dd HH:mm')}" : uiLanguage == "fr" ? "Réponse ${fmtTime(voice.reply_at, 'MM-dd HH:mm')}" : uiLanguage == "ja" ? "返信 ${fmtTime(voice.reply_at, 'MM-dd HH:mm')}" : uiLanguage == "ko" ? "응답 ${fmtTime(voice.reply_at, 'MM-dd HH:mm')}" : "Reply ${fmtTime(voice.reply_at, 'MM-dd HH:mm')}")
+  let statusText = offline ? (uiLanguage == "zh" ? "服務未更新 · 點同步重試" : uiLanguage == "es" ? "Servicio sin conexión · toca Sync" : uiLanguage == "de" ? "Dienst offline · Sync antippen" : uiLanguage == "fr" ? "Service hors ligne · touchez Sync" : uiLanguage == "ja" ? "サービス停止中 · 同期をタップ" : uiLanguage == "ko" ? "서비스 오프라인 · 동기화를 누르세요" : "Service offline · tap Sync") : voice.awaiting ? (uiLanguage == "zh" ? "正在回覆 · 下方為上次內容" : uiLanguage == "es" ? "Trabajando · abajo, la respuesta anterior" : uiLanguage == "de" ? "Arbeitet · unten die vorige Antwort" : uiLanguage == "fr" ? "En cours · réponse précédente ci-dessous" : uiLanguage == "ja" ? "作業中 · 下は前回の返信" : uiLanguage == "ko" ? "작업 중 · 아래는 이전 응답" : "Working · previous reply below") : voice.status_ui ?? (uiLanguage == "zh" ? "連接中…" : uiLanguage == "es" ? "Conectando…" : uiLanguage == "de" ? "Verbinde…" : uiLanguage == "fr" ? "Connexion…" : uiLanguage == "ja" ? "接続中…" : uiLanguage == "ko" ? "연결 중…" : "Connecting…")
   onTap: screen()
   Column {
     fill: true
     gap: 6
     if !ready {
-      Text { text: zh ? "終端播報" : "TERMINAL VOICE"; style: label; color: accent }
+      Text { text: (uiLanguage == "zh" ? "終端播報" : uiLanguage == "es" ? "VOZ DEL TERMINAL" : uiLanguage == "de" ? "TERMINAL-STIMME" : uiLanguage == "fr" ? "VOIX DU TERMINAL" : uiLanguage == "ja" ? "ターミナル読み上げ" : uiLanguage == "ko" ? "터미널 음성" : "TERMINAL VOICE"); style: label; color: accent }
       Text { text: setupText; style: small; maxLines: 8; weight: 1; color: setupState == "failed" ? red : muted }
-      Button { fill: width; height: 40; text: installed == "" ? (zh ? "安裝" : "Set up") : (zh ? "更新" : "Update"); onTap: run("""
+      Button { fill: width; height: 40; text: installed == "" ? (uiLanguage == "zh" ? "安裝" : uiLanguage == "es" ? "Instalar" : uiLanguage == "de" ? "Einrichten" : uiLanguage == "fr" ? "Installer" : uiLanguage == "ja" ? "インストール" : uiLanguage == "ko" ? "설치" : "Set up") : (uiLanguage == "zh" ? "更新" : uiLanguage == "es" ? "Actualizar" : uiLanguage == "de" ? "Aktualisieren" : uiLanguage == "fr" ? "Mettre à jour" : uiLanguage == "ja" ? "更新" : uiLanguage == "ko" ? "업데이트" : "Update"); onTap: run("""
 # Writes the voice and dictation programs kept in this widget into ~/.local, then
 # makes a Python environment for edge-tts (online speech). Log: ~/.cache/oma-voice/setup.log
 set -u
@@ -44,7 +46,145 @@ case "$(cut -d- -f1 "$HOME/.local/share/oma-voice/store-version" 2>/dev/null)" i
   "") [ -f "$share/oma-voice/oma_voice.py" ] && earlier=yes ;;
 esac
 [ "$earlier" = yes ] && [ ! -f "$language" ] && mkdir -p "$HOME/.config/omalauncher" && printf zh > "$language"
-put "$HOME/.local/share/oma-voice/oma_voice.py" <<'OMA_VOICE_FILE_0_END'
+put "$HOME/.local/share/oma-voice/language.py" <<'OMA_VOICE_FILE_0_END'
+'''Interface languages, the text shown in them, and which language a text should be spoken in.'''
+from pathlib import Path
+import re
+
+# The first is the default. The tile's language button goes through them in this order.
+LANGUAGES = ('en', 'zh', 'es', 'de', 'fr', 'ja', 'ko')
+CHOICE = Path.home() / '.config/omalauncher/voice-ui-language'
+
+
+def chosen():
+    try:
+        value = CHOICE.read_text().strip()
+    except OSError:
+        value = ''
+    return value if value in LANGUAGES else LANGUAGES[0]
+
+
+# The programs write Chinese; these are the same messages in (en, es, de, fr, ja, ko).
+MESSAGES = {
+    '已連接，等待回覆': ('Connected, waiting for reply', 'Conectado, esperando respuesta', 'Verbunden, warte auf Antwort', 'Connecté, en attente d’une réponse', '接続済み、返信待ち', '연결됨, 응답 대기 중'),
+    '已同步最近回覆': ('Latest reply synced', 'Última respuesta sincronizada', 'Letzte Antwort übernommen', 'Dernière réponse synchronisée', '最新の返信を同期しました', '최근 응답을 동기화했습니다'),
+    'Codex 正在回覆…': ('Codex is working…', 'Codex está trabajando…', 'Codex arbeitet…', 'Codex travaille…', 'Codex が作業中…', 'Codex 작업 중…'),
+    '收到新回覆': ('New reply received', 'Nueva respuesta recibida', 'Neue Antwort erhalten', 'Nouvelle réponse reçue', '新しい返信を受信', '새 응답 수신'),
+    '已停止': ('Stopped', 'Detenido', 'Gestoppt', 'Arrêté', '停止しました', '정지됨'),
+    '正在播放': ('Preparing audio', 'Preparando audio', 'Audio wird vorbereitet', 'Préparation de l’audio', '音声を準備中', '오디오 준비 중'),
+    '播放完成': ('Playback complete', 'Lectura terminada', 'Wiedergabe beendet', 'Lecture terminée', '再生が完了しました', '재생 완료'),
+    '播放失敗': ('Playback failed', 'La lectura falló', 'Wiedergabe fehlgeschlagen', 'Échec de la lecture', '再生に失敗しました', '재생 실패'),
+    '自動播報已開啟': ('Auto-read enabled', 'Lectura automática activada', 'Automatisches Vorlesen an', 'Lecture automatique activée', '自動読み上げをオンにしました', '자동 읽기 켜짐'),
+    '自動播報已關閉': ('Auto-read disabled', 'Lectura automática desactivada', 'Automatisches Vorlesen aus', 'Lecture automatique désactivée', '自動読み上げをオフにしました', '자동 읽기 꺼짐'),
+    '已切換線上自然語音': ('Online voice selected', 'Voz en línea seleccionada', 'Online-Stimme gewählt', 'Voix en ligne sélectionnée', 'オンライン音声に切り替えました', '온라인 음성으로 전환'),
+    '已切換離線神經語音': ('Offline voice selected', 'Voz sin conexión seleccionada', 'Offline-Stimme gewählt', 'Voix hors ligne sélectionnée', 'オフライン音声に切り替えました', '오프라인 음성으로 전환'),
+    '已送到這個 Codex 會話的佇列': ('Sent to this Codex chat queue', 'Enviado a la cola de este chat de Codex', 'An die Warteschlange dieses Codex-Chats gesendet', 'Envoyé à la file de ce chat Codex', 'この Codex チャットのキューに送りました', '이 Codex 채팅 대기열로 보냈습니다'),
+    '已連接終端 · 點播放讀取畫面': ('Terminal connected · tap Play to read screen', 'Terminal conectado · toca Leer para leer la pantalla', 'Terminal verbunden · Vorlesen antippen', 'Terminal connecté · touchez Lire pour lire l’écran', 'ターミナル接続済み · 再生で画面を読み上げ', '터미널 연결됨 · 재생을 눌러 화면 읽기'),
+    '請在現有終端執行 tmux new -A -s oma-voice': ('Run tmux new -A -s oma-voice in your existing terminal', 'Ejecuta tmux new -A -s oma-voice en tu terminal', 'Im vorhandenen Terminal tmux new -A -s oma-voice ausführen', 'Lancez tmux new -A -s oma-voice dans votre terminal', '今のターミナルで tmux new -A -s oma-voice を実行してください', '기존 터미널에서 tmux new -A -s oma-voice 를 실행하세요'),
+    '等待會話記錄': ('Waiting for chat log', 'Esperando el registro del chat', 'Warte auf Chat-Protokoll', 'En attente du journal du chat', 'チャットログを待機中', '채팅 기록 대기 중'),
+    '還沒有可播放的回覆': ('No reply available to play', 'No hay respuesta para leer', 'Keine Antwort zum Vorlesen', 'Aucune réponse à lire', '再生できる返信がありません', '재생할 응답이 없습니다'),
+    '找不到 Codex 會話': ('No local Codex chat found', 'No se encontró ningún chat local de Codex', 'Kein lokaler Codex-Chat gefunden', 'Aucun chat Codex local trouvé', 'ローカルの Codex チャットが見つかりません', '로컬 Codex 채팅을 찾을 수 없습니다'),
+    '找不到指定會話': ('Chat not found', 'Chat no encontrado', 'Chat nicht gefunden', 'Chat introuvable', 'チャットが見つかりません', '채팅을 찾을 수 없습니다'),
+    '需要 espeak-ng 和 paplay': ('espeak-ng and paplay are required', 'Se necesitan espeak-ng y paplay', 'espeak-ng und paplay werden benötigt', 'espeak-ng et paplay sont nécessaires', 'espeak-ng と paplay が必要です', 'espeak-ng 와 paplay 가 필요합니다'),
+    '播放逾時': ('Playback timed out', 'La lectura tardó demasiado', 'Zeitüberschreitung bei der Wiedergabe', 'Délai de lecture dépassé', '再生がタイムアウトしました', '재생 시간 초과'),
+    '請先輸入內容（最多 16000 字）': ('Enter text first (maximum 16000 characters)', 'Escribe primero un texto (máximo 16000 caracteres)', 'Zuerst Text eingeben (höchstens 16000 Zeichen)', 'Saisissez d’abord un texte (16000 caractères au plus)', '先にテキストを入力してください（最大 16000 文字）', '먼저 텍스트를 입력하세요(최대 16000자)'),
+    '文字含有控制字元': ('Text contains control characters', 'El texto contiene caracteres de control', 'Der Text enthält Steuerzeichen', 'Le texte contient des caractères de contrôle', 'テキストに制御文字が含まれています', '텍스트에 제어 문자가 있습니다'),
+    '送出失敗': ('Could not send text', 'No se pudo enviar el texto', 'Text konnte nicht gesendet werden', 'Impossible d’envoyer le texte', 'テキストを送信できませんでした', '텍스트를 보내지 못했습니다'),
+    '未知命令': ('Unknown command', 'Comando desconocido', 'Unbekannter Befehl', 'Commande inconnue', '不明なコマンド', '알 수 없는 명령'),
+    '請選 online 或 offline': ('Choose online or offline', 'Elige online u offline', 'online oder offline wählen', 'Choisissez online ou offline', 'online か offline を選んでください', 'online 또는 offline 을 고르세요'),
+    '請選 Codex 或 Terminal': ('Choose codex or terminal', 'Elige codex o terminal', 'codex oder terminal wählen', 'Choisissez codex ou terminal', 'codex か terminal を選んでください', 'codex 또는 terminal 을 고르세요'),
+    '請先開始語音輸入，停止後保存。': ('Start dictation, stop and save first.', 'Primero inicia el dictado, páralo y guarda.', 'Zuerst Diktat starten, stoppen und speichern.', 'Démarrez d’abord la dictée, arrêtez et enregistrez.', '先に音声入力を開始し、停止して保存してください。', '먼저 받아쓰기를 시작하고, 정지한 뒤 저장하세요.'),
+    '已更新閒置暫停時間': ('Idle pause time updated', 'Tiempo de pausa actualizado', 'Leerlauf-Pause geändert', 'Délai de pause mis à jour', 'アイドル停止の時間を更新しました', '유휴 일시정지 시간을 바꿨습니다'),
+    '閒置後不再暫停': ('The service no longer pauses when idle', 'El servicio ya no se pausa por inactividad', 'Der Dienst pausiert im Leerlauf nicht mehr', 'Le service ne se met plus en pause', 'アイドル時も停止しません', '유휴 시에도 일시정지하지 않습니다'),
+    '請輸入 1 到 1440 的分鐘數，或 off': ('Enter 1 to 1440 minutes, or off', 'Escribe de 1 a 1440 minutos, u off', '1 bis 1440 Minuten eingeben, oder off', 'Saisissez 1 à 1440 minutes, ou off', '1〜1440 の分数、または off を入力してください', '1~1440분 또는 off 를 입력하세요'),
+    '需要 tmux / tmux is required': ('tmux is required', 'Se necesita tmux', 'tmux wird benötigt', 'tmux est nécessaire', 'tmux が必要です', 'tmux 가 필요합니다'),
+    '無法讀取終端畫面': ('Could not read the terminal screen', 'No se pudo leer la pantalla del terminal', 'Terminal-Bildschirm konnte nicht gelesen werden', 'Impossible de lire l’écran du terminal', 'ターミナル画面を読み取れません', '터미널 화면을 읽을 수 없습니다'),
+    '無效的終端窗格': ('Invalid terminal pane', 'Panel de terminal no válido', 'Ungültiges Terminal-Fenster', 'Volet de terminal non valide', '無効なターミナルペイン', '잘못된 터미널 창'),
+    '終端輸入失敗': ('Could not type into the terminal', 'No se pudo escribir en el terminal', 'Eingabe ins Terminal fehlgeschlagen', 'Impossible d’écrire dans le terminal', 'ターミナルに入力できませんでした', '터미널에 입력하지 못했습니다'),
+    '請求太大': ('Request too large', 'Solicitud demasiado grande', 'Anfrage zu groß', 'Demande trop volumineuse', 'リクエストが大きすぎます', '요청이 너무 큽니다'),
+    '語音服務未啟動，請查看 ~/.cache/oma-voice/daemon.log': ('The voice service did not start: see ~/.cache/oma-voice/daemon.log', 'El servicio de voz no arrancó: consulta ~/.cache/oma-voice/daemon.log', 'Der Sprachdienst ist nicht gestartet: siehe ~/.cache/oma-voice/daemon.log', 'Le service vocal n’a pas démarré : voir ~/.cache/oma-voice/daemon.log', '読み上げサービスが起動しません：~/.cache/oma-voice/daemon.log を確認', '음성 서비스가 시작되지 않았습니다: ~/.cache/oma-voice/daemon.log 확인'),
+    '請選擇介面語言：': ('Choose an interface language: ', 'Elige un idioma: ', 'Sprache wählen: ', 'Choisissez une langue : ', '表示言語を選んでください：', '표시 언어를 고르세요: '),
+    '完成': ('Done', 'Hecho', 'Fertig', 'Terminé', '完了', '완료'),
+}
+# Messages that end in a detail: 'prefix' + what follows.
+PREFIXES = {
+    '正在播放 · ': ('Playing · ', 'Leyendo · ', 'Wiedergabe · ', 'Lecture · ', '再生中 · ', '재생 중 · '),
+    '播放完成 · ': ('Finished · ', 'Terminado · ', 'Beendet · ', 'Terminé · ', '完了 · ', '완료 · '),
+    '已送到終端 · ': ('Sent to terminal · ', 'Enviado al terminal · ', 'An Terminal gesendet · ', 'Envoyé au terminal · ', 'ターミナルに送信 · ', '터미널로 보냄 · '),
+}
+VOICES = {
+    '離線神經語音': ('offline neural', 'neuronal sin conexión', 'neuronal, offline', 'neuronale hors ligne', 'オフライン（ニューラル）', '오프라인 신경망 음성'),
+    '離線基本語音': ('offline basic', 'básica sin conexión', 'einfach, offline', 'basique hors ligne', 'オフライン（基本）', '오프라인 기본 음성'),
+    '自然語音（線上）': ('online natural', 'natural en línea', 'natürlich, online', 'naturelle en ligne', 'オンライン（自然）', '온라인 자연 음성'),
+    '語音': ('audio', 'audio', 'Audio', 'audio', '音声', '오디오'),
+}
+# Why the online voice was skipped, shown beside the offline voice's name.
+REASONS = {
+    '線上語音未安裝': ('online voice not installed: tap Update on the tile', 'voz en línea sin instalar: toca Actualizar en el widget', 'Online-Stimme nicht installiert: im Widget Aktualisieren antippen', 'voix en ligne non installée : touchez Mettre à jour sur le widget', 'オンライン音声が未インストール：ウィジェットの更新をタップ', '온라인 음성 미설치: 위젯의 업데이트를 누르세요'),
+    '缺少 mpg123': ('mpg123 missing', 'falta mpg123', 'mpg123 fehlt', 'mpg123 manquant', 'mpg123 がありません', 'mpg123 없음'),
+    '線上語音無回應': ('online voice unreachable', 'voz en línea inaccesible', 'Online-Stimme nicht erreichbar', 'voix en ligne injoignable', 'オンライン音声に接続できません', '온라인 음성에 연결할 수 없음'),
+}
+
+
+def local(text, language=None):
+    '''A message the programs wrote in Chinese, in the interface language.'''
+    language = language or chosen()
+    if language == 'zh' or language not in LANGUAGES:
+        return text
+    at = LANGUAGES.index(language) - (1 if LANGUAGES.index(language) > LANGUAGES.index('zh') else 0)
+    for prefix, labels in PREFIXES.items():
+        if text.startswith(prefix):
+            voice, _, reason = text[len(prefix):].partition('（')
+            if voice+'（'+reason in VOICES:
+                return labels[at] + VOICES[voice+'（'+reason][at]
+            reason = reason.rstrip('）')
+            return labels[at] + (VOICES[voice][at] if voice in VOICES else voice) + (' ('+(REASONS[reason][at] if reason in REASONS else reason)+')' if reason else '')
+    return MESSAGES[text][at] if text in MESSAGES else text
+
+
+# Spoken notes added to a reply, in the language the reply is spoken in:
+# (start of an excerpt, end of an excerpt, in place of a code block, in place of a link, the test sentence).
+SPOKEN = {
+    'en': ('Excerpt. ', ' Play the full reply for the rest.', ' (code omitted) ', 'link omitted', 'Voice is connected. A summary of each reply in this chat will be read aloud.'),
+    'zh': ('回覆節錄。', ' 完整內容可選全文播放。', '（程式碼略過）', '連結略過', '語音播報已連接。之後會自動播放這個對話的回覆摘要。'),
+    'es': ('Extracto. ', ' Reproduce la respuesta completa para oír el resto.', ' (código omitido) ', 'enlace omitido', 'La voz está conectada. Se leerá un resumen de cada respuesta de este chat.'),
+    'de': ('Auszug. ', ' Für den Rest die ganze Antwort abspielen.', ' (Code ausgelassen) ', 'Link ausgelassen', 'Die Stimme ist verbunden. Von jeder Antwort in diesem Chat wird eine Kurzfassung vorgelesen.'),
+    'fr': ('Extrait. ', ' Lisez la réponse entière pour la suite.', ' (code omis) ', 'lien omis', 'La voix est connectée. Un résumé de chaque réponse de ce chat sera lu.'),
+    'ja': ('返信の抜粋です。', ' 続きは全文再生で聞けます。', '（コードは省略）', 'リンク省略', '音声読み上げに接続しました。このチャットの返信の要約を読み上げます。'),
+    'ko': ('응답 발췌입니다. ', ' 나머지는 전체 재생으로 들을 수 있습니다.', ' (코드 생략) ', '링크 생략', '음성 읽기가 연결되었습니다. 이 채팅의 응답 요약을 읽어 드립니다.'),
+}
+
+# Common words that tell the four Latin-script languages apart.
+WORDS = {
+    'en': 'the and is are of to that this with for you not it was have be on as at by from or an will can',
+    'es': 'el la los las que de y en es un una por con para no se lo como más pero sus le ya o fue este sí porque',
+    'de': 'der die das und ist nicht ein eine mit für auf den zu von ich sie es dem des im auch sich als wird noch',
+    'fr': 'le la les des est et un une pour dans que qui pas sur avec ce il au du en ne se plus par je sont cette',
+}
+WORDS = {code: set(words.split()) for code, words in WORDS.items()}
+
+
+def spoken(text, interface=None):
+    '''The language to read a text in: by its script, then by its words, then the interface language.'''
+    interface = interface or chosen()
+    han = sum('㐀' <= c <= '鿿' for c in text)
+    kana = sum('぀' <= c <= 'ヿ' for c in text)
+    hangul = sum('가' <= c <= '힣' for c in text)
+    if kana and kana * 10 >= han:
+        return 'ja'
+    if hangul and hangul >= han:
+        return 'ko'
+    if han:
+        return 'zh'
+    found = re.findall(r"[^\W\d_]+", text.lower())
+    counts = {code: sum(word in words for word in found) for code, words in WORDS.items()}
+    best = max(counts, key=counts.get)
+    ahead = sorted(counts.values())[-1] - sorted(counts.values())[-2]
+    if counts[best] >= 3 and ahead >= 2:
+        return best
+    return interface if interface in WORDS else 'en'
+OMA_VOICE_FILE_0_END
+put "$HOME/.local/share/oma-voice/oma_voice.py" <<'OMA_VOICE_FILE_1_END'
 #!/usr/bin/env python3
 '''Voice reader and dictation bridge for Codex logs or a tmux terminal.'''
 import argparse
@@ -63,19 +203,13 @@ import threading
 import time
 import uuid
 
-TRANSLATIONS = {'已連接，等待回覆': 'Connected, waiting for reply', '已同步最近回覆': 'Latest reply synced', 'Codex 正在回覆…': 'Codex is working…', '收到新回覆': 'New reply received', '已停止': 'Stopped', '正在播放': 'Preparing audio', '播放完成': 'Playback complete', '播放失敗': 'Playback failed', '自動播報已開啟': 'Auto-read enabled', '自動播報已關閉': 'Auto-read disabled', '已切換線上自然語音': 'Online voice selected', '已切換離線神經語音': 'Offline voice selected', '已送到這個 Codex 會話的佇列': 'Sent to this Codex chat queue', '已連接終端 · 點播放讀取畫面': 'Terminal connected · tap Play to read screen', '請在現有終端執行 tmux new -A -s oma-voice': 'Run tmux new -A -s oma-voice in your existing terminal', '等待會話記錄': 'Waiting for chat log', '還沒有可播放的回覆': 'No reply available to play', '找不到 Codex 會話': 'No local Codex chat found', '找不到指定會話': 'Chat not found', '需要 espeak-ng 和 paplay': 'espeak-ng and paplay are required', '播放逾時': 'Playback timed out', '請先輸入內容（最多 16000 字）': 'Enter text first (maximum 16000 characters)', '文字含有控制字元': 'Text contains control characters', '送出失敗': 'Could not send text', '未知命令': 'Unknown command', '請選 online 或 offline': 'Choose online or offline', '請先開始語音輸入，停止後保存。': 'Start dictation, stop and save first.', '已更新閒置暫停時間': 'Idle pause time updated', '閒置後不再暫停': 'The service no longer pauses when idle', '請輸入 1 到 1440 的分鐘數，或 off': 'Enter 1 to 1440 minutes, or off'}
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from language import CHOICE, LANGUAGES, SPOKEN, chosen, local, spoken
 
-VOICES = {'離線神經語音':'offline neural','離線基本語音':'offline basic','自然語音（線上）':'online natural','語音':'audio'}
-REASONS = {'線上語音未安裝':'online voice not installed: tap Update on the tile','缺少 mpg123':'mpg123 missing','線上語音無回應':'online voice unreachable'}
 
 def english(text):
-    for prefix, label in (('正在播放 · ', 'Playing · '), ('播放完成 · ', 'Finished · ')):
-        if text.startswith(prefix):
-            voice, _, reason = text[len(prefix):].partition('（')
-            if voice+'（'+reason in VOICES:
-                return label + VOICES[voice+'（'+reason]
-            return label + VOICES.get(voice, voice) + (' ('+REASONS.get(reason.rstrip('）'), reason.rstrip('）'))+')' if reason else '')
-    return TRANSLATIONS.get(text, text)
+    return local(text, 'en')
+
 
 HOME = Path.home()
 CACHE = HOME / '.cache/oma-voice'
@@ -110,19 +244,12 @@ def chinese(text):
     return any('㐀' <= c <= '鿿' for c in text)
 
 
-def read_text(path):
-    try:
-        return path.read_text().strip()
-    except OSError:
-        return ''
-
-
 def clean_text(text):
-    # Spoken notes are in the language of the reply, or a Chinese voice would be picked for English text.
-    zh = chinese(text)
-    text = re.sub(r'```.*?```', '（程式碼略過）' if zh else ' (code omitted) ', text, flags=re.S)
+    # Spoken notes are in the language of the reply, or the wrong voice would be picked for it.
+    notes = SPOKEN[spoken(text)]
+    text = re.sub(r'```.*?```', notes[2], text, flags=re.S)
     text = re.sub(r'!?\[([^\]]+)\]\([^)]*\)', r'\1', text)
-    text = re.sub(r'https?://\S+', '連結略過' if zh else 'link omitted', text)
+    text = re.sub(r'https?://\S+', notes[3], text)
     text = re.sub(r'(?m)^\s*(?:#{1,6}\s+|[-*+]\s+|\d+[.)]\s+|>\s*)', '', text)
     text = text.replace('`', '').replace('**', '').replace('__', '')
     return ''.join(c for c in text if c in '\n\t' or (ord(c) >= 32 and ord(c) != 127)).strip()
@@ -151,9 +278,8 @@ def summarize(text, limit=360):
         used += len(s) + 1
     if warning:
         selected.append(warning[:limit // 2])
-    if chinese(text):
-        return '回覆節錄。' + ' '.join(selected) + ' 完整內容可選全文播放。'
-    return 'Excerpt. ' + ' '.join(selected) + ' Play the full reply for the rest.'
+    notes = SPOKEN[spoken(text)]
+    return notes[0] + ' '.join(selected) + notes[1]
 
 
 def completed_reply(event):
@@ -252,8 +378,12 @@ class Reader:
         self.save()
 
     def save(self):
-        self.state["status_en"] = english(self.state.get("status", ""))
-        self.state["error_en"] = english(self.state.get("error", ""))
+        # The tiles show these; 'status' and 'error' stay as written, for the next change of language.
+        language = chosen()
+        self.state['status_ui'] = local(self.state.get('status', ''), language)
+        self.state['error_ui'] = local(self.state.get('error', ''), language)
+        for old in ('status_en', 'error_en', 'checked_at'):
+            self.state.pop(old, None)
         stamp = self.state.get('reply_at')
         if isinstance(stamp, str):
             try:
@@ -261,7 +391,6 @@ class Reader:
             except ValueError:
                 self.state['reply_at'] = None
         self.state.update(auto=self.config['auto'], mode=self.config['mode'], thread=self.config['thread'], engine=self.config['engine'], follow_latest=self.config['follow_latest'], source=self.config['source'], pause_minutes=self.config['pause_minutes'], source_name=self.state.get('source_name','Codex'))
-        self.state.pop('checked_at', None)
         # The tiles redraw on every write, so write only what changed.
         if self.state != self.saved:
             atomic_json(CACHE / 'state.json', self.state)
@@ -458,12 +587,13 @@ class Reader:
                 self.next_terminal = 0
             self.poll()
         if action == 'status':
+            # Also how a change of interface language reaches the tiles: save() writes only what changed.
+            self.save()
             return self.state
         if action == 'replay':
             self.play(self.state.get('full' if request.get('full') else 'summary', ''))
         elif action == 'test':
-            zh = (read_text(HOME / '.config/omalauncher/voice-ui-language') == 'zh')
-            self.play('語音播報已連接。之後會自動播放這個對話的回覆摘要。' if zh else 'Voice is connected. A summary of each reply in this chat will be read aloud.')
+            self.play(SPOKEN[chosen()][4])
         elif action == 'stop':
             self.stop()
         elif action == 'auto':
@@ -594,7 +724,7 @@ def serve():
                             raise ValueError('請求太大')
                         response = reader.command(json.loads(data))
                     except Exception as exc:
-                        response = {'ok': False, 'error': str(exc), 'error_en': english(str(exc))}
+                        response = {'ok': False, 'error': str(exc), 'error_ui': local(str(exc))}
                     try:
                         conn.sendall((json.dumps(response, ensure_ascii=False) + '\n').encode())
                     except OSError:
@@ -644,14 +774,18 @@ def main():
     parser.add_argument('--json', action='store_true')
     args = parser.parse_args()
     if args.action == 'language':
-        if args.value not in ('zh', 'en'):
-            raise ValueError('Choose zh or en')
-        path = HOME / '.config/omalauncher/voice-ui-language'
+        if args.value not in LANGUAGES:
+            raise ValueError(local('請選擇介面語言：')+' '.join(LANGUAGES))
+        path = CHOICE
         path.parent.mkdir(parents=True, exist_ok=True)
         temp = path.with_name(path.name + '.' + uuid.uuid4().hex + '.tmp')
         temp.write_text(args.value)
         temp.chmod(0o600)
         temp.replace(path)
+        try:
+            request({'action': 'status'})
+        except (OSError, ValueError):
+            pass
         return
     if args.action == 'daemon':
         serve()
@@ -662,8 +796,10 @@ def main():
     result = request({'action': args.action, 'value': args.value or 'toggle',
                       'thread': args.value, 'text': args.text or '', 'full': args.full})
     result['request_id'] = uuid.uuid4().hex
+    if result.get('ok') is not False and 'status' in result:
+        result['status_ui'] = local(result['status'])
     print(json.dumps(result, ensure_ascii=False) if args.action == 'status' or args.json else
-          result.get('error') or result.get('status', '完成'))
+          result.get('error_ui') or local(result.get('status', '完成')))
     if result.get('ok') is False:
         sys.exit(1)
 
@@ -672,10 +808,10 @@ if __name__ == '__main__':
     try:
         main()
     except (OSError, ValueError) as error:
-        print(str(error), file=sys.stderr)
+        print(local(str(error)), file=sys.stderr)
         sys.exit(1)
-OMA_VOICE_FILE_0_END
-put "$HOME/.local/share/oma-voice/synthesize.py" <<'OMA_VOICE_FILE_1_END'
+OMA_VOICE_FILE_1_END
+put "$HOME/.local/share/oma-voice/synthesize.py" <<'OMA_VOICE_FILE_2_END'
 '''Edge TTS without API keys; local Piper/Sherpa fallback. Reads text on stdin.'''
 import asyncio
 import json
@@ -687,6 +823,15 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).parent
+sys.path.insert(0, str(ROOT))
+from language import spoken
+
+# The voice for each language a text can be spoken in: (Microsoft Edge online, espeak-ng offline).
+SPEAKERS = {
+    'en': ('en-US-AriaNeural', 'en-us'), 'zh': ('zh-CN-XiaoxiaoNeural', 'cmn'), 'es': ('es-ES-ElviraNeural', 'es'),
+    'de': ('de-DE-KatjaNeural', 'de'), 'fr': ('fr-FR-DeniseNeural', 'fr'), 'ja': ('ja-JP-NanamiNeural', 'ja'),
+    'ko': ('ko-KR-SunHiNeural', 'ko'),
+}
 
 # Why online speech was skipped, shown beside the offline voice's name.
 NOT_INSTALLED = '線上語音未安裝'
@@ -697,13 +842,13 @@ def offline(text, output, reason=''):
     note = '（'+reason+'）' if reason else ''
     runtime = ROOT / 'tts/sherpa-onnx-v1.13.8-linux-aarch64-shared-cpu/bin/sherpa-onnx-offline-tts'
     model = ROOT / 'tts/vits-piper-zh_CN-huayan-medium'
-    if runtime.exists() and (model / 'zh_CN-huayan-medium.onnx').exists():
+    if spoken(text) == 'zh' and runtime.exists() and (model / 'zh_CN-huayan-medium.onnx').exists():
         Path(str(output)+'.backend').write_text('離線神經語音'+note)
         os.execv(str(runtime), [str(runtime), '--vits-model='+str(model/'zh_CN-huayan-medium.onnx'),
                  '--vits-tokens='+str(model/'tokens.txt'), '--vits-data-dir='+str(model/'espeak-ng-data'),
                  '--num-threads=2', '--output-filename='+str(output), '--', text])
     Path(str(output)+'.backend').write_text('離線基本語音'+note)
-    os.execvp('espeak-ng', ['espeak-ng', '-v', 'cmn', '-s', '175', '-w', str(output), '--', text])
+    os.execvp('espeak-ng', ['espeak-ng', '-v', SPEAKERS[spoken(text)][1], '-s', '175', '-w', str(output), '--', text])
 
 def pieces(text, limit=1200):
     # One request per piece: a long reply in one request ran past the time limit and fell back to espeak-ng.
@@ -733,7 +878,7 @@ async def online(text, output):
         raise FileNotFoundError('mpg123')
     mp3 = output.with_suffix('.mp3')
     try:
-        voice = 'zh-CN-XiaoxiaoNeural' if any('㐀' <= c <= '鿿' for c in text) else 'en-US-AriaNeural'
+        voice = SPEAKERS[spoken(text)][0]
         with mp3.open('wb') as audio:
             for part in pieces(text):
                 for attempt in range(3):
@@ -766,8 +911,8 @@ if __name__ == '__main__':
             print('線上語音不可用，改用離線：'+type(error).__name__+' '+str(error)[:200], file=sys.stderr)
             output.unlink(missing_ok=True)
     offline(text, output, reason)
-OMA_VOICE_FILE_1_END
-put "$HOME/.local/share/oma-speak/bash.sh" <<'OMA_VOICE_FILE_2_END'
+OMA_VOICE_FILE_2_END
+put "$HOME/.local/share/oma-speak/bash.sh" <<'OMA_VOICE_FILE_3_END'
 # Insert at the cursor, preserving any existing input. Never press Enter.
 _oma_speak_insert() {
   local dictated
@@ -777,12 +922,12 @@ _oma_speak_insert() {
   READLINE_POINT=$((READLINE_POINT + ${#dictated}))
 }
 bind -x '"\C-g":_oma_speak_insert'
-OMA_VOICE_FILE_2_END
-put "$HOME/.local/share/oma-speak/index.html" <<'OMA_VOICE_FILE_3_END'
+OMA_VOICE_FILE_3_END
+put "$HOME/.local/share/oma-speak/index.html" <<'OMA_VOICE_FILE_4_END'
 <!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>語音輸入</title>
 <style>body{font:18px system-ui;background:#121820;color:#eef3fa;margin:24px auto;padding:0 20px;max-width:620px}button,select,textarea{font:inherit;border-radius:10px;padding:14px;margin:6px 0;box-sizing:border-box}button{background:#93c5fd;color:#101820;border:0;min-height:52px}textarea{width:100%;height:240px;background:#202c3a;color:white;border:1px solid #64748b}select{width:100%}p{line-height:1.5}#status{color:#b9d9ff;min-height:80px;white-space:pre-wrap}.buttons{display:flex;gap:10px;flex-wrap:wrap}small{color:#aab8ca}</style>
-<div class="buttons" style="justify-content:space-between;align-items:center"><h1>語音輸入</h1><button id="ui-language" type="button">English</button></div><p>按開始後說一段話；結束後可直接點文字修改，再保存到首頁。</p>
-<select id="language"><option value="zh-TW">中文（台灣）</option><option value="zh-CN">中文（普通話）</option><option value="en-US">English</option><option value="th-TH">ไทย</option></select>
+<div class="buttons" style="justify-content:space-between;align-items:center"><h1>語音輸入</h1><select id="ui-language" style="width:auto"><option value="en">English</option><option value="zh">中文</option><option value="es">Español</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="ja">日本語</option><option value="ko">한국어</option></select></div><p>按開始後說一段話；結束後可直接點文字修改，再保存到首頁。</p>
+<select id="language"><option value="zh-TW">中文（台灣）</option><option value="zh-CN">中文（普通話）</option><option value="en-US">English</option><option value="es-ES">Español</option><option value="de-DE">Deutsch</option><option value="fr-FR">Français</option><option value="ja-JP">日本語</option><option value="ko-KR">한국어</option><option value="th-TH">ไทย</option></select>
 <div class="buttons"><button id="chinese">說中文</button><button id="english">Speak English</button></div><p><small>中英混說可能誤判。說英文前點 English，說完切回中文，文字會接在同一段。</small></p><div class="buttons"><button id="start">開始語音輸入</button><button id="stop" disabled>停止</button></div><p id="status" role="status" aria-live="polite">準備好了。首次使用請允許瀏覽器使用麥克風。</p>
 <div id="alternatives"></div><textarea id="text" placeholder="辨識文字會出現在這裡，也可以手動修改。"></textarea>
 <div class="buttons"><button id="save">保存到首頁</button><button id="copy">複製文字</button><button id="clear">清空</button></div>
@@ -791,29 +936,34 @@ put "$HOME/.local/share/oma-speak/index.html" <<'OMA_VOICE_FILE_3_END'
 const $=id=>document.getElementById(id),status=$('status'),text=$('text');
 const token=location.hash.slice(1);history.replaceState(null,'',location.pathname);
 
-const UI_STRINGS = {"語音輸入": "Dictation", "按開始後說一段話；結束後可直接點文字修改，再保存到首頁。": "Tap Start and speak. Edit the text after stopping, then save it to the home screen.", "說中文": "Speak Chinese", "中英混說可能誤判。說英文前點 English，說完切回中文，文字會接在同一段。": "Mixed languages may be misheard. Choose English before speaking English; switching back keeps your text.", "開始語音輸入": "Start dictation", "停止": "Stop", "準備好了。首次使用請允許瀏覽器使用麥克風。": "Ready. Allow microphone access when asked.", "辨識文字會出現在這裡，也可以手動修改。": "Recognized text appears here. You can edit it.", "保存到首頁": "Save to home", "複製文字": "Copy text", "清空": "Clear", "回首頁「語音輸入」工具，按「送到目前目標」，不用複製貼上。": "Return to the Dictation widget and tap Send to target.", "辨識使用瀏覽器的語音服務，可能將音訊傳給服務供應商。文字不會自動送到目前目標。": "Browser speech recognition may send audio to its provider. Saving does not automatically send text to the selected target.", "正在聽… 說完按停止；點文字框可立即編輯。": "Listening… Tap Stop when finished; tap the text box to edit.", "辨識已停止。直接點文字框修改，再保存到首頁。": "Recognition stopped. Edit the text, then save it.", "已暫停聽寫，現在可直接編輯文字。": "Dictation paused. You can edit the text.", "已停止，可保存文字。": "Stopped. You can save the text.", "已清空。": "Cleared.", "正在停止…": "Stopping…", "保存失敗：": "Save failed: ", "已保存。回首頁「語音輸入」按「送到目前目標」。": "Saved. Return to the Dictation widget and tap Send to target.", "已複製。": "Copied.", "請長按選取的文字並複製。": "Long-press the selected text to copy it.", "此瀏覽器不支援語音辨識，請使用 Chrome 開啟。": "This browser does not support speech recognition. Open in Chrome.", "麥克風權限被拒絕。請到 Android 設定 → 應用程式 → 目前瀏覽器 → 權限 → 麥克風，並在瀏覽器的本站設定允許麥克風。給 omalauncher 權限不會同時授權瀏覽器。": "Microphone denied. Allow the browser microphone permission in Android settings and browser site settings.", "瀏覽器不允許此語音服務，請用 Chrome 開啟。": "Speech service blocked. Try Chrome.", "無法取得麥克風。請確認瀏覽器權限，並關閉其他正在錄音的程式。": "Microphone unavailable. Check browser permissions and close other recording apps.", "語音服務連線失敗，請檢查網路後重試。": "Speech service network error. Check connection and retry.", "沒聽到聲音，請按開始重試。": "No speech heard. Tap Start to retry.", "此語音服務不支援所選語言，請切換語言。": "This speech service does not support the selected language.", "語音已停止。": "Speech stopped.", "先按停止，再選候選文字。": "Tap Stop before choosing another transcript.", "這句已修改，請直接編輯文字。": "This sentence was edited; change it directly.", "最近一句候選（停止後可選）：": "Alternatives for the last phrase (select after stopping):", "請從首頁「語音輸入」重新開啟。": "Reopen from the Dictation widget.", "辨識錯誤：": "Recognition error: ", "無法開始：": "Could not start: "};
+// Chinese is what the page is written in; the other interface languages are looked up here.
+const UI_STRINGS = {"語音輸入": {"en": "Dictation", "es": "Dictado", "de": "Diktat", "fr": "Dictée", "ja": "音声入力", "ko": "받아쓰기"}, "按開始後說一段話；結束後可直接點文字修改，再保存到首頁。": {"en": "Tap Start and speak. Edit the text after stopping, then save it to the home screen.", "es": "Toca Iniciar y habla. Al parar puedes corregir el texto y guardarlo en la pantalla de inicio.", "de": "Starten antippen und sprechen. Nach dem Stoppen den Text bearbeiten und auf dem Startbildschirm speichern.", "fr": "Touchez Démarrer et parlez. Après l’arrêt, corrigez le texte puis enregistrez-le sur l’écran d’accueil.", "ja": "開始をタップして話します。停止後にテキストを直して、ホーム画面に保存できます。", "ko": "시작을 누르고 말하세요. 정지한 뒤 텍스트를 고치고 홈 화면에 저장할 수 있습니다."}, "說中文": {"en": "Speak Chinese", "es": "Hablar español", "de": "Deutsch sprechen", "fr": "Parler français", "ja": "日本語で話す", "ko": "한국어로 말하기"}, "中英混說可能誤判。說英文前點 English，說完切回中文，文字會接在同一段。": {"en": "Mixed languages may be misheard. Switch the language before you speak another one; your text is kept.", "es": "Mezclar idiomas puede dar errores. Cambia de idioma antes de hablar en otro; el texto se conserva.", "de": "Gemischte Sprachen werden leicht falsch erkannt. Vor dem Wechsel die Sprache umstellen; der Text bleibt erhalten.", "fr": "Mélanger les langues peut causer des erreurs. Changez de langue avant de parler dans une autre ; le texte est conservé.", "ja": "言語を混ぜると誤認識することがあります。話す言語を変える前に切り替えてください。テキストは残ります。", "ko": "언어를 섞으면 잘못 인식될 수 있습니다. 다른 언어로 말하기 전에 언어를 바꾸세요. 텍스트는 유지됩니다."}, "開始語音輸入": {"en": "Start dictation", "es": "Iniciar dictado", "de": "Diktat starten", "fr": "Démarrer la dictée", "ja": "音声入力を開始", "ko": "받아쓰기 시작"}, "停止": {"en": "Stop", "es": "Parar", "de": "Stopp", "fr": "Arrêter", "ja": "停止", "ko": "정지"}, "準備好了。首次使用請允許瀏覽器使用麥克風。": {"en": "Ready. Allow microphone access when asked.", "es": "Listo. Permite el micrófono cuando el navegador lo pida.", "de": "Bereit. Mikrofon erlauben, wenn der Browser fragt.", "fr": "Prêt. Autorisez le micro quand le navigateur le demande.", "ja": "準備完了。ブラウザに求められたらマイクを許可してください。", "ko": "준비됐습니다. 브라우저가 물으면 마이크를 허용하세요."}, "辨識文字會出現在這裡，也可以手動修改。": {"en": "Recognized text appears here. You can edit it.", "es": "El texto reconocido aparece aquí. Puedes corregirlo.", "de": "Der erkannte Text erscheint hier und kann bearbeitet werden.", "fr": "Le texte reconnu apparaît ici. Vous pouvez le corriger.", "ja": "認識したテキストがここに表示されます。編集もできます。", "ko": "인식된 텍스트가 여기에 나타납니다. 고칠 수 있습니다."}, "保存到首頁": {"en": "Save to home", "es": "Guardar en inicio", "de": "Auf Start speichern", "fr": "Enregistrer sur l’accueil", "ja": "ホームに保存", "ko": "홈에 저장"}, "複製文字": {"en": "Copy text", "es": "Copiar texto", "de": "Text kopieren", "fr": "Copier le texte", "ja": "テキストをコピー", "ko": "텍스트 복사"}, "清空": {"en": "Clear", "es": "Borrar", "de": "Leeren", "fr": "Effacer", "ja": "クリア", "ko": "지우기"}, "回首頁「語音輸入」工具，按「送到目前目標」，不用複製貼上。": {"en": "Return to the Dictation widget and tap Send to target.", "es": "Vuelve al widget Dictado y toca Enviar al destino.", "de": "Zurück zum Diktat-Widget und An Ziel senden antippen.", "fr": "Revenez au widget Dictée et touchez Envoyer à la cible.", "ja": "音声入力ウィジェットに戻り、「送信先に送る」をタップします。", "ko": "받아쓰기 위젯으로 돌아가 대상으로 보내기를 누르세요."}, "辨識使用瀏覽器的語音服務，可能將音訊傳給服務供應商。文字不會自動送到目前目標。": {"en": "Browser speech recognition may send audio to its provider. Saving does not automatically send text to the selected target.", "es": "El reconocimiento de voz del navegador puede enviar audio al proveedor del servicio. Guardar no envía el texto al destino.", "de": "Die Spracherkennung des Browsers kann Audio an ihren Anbieter senden. Speichern sendet den Text nicht an das Ziel.", "fr": "La reconnaissance vocale du navigateur peut envoyer l’audio à son fournisseur. Enregistrer n’envoie pas le texte à la cible.", "ja": "ブラウザの音声認識は音声を提供元に送ることがあります。保存しただけでは送信先に送られません。", "ko": "브라우저 음성 인식은 오디오를 제공업체로 보낼 수 있습니다. 저장만으로는 대상에 전송되지 않습니다."}, "正在聽… 說完按停止；點文字框可立即編輯。": {"en": "Listening… Tap Stop when finished; tap the text box to edit.", "es": "Escuchando… Toca Parar al terminar; toca el texto para corregir.", "de": "Höre zu… Zum Schluss Stopp antippen; Text antippen zum Bearbeiten.", "fr": "Écoute… Touchez Arrêter à la fin ; touchez le texte pour corriger.", "ja": "聞き取り中… 終わったら停止をタップ。テキストをタップすると編集できます。", "ko": "듣는 중… 끝나면 정지를 누르세요. 텍스트를 누르면 고칠 수 있습니다."}, "辨識已停止。直接點文字框修改，再保存到首頁。": {"en": "Recognition stopped. Edit the text, then save it.", "es": "Reconocimiento detenido. Corrige el texto y guárdalo.", "de": "Erkennung beendet. Text bearbeiten, dann speichern.", "fr": "Reconnaissance arrêtée. Corrigez le texte, puis enregistrez.", "ja": "認識を停止しました。テキストを直して保存してください。", "ko": "인식이 멈췄습니다. 텍스트를 고친 뒤 저장하세요."}, "已暫停聽寫，現在可直接編輯文字。": {"en": "Dictation paused. You can edit the text.", "es": "Dictado en pausa. Puedes corregir el texto.", "de": "Diktat pausiert. Der Text kann bearbeitet werden.", "fr": "Dictée en pause. Vous pouvez corriger le texte.", "ja": "音声入力を一時停止しました。テキストを編集できます。", "ko": "받아쓰기를 멈췄습니다. 텍스트를 고칠 수 있습니다."}, "已停止，可保存文字。": {"en": "Stopped. You can save the text.", "es": "Detenido. Puedes guardar el texto.", "de": "Gestoppt. Der Text kann gespeichert werden.", "fr": "Arrêté. Vous pouvez enregistrer le texte.", "ja": "停止しました。テキストを保存できます。", "ko": "정지됨. 텍스트를 저장할 수 있습니다."}, "已清空。": {"en": "Cleared.", "es": "Borrado.", "de": "Geleert.", "fr": "Effacé.", "ja": "クリアしました。", "ko": "지웠습니다."}, "正在停止…": {"en": "Stopping…", "es": "Parando…", "de": "Stoppe…", "fr": "Arrêt…", "ja": "停止中…", "ko": "정지하는 중…"}, "保存失敗：": {"en": "Save failed: ", "es": "Error al guardar: ", "de": "Speichern fehlgeschlagen: ", "fr": "Échec de l’enregistrement : ", "ja": "保存に失敗：", "ko": "저장 실패: "}, "已保存。回首頁「語音輸入」按「送到目前目標」。": {"en": "Saved. Return to the Dictation widget and tap Send to target.", "es": "Guardado. Vuelve al widget Dictado y toca Enviar al destino.", "de": "Gespeichert. Zurück zum Diktat-Widget und An Ziel senden antippen.", "fr": "Enregistré. Revenez au widget Dictée et touchez Envoyer à la cible.", "ja": "保存しました。音声入力ウィジェットに戻り、「送信先に送る」をタップします。", "ko": "저장했습니다. 받아쓰기 위젯으로 돌아가 대상으로 보내기를 누르세요."}, "已複製。": {"en": "Copied.", "es": "Copiado.", "de": "Kopiert.", "fr": "Copié.", "ja": "コピーしました。", "ko": "복사했습니다."}, "請長按選取的文字並複製。": {"en": "Long-press the selected text to copy it.", "es": "Mantén pulsado el texto seleccionado para copiarlo.", "de": "Markierten Text lange drücken, um ihn zu kopieren.", "fr": "Appuyez longuement sur le texte sélectionné pour le copier.", "ja": "選択したテキストを長押ししてコピーしてください。", "ko": "선택한 텍스트를 길게 눌러 복사하세요."}, "此瀏覽器不支援語音辨識，請使用 Chrome 開啟。": {"en": "This browser does not support speech recognition. Open in Chrome.", "es": "Este navegador no admite el reconocimiento de voz. Ábrelo en Chrome.", "de": "Dieser Browser unterstützt keine Spracherkennung. In Chrome öffnen.", "fr": "Ce navigateur ne prend pas en charge la reconnaissance vocale. Ouvrez dans Chrome.", "ja": "このブラウザは音声認識に対応していません。Chrome で開いてください。", "ko": "이 브라우저는 음성 인식을 지원하지 않습니다. Chrome 에서 여세요."}, "麥克風權限被拒絕。請到 Android 設定 → 應用程式 → 目前瀏覽器 → 權限 → 麥克風，並在瀏覽器的本站設定允許麥克風。給 omalauncher 權限不會同時授權瀏覽器。": {"en": "Microphone denied. Allow the browser microphone permission in Android settings and browser site settings.", "es": "Micrófono denegado. Permite el micrófono al navegador en los ajustes de Android y en los ajustes del sitio.", "de": "Mikrofon verweigert. Dem Browser das Mikrofon in den Android-Einstellungen und den Website-Einstellungen erlauben.", "fr": "Micro refusé. Autorisez le micro pour le navigateur dans les réglages Android et les réglages du site.", "ja": "マイクが拒否されました。Android の設定とブラウザのサイト設定でマイクを許可してください。", "ko": "마이크가 거부되었습니다. Android 설정과 브라우저 사이트 설정에서 마이크를 허용하세요."}, "瀏覽器不允許此語音服務，請用 Chrome 開啟。": {"en": "Speech service blocked. Try Chrome.", "es": "Servicio de voz bloqueado. Prueba con Chrome.", "de": "Sprachdienst blockiert. Chrome versuchen.", "fr": "Service vocal bloqué. Essayez Chrome.", "ja": "音声サービスがブロックされました。Chrome をお試しください。", "ko": "음성 서비스가 차단되었습니다. Chrome 을 써 보세요."}, "無法取得麥克風。請確認瀏覽器權限，並關閉其他正在錄音的程式。": {"en": "Microphone unavailable. Check browser permissions and close other recording apps.", "es": "Micrófono no disponible. Revisa los permisos del navegador y cierra otras apps que graben.", "de": "Mikrofon nicht verfügbar. Browser-Berechtigungen prüfen und andere Aufnahme-Apps schließen.", "fr": "Micro indisponible. Vérifiez les autorisations du navigateur et fermez les autres applis qui enregistrent.", "ja": "マイクを使用できません。ブラウザの権限を確認し、録音中の他のアプリを閉じてください。", "ko": "마이크를 쓸 수 없습니다. 브라우저 권한을 확인하고 녹음 중인 다른 앱을 닫으세요."}, "語音服務連線失敗，請檢查網路後重試。": {"en": "Speech service network error. Check connection and retry.", "es": "Error de red del servicio de voz. Revisa la conexión y reintenta.", "de": "Netzwerkfehler beim Sprachdienst. Verbindung prüfen und erneut versuchen.", "fr": "Erreur réseau du service vocal. Vérifiez la connexion et réessayez.", "ja": "音声サービスのネットワークエラー。接続を確認して再試行してください。", "ko": "음성 서비스 네트워크 오류. 연결을 확인하고 다시 시도하세요."}, "沒聽到聲音，請按開始重試。": {"en": "No speech heard. Tap Start to retry.", "es": "No se oyó nada. Toca Iniciar para reintentar.", "de": "Nichts gehört. Starten antippen, um es erneut zu versuchen.", "fr": "Rien entendu. Touchez Démarrer pour réessayer.", "ja": "音声が聞こえませんでした。開始をタップして再試行してください。", "ko": "소리가 들리지 않았습니다. 시작을 눌러 다시 시도하세요."}, "此語音服務不支援所選語言，請切換語言。": {"en": "This speech service does not support the selected language.", "es": "Este servicio de voz no admite el idioma elegido.", "de": "Dieser Sprachdienst unterstützt die gewählte Sprache nicht.", "fr": "Ce service vocal ne prend pas en charge la langue choisie.", "ja": "この音声サービスは選択した言語に対応していません。", "ko": "이 음성 서비스는 선택한 언어를 지원하지 않습니다."}, "語音已停止。": {"en": "Speech stopped.", "es": "Voz detenida.", "de": "Sprache gestoppt.", "fr": "Voix arrêtée.", "ja": "音声を停止しました。", "ko": "음성이 멈췄습니다."}, "先按停止，再選候選文字。": {"en": "Tap Stop before choosing another transcript.", "es": "Toca Parar antes de elegir otra transcripción.", "de": "Vor der Wahl einer anderen Fassung Stopp antippen.", "fr": "Touchez Arrêter avant de choisir une autre transcription.", "ja": "別の候補を選ぶ前に停止をタップしてください。", "ko": "다른 후보를 고르기 전에 정지를 누르세요."}, "這句已修改，請直接編輯文字。": {"en": "This sentence was edited; change it directly.", "es": "Esta frase fue editada; cámbiala directamente.", "de": "Dieser Satz wurde bearbeitet; bitte direkt ändern.", "fr": "Cette phrase a été modifiée ; changez-la directement.", "ja": "この文は編集済みです。直接修正してください。", "ko": "이 문장은 수정되었습니다. 직접 고치세요."}, "最近一句候選（停止後可選）：": {"en": "Alternatives for the last phrase (select after stopping):", "es": "Alternativas para la última frase (elige tras parar):", "de": "Alternativen für den letzten Satz (nach dem Stoppen wählen):", "fr": "Variantes de la dernière phrase (à choisir après l’arrêt) :", "ja": "最後の文の候補（停止後に選択）：", "ko": "마지막 문장의 후보(정지 후 선택):"}, "請從首頁「語音輸入」重新開啟。": {"en": "Reopen from the Dictation widget.", "es": "Vuelve a abrir desde el widget Dictado.", "de": "Über das Diktat-Widget erneut öffnen.", "fr": "Rouvrez depuis le widget Dictée.", "ja": "音声入力ウィジェットから開き直してください。", "ko": "받아쓰기 위젯에서 다시 여세요."}, "辨識錯誤：": {"en": "Recognition error: ", "es": "Error de reconocimiento: ", "de": "Erkennungsfehler: ", "fr": "Erreur de reconnaissance : ", "ja": "認識エラー：", "ko": "인식 오류: "}, "無法開始：": {"en": "Could not start: ", "es": "No se pudo iniciar: ", "de": "Start nicht möglich: ", "fr": "Impossible de démarrer : ", "ja": "開始できません：", "ko": "시작할 수 없음: "}};
 let uiLanguage='zh';
+// The language spoken by default for each interface language.
+const SPEECH={en:'en-US',zh:'zh-TW',es:'es-ES',de:'de-DE',fr:'fr-FR',ja:'ja-JP',ko:'ko-KR'};
 const originalNodes=[];
 const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
 while(walker.nextNode()){const node=walker.currentNode;if(UI_STRINGS[node.textContent.trim()])originalNodes.push([node,node.textContent.trim()]);}
 const originalPlaceholder=$('text').getAttribute('placeholder');
 let updatingStatus=false;
-function localize(value){if(uiLanguage==='zh')return value;for(const [zh,en] of Object.entries(UI_STRINGS)){if(value===zh)return en;if(value.startsWith(zh) && zh.endsWith('：'))return en+value.slice(zh.length);}return value;}
+function localize(value){if(uiLanguage==='zh')return value;for(const [zh,texts] of Object.entries(UI_STRINGS)){const text=texts[uiLanguage]||texts.en;if(value===zh)return text;if(value.startsWith(zh) && zh.endsWith('：'))return text+value.slice(zh.length);}return value;}
 function applyLanguage(){
- document.documentElement.lang=uiLanguage==='en'?'en':'zh-Hant';
- for(const [node,zh] of originalNodes)node.textContent=uiLanguage==='en'?UI_STRINGS[zh]:zh;
+ document.documentElement.lang=uiLanguage==='zh'?'zh-Hant':uiLanguage;
+ for(const [node,zh] of originalNodes)node.textContent=localize(zh);
  $('text').placeholder=localize(originalPlaceholder);
- $('ui-language').textContent=uiLanguage==='en'?'中文':'English';
+ $('ui-language').value=uiLanguage;
+ // English has its own button beside this one.
+ $('chinese').hidden=uiLanguage==='en';
  const raw=status.dataset.original || status.textContent;status.textContent=localize(raw);
 }
 const statusObserver=new MutationObserver(()=>{if(updatingStatus)return;updatingStatus=true;let v=status.textContent;const old=status.dataset.original;if(v!==localize(old||'')){status.dataset.original=v;const translated=localize(v);if(translated!==v)status.textContent=translated;}updatingStatus=false;});
 statusObserver.observe(status,{childList:true,characterData:true,subtree:true});
-$('ui-language').onclick=async()=>{
- const value=uiLanguage==='en'?'zh':'en';
+$('ui-language').onchange=async()=>{
+ const value=$('ui-language').value;
  try{const response=await fetch('/language',{method:'POST',headers:{'Content-Type':'application/json','X-Speak-Token':token},body:JSON.stringify({language:value})});if(!response.ok)throw Error(await response.text());uiLanguage=value;applyLanguage();}
- catch(error){status.textContent='Language change failed: '+error.message;}
+ catch(error){$('ui-language').value=uiLanguage;status.textContent='Language change failed: '+error.message;}
 };
-fetch('/language').then(r=>r.text()).then(value=>{uiLanguage=value.trim()==='zh'?'zh':'en';applyLanguage();if(!localStorage.getItem('oma-speak-language'))$('language').value=uiLanguage==='zh'?'zh-TW':'en-US';}).catch(()=>{});
+fetch('/language').then(r=>r.text()).then(value=>{uiLanguage=SPEECH[value.trim()]?value.trim():'en';applyLanguage();if(!localStorage.getItem('oma-speak-language'))$('language').value=SPEECH[uiLanguage];}).catch(()=>{});
 
 const Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
 let recognition=null,wanted=false,timer=null,failures=0,committed='',interim='',afterStop=null;
@@ -861,7 +1011,7 @@ function switchLanguage(lang){
  stopForEditing();$('language').value=lang;localStorage.setItem('oma-speak-language',lang);failures=0;
  wanted=true;startSession();
 }
-$('chinese').onclick=()=>switchLanguage('zh-CN');
+$('chinese').onclick=()=>switchLanguage(uiLanguage==='zh'?'zh-CN':SPEECH[uiLanguage]);
 $('english').onclick=()=>switchLanguage('en-US');
 $('language').onchange=()=>localStorage.setItem('oma-speak-language',$('language').value);
 function showAlternatives(result,prefix){
@@ -884,8 +1034,8 @@ $('clear').onclick=()=>{halt('已清空。');afterStop=null;if(recognition){reco
 document.addEventListener('visibilitychange',()=>{if(document.hidden){wanted=false;clearTimeout(timer);if(recognition)recognition.stop();persist();}});
 if(!Speech)status.textContent='此瀏覽器不支援語音辨識，請使用 Chrome 開啟。';controls();
 </script></html>
-OMA_VOICE_FILE_3_END
-put "$HOME/.local/share/oma-speak/server.py" <<'OMA_VOICE_FILE_4_END'
+OMA_VOICE_FILE_4_END
+put "$HOME/.local/share/oma-speak/server.py" <<'OMA_VOICE_FILE_5_END'
 import hmac
 import json
 import os
@@ -900,6 +1050,7 @@ PORT = 18763
 ORIGIN = f'http://127.0.0.1:{PORT}'
 PAGE_PATH = Path(__file__).with_name('index.html')
 LANG_PATH = Path.home() / '.config/omalauncher/voice-ui-language'
+LANGUAGES = ('en', 'zh', 'es', 'de', 'fr', 'ja', 'ko')
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
@@ -919,7 +1070,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.headers.get('Host') != f'127.0.0.1:{PORT}':
             return self.reply(403, 'Invalid host')
         if self.path == '/language':
-            return self.reply(200, 'zh' if LANG_PATH.exists() and LANG_PATH.read_text().strip() == 'zh' else 'en')
+            value = LANG_PATH.read_text().strip() if LANG_PATH.exists() else ''
+            return self.reply(200, value if value in LANGUAGES else LANGUAGES[0])
         if self.path == '/health':
             return self.reply(200, 'oma-speak-v1')
         if self.path != '/':
@@ -937,7 +1089,7 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(size))
             if self.path == '/language':
                 value = body.get('language')
-                if value not in ('zh', 'en'):
+                if value not in LANGUAGES:
                     raise ValueError()
                 LANG_PATH.parent.mkdir(parents=True, exist_ok=True)
                 temp = LANG_PATH.with_name(LANG_PATH.name+'.tmp')
@@ -965,23 +1117,27 @@ if __name__ == '__main__':
     tokenfile.write_text(TOKEN)
     os.chmod(tokenfile, 0o600)
     server.serve_forever()
-OMA_VOICE_FILE_4_END
-put "$HOME/.local/bin/oma-send-dictation" <<'OMA_VOICE_FILE_5_END'
-#!/usr/bin/python
-import pathlib, subprocess, json
-try:
-    text = pathlib.Path.home().joinpath('.cache/oma-speak/latest.txt').read_text().strip()
-    if not text:
-        raise ValueError('請先開始語音輸入，停止後保存。')
-    subprocess.run([str(pathlib.Path.home()/'.local/bin/oma-voice'), 'send', '--json', '--text', text], check=False)
-except (OSError, ValueError) as e:
-    print(json.dumps({'ok': False, 'error': str(e), 'error_en': 'Start dictation, stop and save first.'}, ensure_ascii=False))
 OMA_VOICE_FILE_5_END
-put "$HOME/.local/bin/oma-voice" <<'OMA_VOICE_FILE_6_END'
+put "$HOME/.local/bin/oma-send-dictation" <<'OMA_VOICE_FILE_6_END'
+#!/usr/bin/python
+import pathlib, subprocess, json, sys
+home = pathlib.Path.home()
+sys.path.insert(0, str(home/'.local/share/oma-voice'))
+from language import local
+try:
+    text = home.joinpath('.cache/oma-speak/latest.txt').read_text().strip()
+    if not text:
+        raise ValueError()
+    subprocess.run([str(home/'.local/bin/oma-voice'), 'send', '--json', '--text', text], check=False)
+except (OSError, ValueError):
+    message = '請先開始語音輸入，停止後保存。'
+    print(json.dumps({'ok': False, 'error': message, 'error_ui': local(message)}, ensure_ascii=False))
+OMA_VOICE_FILE_6_END
+put "$HOME/.local/bin/oma-voice" <<'OMA_VOICE_FILE_7_END'
 #!/bin/sh
 exec python "$HOME/.local/share/oma-voice/oma_voice.py" "$@"
-OMA_VOICE_FILE_6_END
-put "$HOME/.local/bin/speak" <<'OMA_VOICE_FILE_7_END'
+OMA_VOICE_FILE_7_END
+put "$HOME/.local/bin/speak" <<'OMA_VOICE_FILE_8_END'
 #!/bin/bash
 set -eu
 cache="$HOME/.cache/oma-speak"
@@ -1007,7 +1163,7 @@ fi
 token=$(cat "$cache/token")
 flock -u 9
 xdg-open "http://127.0.0.1:18763/#$token"
-OMA_VOICE_FILE_7_END
+OMA_VOICE_FILE_8_END
 chmod u+x "$HOME/.local/bin/oma-send-dictation" "$HOME/.local/bin/oma-voice" "$HOME/.local/bin/speak"
 venv="$share/oma-voice/venv"
 [ -x "$venv/bin/python" ] || python -m venv "$venv" || { say failed; exit 1; }
@@ -1016,81 +1172,92 @@ venv="$share/oma-voice/venv"
 # Stop the old voice service and dictation page; the widget starts the new ones.
 pkill -f '^[^ ]*python[0-9.]* .*/oma_voice\.py daemon$' || true
 pkill -f '^[^ ]*python[0-9.]* .*/oma-speak/server\.py$' || true
-printf '%s' '3.3-91d32174' > "$HOME/.local/share/oma-voice/store-version"
+printf '%s' '3.3-4e14e8c3' > "$HOME/.local/share/oma-voice/store-version"
 say done
 """) }
-      Button { fill: width; height: 40; text: zh ? "English" : "中文"; onTap: run(zh ? "mkdir -p ~/.config/omalauncher && printf en > ~/.config/omalauncher/voice-ui-language" : "mkdir -p ~/.config/omalauncher && printf zh > ~/.config/omalauncher/voice-ui-language") }
+      Button { fill: width; height: 40; text: "${languageName} ›"; onTap: run("mkdir -p ~/.config/omalauncher && printf %s ${sh(nextLanguage)} > ~/.config/omalauncher/voice-ui-language") }
     } else {
     Row {
-      Text { text: zh ? "終端播報" : "TERMINAL VOICE"; style: label; color: accent; weight: 1 }
-      Button { text: zh ? "EN" : "中"; width: 46; onTap: run(zh ? "python ~/.local/share/oma-voice/oma_voice.py language en" : "python ~/.local/share/oma-voice/oma_voice.py language zh") }
+      Text { text: (uiLanguage == "zh" ? "終端播報" : uiLanguage == "es" ? "VOZ DEL TERMINAL" : uiLanguage == "de" ? "TERMINAL-STIMME" : uiLanguage == "fr" ? "VOIX DU TERMINAL" : uiLanguage == "ja" ? "ターミナル読み上げ" : uiLanguage == "ko" ? "터미널 음성" : "TERMINAL VOICE"); style: label; color: accent; weight: 1 }
+      Button { text: languageShort; width: 46; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language ${sh(nextLanguage)}") }
     }
-    Text { text: voice.source == "terminal" ? (zh ? "來源：${voice.source_name ?? '終端'}" : "Source: ${voice.source_name ?? 'Terminal'}") : (zh ? "來源：Codex 會話" : "Source: Codex chat"); style: small; color: accent }
+    Text { text: voice.source == "terminal" ? (uiLanguage == "zh" ? "來源：${voice.source_name ?? '終端'}" : uiLanguage == "es" ? "Fuente: ${voice.source_name ?? 'Terminal'}" : uiLanguage == "de" ? "Quelle: ${voice.source_name ?? 'Terminal'}" : uiLanguage == "fr" ? "Source : ${voice.source_name ?? 'Terminal'}" : uiLanguage == "ja" ? "ソース：${voice.source_name ?? 'ターミナル'}" : uiLanguage == "ko" ? "소스: ${voice.source_name ?? '터미널'}" : "Source: ${voice.source_name ?? 'Terminal'}") : (uiLanguage == "zh" ? "來源：Codex 會話" : uiLanguage == "es" ? "Fuente: chat de Codex" : uiLanguage == "de" ? "Quelle: Codex-Chat" : uiLanguage == "fr" ? "Source : chat Codex" : uiLanguage == "ja" ? "ソース：Codex チャット" : uiLanguage == "ko" ? "소스: Codex 채팅" : "Source: Codex chat"); style: small; color: accent }
     Text { text: statusText; style: small; maxLines: 2; color: offline ? yellow : muted }
     Text { text: replyTime; style: small; color: muted }
-    Text { text: voice.summary == "" || voice.summary == null ? (zh ? "選擇 Codex 會話或連接 tmux 終端。" : "Choose a Codex chat or connect a tmux terminal.") : voice.summary; style: small; maxLines: 4; weight: 1 }
+    Text { text: voice.summary == "" || voice.summary == null ? (uiLanguage == "zh" ? "選擇 Codex 會話或連接 tmux 終端。" : uiLanguage == "es" ? "Elige un chat de Codex o conecta un terminal tmux." : uiLanguage == "de" ? "Codex-Chat wählen oder ein tmux-Terminal verbinden." : uiLanguage == "fr" ? "Choisissez un chat Codex ou connectez un terminal tmux." : uiLanguage == "ja" ? "Codex チャットを選ぶか、tmux ターミナルを接続してください。" : uiLanguage == "ko" ? "Codex 채팅을 고르거나 tmux 터미널을 연결하세요." : "Choose a Codex chat or connect a tmux terminal.") : voice.summary; style: small; maxLines: 4; weight: 1 }
     Row {
       gap: 4
-      Button { text: (zh ? "播放" : "Play"); weight: 1; height: 40; onTap: run("python ~/.local/share/oma-voice/oma_voice.py replay") }
-      Button { text: (zh ? "停止" : "Stop"); weight: 1; height: 40; onTap: run("python ~/.local/share/oma-voice/oma_voice.py stop") }
+      Button { text: (uiLanguage == "zh" ? "播放" : uiLanguage == "es" ? "Leer" : uiLanguage == "de" ? "Vorlesen" : uiLanguage == "fr" ? "Lire" : uiLanguage == "ja" ? "再生" : uiLanguage == "ko" ? "재생" : "Play"); weight: 1; height: 40; onTap: run("python ~/.local/share/oma-voice/oma_voice.py replay") }
+      Button { text: (uiLanguage == "zh" ? "停止" : uiLanguage == "es" ? "Parar" : uiLanguage == "de" ? "Stopp" : uiLanguage == "fr" ? "Arrêter" : uiLanguage == "ja" ? "停止" : uiLanguage == "ko" ? "정지" : "Stop"); weight: 1; height: 40; onTap: run("python ~/.local/share/oma-voice/oma_voice.py stop") }
     }
     Row {
       gap: 4
-      Button { text: (zh ? "同步" : "Sync"); weight: 1; height: 40; onTap: run("python ~/.local/share/oma-voice/oma_voice.py refresh") }
-      Button { text: (zh ? "詳情" : "Details"); weight: 1; height: 40; onTap: screen() }
+      Button { text: (uiLanguage == "zh" ? "同步" : uiLanguage == "es" ? "Sync" : uiLanguage == "de" ? "Sync" : uiLanguage == "fr" ? "Sync" : uiLanguage == "ja" ? "同期" : uiLanguage == "ko" ? "동기화" : "Sync"); weight: 1; height: 40; onTap: run("python ~/.local/share/oma-voice/oma_voice.py refresh") }
+      Button { text: (uiLanguage == "zh" ? "詳情" : uiLanguage == "es" ? "Detalles" : uiLanguage == "de" ? "Details" : uiLanguage == "fr" ? "Détails" : uiLanguage == "ja" ? "詳細" : uiLanguage == "ko" ? "상세" : "Details"); weight: 1; height: 40; onTap: screen() }
     }
     }
   }
   screen {
-    title: (zh ? "TERMINAL // 播報" : "TERMINAL // VOICE")
+    title: (uiLanguage == "zh" ? "TERMINAL // 播報" : uiLanguage == "es" ? "TERMINAL // VOZ" : uiLanguage == "de" ? "TERMINAL // STIMME" : uiLanguage == "fr" ? "TERMINAL // VOIX" : uiLanguage == "ja" ? "TERMINAL // 読み上げ" : uiLanguage == "ko" ? "TERMINAL // 음성" : "TERMINAL // VOICE")
     Column {
       fill: true
       height: screenHeight
       gap: 10
       Row {
         height: 44
-        Button { weight: 1; height: 44; text: (zh ? "同步回覆" : "Sync reply"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py refresh") }
-        Button { weight: 1; height: 44; text: (zh ? "停止播放" : "Stop audio"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py stop") }
-        Button { weight: 1; height: 44; text: (zh ? "返回" : "Back"); onTap: close() }
+        Button { weight: 1; height: 44; text: (uiLanguage == "zh" ? "同步回覆" : uiLanguage == "es" ? "Sync" : uiLanguage == "de" ? "Sync" : uiLanguage == "fr" ? "Sync" : uiLanguage == "ja" ? "同期" : uiLanguage == "ko" ? "동기화" : "Sync reply"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py refresh") }
+        Button { weight: 1; height: 44; text: (uiLanguage == "zh" ? "停止播放" : uiLanguage == "es" ? "Parar" : uiLanguage == "de" ? "Stopp" : uiLanguage == "fr" ? "Arrêter" : uiLanguage == "ja" ? "停止" : uiLanguage == "ko" ? "정지" : "Stop audio"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py stop") }
+        Button { weight: 1; height: 44; text: (uiLanguage == "zh" ? "返回" : uiLanguage == "es" ? "Volver" : uiLanguage == "de" ? "Zurück" : uiLanguage == "fr" ? "Retour" : uiLanguage == "ja" ? "戻る" : uiLanguage == "ko" ? "뒤로" : "Back"); onTap: close() }
       }
       Column {
         scroll: true
         fill: width
         height: max(1, screenHeight - 54)
         gap: 12
-        if !ready { Text { text: zh ? "尚未安裝或需要更新：請返回首頁，在此小工具上按「安裝」。" : "Not set up yet: go back and tap Set up on the tile."; color: yellow; maxLines: 3 } }
+        if !ready { Text { text: (uiLanguage == "zh" ? "尚未安裝或需要更新：請返回首頁，在此小工具上按「安裝」。" : uiLanguage == "es" ? "Aún sin instalar: vuelve y toca Instalar en el widget." : uiLanguage == "de" ? "Noch nicht eingerichtet: zurückgehen und im Widget Einrichten antippen." : uiLanguage == "fr" ? "Pas encore installé : revenez et touchez Installer sur le widget." : uiLanguage == "ja" ? "未インストール：戻ってウィジェットの「インストール」をタップしてください。" : uiLanguage == "ko" ? "아직 설치되지 않았습니다. 돌아가서 위젯의 설치를 누르세요." : "Not set up yet: go back and tap Set up on the tile."); color: yellow; maxLines: 3 } }
         Text { text: statusText; color: offline ? yellow : accent; maxLines: 3 }
         Text { text: replyTime; style: small; color: muted }
-        Text { text: (zh ? voice.error : voice.error_en) ?? ""; style: small; color: red; maxLines: 5 }
-        Text { text: voice.source == "terminal" ? (zh ? "目前讀取：${voice.source_name ?? '終端'} · tmux 工作階段 oma-voice" : "Reading: ${voice.source_name ?? 'Terminal'} · tmux session oma-voice") : (zh ? "目前讀取：Codex 會話" : "Reading: Codex chat"); bold: true; color: accent; maxLines: 3 }
+        Text { text: voice.error_ui ?? ""; style: small; color: red; maxLines: 5 }
+        Text { text: voice.source == "terminal" ? (uiLanguage == "zh" ? "目前讀取：${voice.source_name ?? '終端'} · tmux 工作階段 oma-voice" : uiLanguage == "es" ? "Leyendo: ${voice.source_name ?? 'Terminal'} · sesión tmux oma-voice" : uiLanguage == "de" ? "Liest: ${voice.source_name ?? 'Terminal'} · tmux-Sitzung oma-voice" : uiLanguage == "fr" ? "Lecture : ${voice.source_name ?? 'Terminal'} · session tmux oma-voice" : uiLanguage == "ja" ? "読み取り中：${voice.source_name ?? 'ターミナル'} · tmux セッション oma-voice" : uiLanguage == "ko" ? "읽는 중: ${voice.source_name ?? '터미널'} · tmux 세션 oma-voice" : "Reading: ${voice.source_name ?? 'Terminal'} · tmux session oma-voice") : (uiLanguage == "zh" ? "目前讀取：Codex 會話" : uiLanguage == "es" ? "Leyendo: chat de Codex" : uiLanguage == "de" ? "Liest: Codex-Chat" : uiLanguage == "fr" ? "Lecture : chat Codex" : uiLanguage == "ja" ? "読み取り中：Codex チャット" : uiLanguage == "ko" ? "읽는 중: Codex 채팅" : "Reading: Codex chat"); bold: true; color: accent; maxLines: 3 }
         Row {
-          Button { weight: 1; height: 44; text: zh ? "Codex 會話" : "Codex chat"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py source codex") }
-          Button { weight: 1; height: 44; text: zh ? "終端 / Claude" : "Terminal / Claude"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py source terminal") }
+          Button { weight: 1; height: 44; text: (uiLanguage == "zh" ? "Codex 會話" : uiLanguage == "es" ? "Chat de Codex" : uiLanguage == "de" ? "Codex-Chat" : uiLanguage == "fr" ? "Chat Codex" : uiLanguage == "ja" ? "Codex チャット" : uiLanguage == "ko" ? "Codex 채팅" : "Codex chat"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py source codex") }
+          Button { weight: 1; height: 44; text: (uiLanguage == "zh" ? "終端 / Claude" : uiLanguage == "es" ? "Terminal / Claude" : uiLanguage == "de" ? "Terminal / Claude" : uiLanguage == "fr" ? "Terminal / Claude" : uiLanguage == "ja" ? "ターミナル / Claude" : uiLanguage == "ko" ? "터미널 / Claude" : "Terminal / Claude"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py source terminal") }
         }
         if voice.source == "terminal" {
-          Text { text: zh ? "在原本的終端輸入下方命令，之後可在該視窗執行 Codex、Claude 或其他程式。播放會讀取目前畫面；語音輸入會送到這個窗格。" : "Run this in your existing terminal, then start Codex, Claude or another program there. Play reads the current screen; dictation sends to that pane."; style: small; color: muted; maxLines: 7 }
-          Button { fill: width; height: 44; text: zh ? "複製終端連接命令" : "Copy terminal setup command"; onTap: copy("tmux new -A -s oma-voice") }
+          Text { text: (uiLanguage == "zh" ? "在原本的終端輸入下方命令，之後可在該視窗執行 Codex、Claude 或其他程式。播放會讀取目前畫面；語音輸入會送到這個窗格。" : uiLanguage == "es" ? "Ejecuta esto en tu terminal y luego inicia allí Codex, Claude u otro programa. Leer lee la pantalla actual; el dictado se envía a ese panel." : uiLanguage == "de" ? "Im vorhandenen Terminal ausführen, dann dort Codex, Claude oder ein anderes Programm starten. Vorlesen liest den aktuellen Bildschirm; das Diktat geht an dieses Fenster." : uiLanguage == "fr" ? "Lancez ceci dans votre terminal, puis démarrez-y Codex, Claude ou un autre programme. Lire lit l’écran actuel ; la dictée est envoyée à ce volet." : uiLanguage == "ja" ? "今のターミナルでこのコマンドを実行し、そこで Codex、Claude などを起動します。再生は現在の画面を読み上げ、音声入力はそのペインに送られます。" : uiLanguage == "ko" ? "기존 터미널에서 이 명령을 실행한 뒤 거기서 Codex, Claude 등을 시작하세요. 재생은 현재 화면을 읽고, 받아쓰기는 그 창으로 보냅니다." : "Run this in your existing terminal, then start Codex, Claude or another program there. Play reads the current screen; dictation sends to that pane."); style: small; color: muted; maxLines: 7 }
+          Button { fill: width; height: 44; text: (uiLanguage == "zh" ? "複製終端連接命令" : uiLanguage == "es" ? "Copiar el comando del terminal" : uiLanguage == "de" ? "Terminal-Befehl kopieren" : uiLanguage == "fr" ? "Copier la commande du terminal" : uiLanguage == "ja" ? "ターミナル接続コマンドをコピー" : uiLanguage == "ko" ? "터미널 연결 명령 복사" : "Copy terminal setup command"); onTap: copy("tmux new -A -s oma-voice") }
         } else {
-        Text { text: voice.follow_latest ? (zh ? "跟隨最近活動的對話" : "Following latest active Codex chat") : (zh ? "已固定此對話" : "Pinned to this chat"); bold: true }
-        Text { text: voice.thread ?? (zh ? "等待連接" : "Waiting for connection"); style: small; maxLines: 2; color: muted }
-        Text { text: (zh ? "正式回覆完成後自動更新；同步只更新文字，不會自動重播舊內容。" : "Completed replies update automatically. Sync refreshes text without replaying older replies."); style: small; maxLines: 4; color: muted }
+        Text { text: voice.follow_latest ? (uiLanguage == "zh" ? "跟隨最近活動的對話" : uiLanguage == "es" ? "Sigue el chat de Codex más reciente" : uiLanguage == "de" ? "Folgt dem zuletzt aktiven Codex-Chat" : uiLanguage == "fr" ? "Suit le chat Codex le plus récent" : uiLanguage == "ja" ? "最新の Codex チャットを追跡中" : uiLanguage == "ko" ? "가장 최근 Codex 채팅을 따라갑니다" : "Following latest active Codex chat") : (uiLanguage == "zh" ? "已固定此對話" : uiLanguage == "es" ? "Fijado a este chat" : uiLanguage == "de" ? "An diesen Chat angeheftet" : uiLanguage == "fr" ? "Épinglé à ce chat" : uiLanguage == "ja" ? "このチャットに固定" : uiLanguage == "ko" ? "이 채팅에 고정됨" : "Pinned to this chat"); bold: true }
+        Text { text: voice.thread ?? (uiLanguage == "zh" ? "等待連接" : uiLanguage == "es" ? "Esperando conexión" : uiLanguage == "de" ? "Warte auf Verbindung" : uiLanguage == "fr" ? "En attente de connexion" : uiLanguage == "ja" ? "接続待ち" : uiLanguage == "ko" ? "연결 대기 중" : "Waiting for connection"); style: small; maxLines: 2; color: muted }
+        Text { text: (uiLanguage == "zh" ? "正式回覆完成後自動更新；同步只更新文字，不會自動重播舊內容。" : uiLanguage == "es" ? "Las respuestas terminadas se actualizan solas. Sync actualiza el texto sin volver a leer respuestas anteriores." : uiLanguage == "de" ? "Fertige Antworten werden automatisch übernommen. Sync aktualisiert den Text, ohne ältere Antworten erneut vorzulesen." : uiLanguage == "fr" ? "Les réponses terminées se mettent à jour seules. Sync actualise le texte sans relire les anciennes réponses." : uiLanguage == "ja" ? "完了した返信は自動で更新されます。同期は文字だけを更新し、古い返信は再生しません。" : uiLanguage == "ko" ? "완료된 응답은 자동으로 갱신됩니다. 동기화는 텍스트만 갱신하며 이전 응답을 다시 읽지 않습니다." : "Completed replies update automatically. Sync refreshes text without replaying older replies."); style: small; maxLines: 4; color: muted }
         }
         Row {
-          Button { weight: 1; height: 44; text: (zh ? "播放摘要" : "Summary"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py replay") }
-          Button { weight: 1; height: 44; text: (zh ? "播放全文" : "Full reply"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py replay --full") }
+          Button { weight: 1; height: 44; text: (uiLanguage == "zh" ? "播放摘要" : uiLanguage == "es" ? "Resumen" : uiLanguage == "de" ? "Kurzfassung" : uiLanguage == "fr" ? "Résumé" : uiLanguage == "ja" ? "要約を再生" : uiLanguage == "ko" ? "요약 재생" : "Summary"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py replay") }
+          Button { weight: 1; height: 44; text: (uiLanguage == "zh" ? "播放全文" : uiLanguage == "es" ? "Respuesta completa" : uiLanguage == "de" ? "Ganze Antwort" : uiLanguage == "fr" ? "Réponse entière" : uiLanguage == "ja" ? "全文を再生" : uiLanguage == "ko" ? "전체 재생" : "Full reply"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py replay --full") }
         }
-        Text { text: voice.source == "terminal" ? (zh ? "終端畫面" : "Terminal screen") : (zh ? "最近回覆" : "Latest reply"); bold: true; color: accent }
-        Text { text: voice.full == "" || voice.full == null ? (zh ? "尚無可讀內容" : "Nothing to read yet") : voice.full; maxLines: 160 }
-        Button { fill: width; height: 44; text: (zh ? "複製內容" : "Copy text"); onTap: copy(voice.full ?? "") }
-        Button { fill: width; height: 44; text: zh ? "介面語言：中文 → English" : "Language: English → 中文"; onTap: run(zh ? "python ~/.local/share/oma-voice/oma_voice.py language en" : "python ~/.local/share/oma-voice/oma_voice.py language zh") }
-        Text { text: (zh ? "播報設定" : "Voice settings"); bold: true; color: accent }
-        if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.follow_latest ? (zh ? "對話：自動跟隨" : "Chat: follow latest") : (zh ? "對話：固定" : "Chat: pinned"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py follow") } }
-        if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.auto ? (zh ? "自動播報：開" : "Auto-read: on") : (zh ? "自動播報：關" : "Auto-read: off"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py auto toggle") } }
-        Button { fill: width; height: 44; text: voice.engine == "offline" ? (zh ? "聲音：離線" : "Voice: offline") : (zh ? "聲音：自然（線上）" : "Voice: online"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py engine toggle") }
-        Button { fill: width; height: 44; text: voice.pause_minutes == 0 ? (zh ? "閒置暫停：無限制（不暫停）" : "Idle pause: never") : (zh ? "閒置暫停：${voice.pause_minutes ?? 10} 分鐘" : "Idle pause: ${voice.pause_minutes ?? 10} min"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py pause toggle") }
-        Input { placeholder: zh ? "自訂分鐘數（1–1440），輸入後送出" : "Custom minutes (1–1440), then send"; clear: true; onSubmit: run("python ~/.local/share/oma-voice/oma_voice.py pause ${sh(value)}") }
-        Text { text: zh ? "小工具不在畫面上、Codex 也沒有動靜超過這段時間，播報服務就暫停；回到畫面時自動恢復。點按鈕在 10 分鐘與無限制之間切換。" : "The voice service pauses after this long with the tile off screen and no Codex activity, and resumes when the tile is back. Tap the button to switch between 10 minutes and never."; style: small; color: muted; maxLines: 4 }
-        Button { fill: width; height: 44; text: (zh ? "開始語音輸入" : "Start dictation"); onTap: run("bash ~/.local/bin/speak") }
+        Text { text: voice.source == "terminal" ? (uiLanguage == "zh" ? "終端畫面" : uiLanguage == "es" ? "Pantalla del terminal" : uiLanguage == "de" ? "Terminal-Bildschirm" : uiLanguage == "fr" ? "Écran du terminal" : uiLanguage == "ja" ? "ターミナル画面" : uiLanguage == "ko" ? "터미널 화면" : "Terminal screen") : (uiLanguage == "zh" ? "最近回覆" : uiLanguage == "es" ? "Última respuesta" : uiLanguage == "de" ? "Letzte Antwort" : uiLanguage == "fr" ? "Dernière réponse" : uiLanguage == "ja" ? "最新の返信" : uiLanguage == "ko" ? "최근 응답" : "Latest reply"); bold: true; color: accent }
+        Text { text: voice.full == "" || voice.full == null ? (uiLanguage == "zh" ? "尚無可讀內容" : uiLanguage == "es" ? "Aún no hay nada que leer" : uiLanguage == "de" ? "Noch nichts zum Vorlesen" : uiLanguage == "fr" ? "Rien à lire pour l’instant" : uiLanguage == "ja" ? "読み上げる内容はまだありません" : uiLanguage == "ko" ? "아직 읽을 내용이 없습니다" : "Nothing to read yet") : voice.full; maxLines: 160 }
+        Button { fill: width; height: 44; text: (uiLanguage == "zh" ? "複製內容" : uiLanguage == "es" ? "Copiar texto" : uiLanguage == "de" ? "Text kopieren" : uiLanguage == "fr" ? "Copier le texte" : uiLanguage == "ja" ? "テキストをコピー" : uiLanguage == "ko" ? "텍스트 복사" : "Copy text"); onTap: copy(voice.full ?? "") }
+        Text { text: (uiLanguage == "zh" ? "介面語言" : uiLanguage == "es" ? "Idioma de la interfaz" : uiLanguage == "de" ? "Sprache der Oberfläche" : uiLanguage == "fr" ? "Langue de l’interface" : uiLanguage == "ja" ? "表示言語" : uiLanguage == "ko" ? "표시 언어" : "Interface language"); bold: true; color: accent }
+        Row {
+          Button { weight: 1; height: 44; text: "English"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language en") }
+          Button { weight: 1; height: 44; text: "中文"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language zh") }
+          Button { weight: 1; height: 44; text: "Español"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language es") }
+          Button { weight: 1; height: 44; text: "Deutsch"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language de") }
+        }
+        Row {
+          Button { weight: 1; height: 44; text: "Français"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language fr") }
+          Button { weight: 1; height: 44; text: "日本語"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language ja") }
+          Button { weight: 1; height: 44; text: "한국어"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language ko") }
+        }
+        Text { text: (uiLanguage == "zh" ? "播報設定" : uiLanguage == "es" ? "Ajustes de voz" : uiLanguage == "de" ? "Stimm-Einstellungen" : uiLanguage == "fr" ? "Réglages de la voix" : uiLanguage == "ja" ? "読み上げ設定" : uiLanguage == "ko" ? "음성 설정" : "Voice settings"); bold: true; color: accent }
+        if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.follow_latest ? (uiLanguage == "zh" ? "對話：自動跟隨" : uiLanguage == "es" ? "Chat: seguir el más reciente" : uiLanguage == "de" ? "Chat: dem neuesten folgen" : uiLanguage == "fr" ? "Chat : suivre le plus récent" : uiLanguage == "ja" ? "チャット：最新を追跡" : uiLanguage == "ko" ? "채팅: 최신 따라가기" : "Chat: follow latest") : (uiLanguage == "zh" ? "對話：固定" : uiLanguage == "es" ? "Chat: fijado" : uiLanguage == "de" ? "Chat: angeheftet" : uiLanguage == "fr" ? "Chat : épinglé" : uiLanguage == "ja" ? "チャット：固定" : uiLanguage == "ko" ? "채팅: 고정" : "Chat: pinned"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py follow") } }
+        if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.auto ? (uiLanguage == "zh" ? "自動播報：開" : uiLanguage == "es" ? "Lectura automática: sí" : uiLanguage == "de" ? "Automatisch vorlesen: an" : uiLanguage == "fr" ? "Lecture automatique : oui" : uiLanguage == "ja" ? "自動読み上げ：オン" : uiLanguage == "ko" ? "자동 읽기: 켬" : "Auto-read: on") : (uiLanguage == "zh" ? "自動播報：關" : uiLanguage == "es" ? "Lectura automática: no" : uiLanguage == "de" ? "Automatisch vorlesen: aus" : uiLanguage == "fr" ? "Lecture automatique : non" : uiLanguage == "ja" ? "自動読み上げ：オフ" : uiLanguage == "ko" ? "자동 읽기: 끔" : "Auto-read: off"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py auto toggle") } }
+        Button { fill: width; height: 44; text: voice.engine == "offline" ? (uiLanguage == "zh" ? "聲音：離線" : uiLanguage == "es" ? "Voz: sin conexión" : uiLanguage == "de" ? "Stimme: offline" : uiLanguage == "fr" ? "Voix : hors ligne" : uiLanguage == "ja" ? "音声：オフライン" : uiLanguage == "ko" ? "음성: 오프라인" : "Voice: offline") : (uiLanguage == "zh" ? "聲音：自然（線上）" : uiLanguage == "es" ? "Voz: natural (en línea)" : uiLanguage == "de" ? "Stimme: natürlich (online)" : uiLanguage == "fr" ? "Voix : naturelle (en ligne)" : uiLanguage == "ja" ? "音声：自然（オンライン）" : uiLanguage == "ko" ? "음성: 자연스러운 음성(온라인)" : "Voice: online"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py engine toggle") }
+        Button { fill: width; height: 44; text: voice.pause_minutes == 0 ? (uiLanguage == "zh" ? "閒置暫停：無限制（不暫停）" : uiLanguage == "es" ? "Pausa por inactividad: nunca" : uiLanguage == "de" ? "Leerlauf-Pause: nie" : uiLanguage == "fr" ? "Pause d’inactivité : jamais" : uiLanguage == "ja" ? "アイドル停止：しない" : uiLanguage == "ko" ? "유휴 시 일시정지: 안 함" : "Idle pause: never") : (uiLanguage == "zh" ? "閒置暫停：${voice.pause_minutes ?? 10} 分鐘" : uiLanguage == "es" ? "Pausa por inactividad: ${voice.pause_minutes ?? 10} min" : uiLanguage == "de" ? "Leerlauf-Pause: ${voice.pause_minutes ?? 10} Min." : uiLanguage == "fr" ? "Pause d’inactivité : ${voice.pause_minutes ?? 10} min" : uiLanguage == "ja" ? "アイドル停止：${voice.pause_minutes ?? 10} 分" : uiLanguage == "ko" ? "유휴 시 일시정지: ${voice.pause_minutes ?? 10}분" : "Idle pause: ${voice.pause_minutes ?? 10} min"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py pause toggle") }
+        Input { placeholder: (uiLanguage == "zh" ? "自訂分鐘數（1–1440），輸入後送出" : uiLanguage == "es" ? "Minutos a medida (1–1440) y enviar" : uiLanguage == "de" ? "Eigene Minuten (1–1440), dann senden" : uiLanguage == "fr" ? "Minutes au choix (1–1440), puis envoyer" : uiLanguage == "ja" ? "分数を入力（1–1440）して送信" : uiLanguage == "ko" ? "분 입력(1–1440) 후 전송" : "Custom minutes (1–1440), then send"); clear: true; onSubmit: run("python ~/.local/share/oma-voice/oma_voice.py pause ${sh(value)}") }
+        Text { text: (uiLanguage == "zh" ? "小工具不在畫面上、Codex 也沒有動靜超過這段時間，播報服務就暫停；回到畫面時自動恢復。點按鈕在 10 分鐘與無限制之間切換。" : uiLanguage == "es" ? "El servicio de voz se pausa tras este tiempo con el widget fuera de pantalla y sin actividad de Codex, y se reanuda cuando el widget vuelve. Toca el botón para cambiar entre 10 minutos y nunca." : uiLanguage == "de" ? "Der Sprachdienst pausiert nach dieser Zeit, wenn das Widget nicht zu sehen ist und Codex nichts tut, und läuft weiter, sobald das Widget wieder da ist. Die Taste wechselt zwischen 10 Minuten und nie." : uiLanguage == "fr" ? "Le service vocal se met en pause après ce délai, widget hors écran et Codex inactif, et reprend au retour du widget. Touchez le bouton pour passer de 10 minutes à jamais." : uiLanguage == "ja" ? "ウィジェットが画面になく Codex の動きもないままこの時間が過ぎると、読み上げサービスは停止し、ウィジェットが戻ると再開します。ボタンで 10 分と「しない」を切り替えます。" : uiLanguage == "ko" ? "위젯이 화면에 없고 Codex 활동도 없이 이 시간이 지나면 음성 서비스가 일시정지되고, 위젯이 돌아오면 다시 시작됩니다. 버튼으로 10분과 안 함을 전환합니다." : "The voice service pauses after this long with the tile off screen and no Codex activity, and resumes when the tile is back. Tap the button to switch between 10 minutes and never."); style: small; color: muted; maxLines: 4 }
+        Button { fill: width; height: 44; text: (uiLanguage == "zh" ? "開始語音輸入" : uiLanguage == "es" ? "Iniciar dictado" : uiLanguage == "de" ? "Diktat starten" : uiLanguage == "fr" ? "Démarrer la dictée" : uiLanguage == "ja" ? "音声入力を開始" : uiLanguage == "ko" ? "받아쓰기 시작" : "Start dictation"); onTap: run("bash ~/.local/bin/speak") }
       }
     }
   }

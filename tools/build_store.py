@@ -5,6 +5,9 @@ from pathlib import Path
 import re
 import sys
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import ui_strings
+
 ROOT = Path(__file__).resolve().parent.parent
 VERSION = '3.3'
 AUTHOR = 'weebowiz'
@@ -87,10 +90,23 @@ def setup_script():
     return script
 
 
+def by_language(values):
+    """An OWL expression: the text for the chosen interface language, English for anything else."""
+    default, *others = ui_strings.LANGUAGES
+    for value in values.values():
+        if '"' in value or '\\' in value:
+            sys.exit('interface text cannot hold a double quote or backslash: '+value)
+    return '('+''.join('uiLanguage == "%s" ? "%s" : ' % (code, values[code]) for code in others)+'"%s")' % values[default]
+
+
 def render(template):
     """The widget as installed: the same text for install.py and the store."""
     text = template.replace('\r\n', '\n')
     text = text.replace('__VERSION__', VERSION).replace('__PAYLOAD_ID__', payload_id())
+    codes = ui_strings.LANGUAGES
+    text = re.sub(r'_\("((?:[^"\\]|\\.)*)"\)', lambda found: by_language(dict(zip(codes, (found.group(1),)+ui_strings.STRINGS[found.group(1)]))), text)
+    text = text.replace('__LANGUAGE_NEXT__', by_language(dict(zip(codes, codes[1:]+codes[:1]))))
+    text = text.replace('__LANGUAGE_NAME__', by_language(ui_strings.NAMES)).replace('__LANGUAGE_SHORT__', by_language(ui_strings.SHORT))
     text = text.replace('__SETUP_COMMAND__', '\n'+setup_script()+'\n')
     if '__' in re.sub(r'__(file|name|doc|main)__', '', text.split('"""')[0]):
         sys.exit('a placeholder was left in the widget')

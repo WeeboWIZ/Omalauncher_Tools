@@ -16,19 +16,13 @@ import threading
 import time
 import uuid
 
-TRANSLATIONS = {'已連接，等待回覆': 'Connected, waiting for reply', '已同步最近回覆': 'Latest reply synced', 'Codex 正在回覆…': 'Codex is working…', '收到新回覆': 'New reply received', '已停止': 'Stopped', '正在播放': 'Preparing audio', '播放完成': 'Playback complete', '播放失敗': 'Playback failed', '自動播報已開啟': 'Auto-read enabled', '自動播報已關閉': 'Auto-read disabled', '已切換線上自然語音': 'Online voice selected', '已切換離線神經語音': 'Offline voice selected', '已送到這個 Codex 會話的佇列': 'Sent to this Codex chat queue', '已連接終端 · 點播放讀取畫面': 'Terminal connected · tap Play to read screen', '請在現有終端執行 tmux new -A -s oma-voice': 'Run tmux new -A -s oma-voice in your existing terminal', '等待會話記錄': 'Waiting for chat log', '還沒有可播放的回覆': 'No reply available to play', '找不到 Codex 會話': 'No local Codex chat found', '找不到指定會話': 'Chat not found', '需要 espeak-ng 和 paplay': 'espeak-ng and paplay are required', '播放逾時': 'Playback timed out', '請先輸入內容（最多 16000 字）': 'Enter text first (maximum 16000 characters)', '文字含有控制字元': 'Text contains control characters', '送出失敗': 'Could not send text', '未知命令': 'Unknown command', '請選 online 或 offline': 'Choose online or offline', '請先開始語音輸入，停止後保存。': 'Start dictation, stop and save first.', '已更新閒置暫停時間': 'Idle pause time updated', '閒置後不再暫停': 'The service no longer pauses when idle', '請輸入 1 到 1440 的分鐘數，或 off': 'Enter 1 to 1440 minutes, or off'}
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from language import CHOICE, LANGUAGES, SPOKEN, chosen, local, spoken
 
-VOICES = {'離線神經語音':'offline neural','離線基本語音':'offline basic','自然語音（線上）':'online natural','語音':'audio'}
-REASONS = {'線上語音未安裝':'online voice not installed: tap Update on the tile','缺少 mpg123':'mpg123 missing','線上語音無回應':'online voice unreachable'}
 
 def english(text):
-    for prefix, label in (('正在播放 · ', 'Playing · '), ('播放完成 · ', 'Finished · ')):
-        if text.startswith(prefix):
-            voice, _, reason = text[len(prefix):].partition('（')
-            if voice+'（'+reason in VOICES:
-                return label + VOICES[voice+'（'+reason]
-            return label + VOICES.get(voice, voice) + (' ('+REASONS.get(reason.rstrip('）'), reason.rstrip('）'))+')' if reason else '')
-    return TRANSLATIONS.get(text, text)
+    return local(text, 'en')
+
 
 HOME = Path.home()
 CACHE = HOME / '.cache/oma-voice'
@@ -63,19 +57,12 @@ def chinese(text):
     return any('㐀' <= c <= '鿿' for c in text)
 
 
-def read_text(path):
-    try:
-        return path.read_text().strip()
-    except OSError:
-        return ''
-
-
 def clean_text(text):
-    # Spoken notes are in the language of the reply, or a Chinese voice would be picked for English text.
-    zh = chinese(text)
-    text = re.sub(r'```.*?```', '（程式碼略過）' if zh else ' (code omitted) ', text, flags=re.S)
+    # Spoken notes are in the language of the reply, or the wrong voice would be picked for it.
+    notes = SPOKEN[spoken(text)]
+    text = re.sub(r'```.*?```', notes[2], text, flags=re.S)
     text = re.sub(r'!?\[([^\]]+)\]\([^)]*\)', r'\1', text)
-    text = re.sub(r'https?://\S+', '連結略過' if zh else 'link omitted', text)
+    text = re.sub(r'https?://\S+', notes[3], text)
     text = re.sub(r'(?m)^\s*(?:#{1,6}\s+|[-*+]\s+|\d+[.)]\s+|>\s*)', '', text)
     text = text.replace('`', '').replace('**', '').replace('__', '')
     return ''.join(c for c in text if c in '\n\t' or (ord(c) >= 32 and ord(c) != 127)).strip()
@@ -104,9 +91,8 @@ def summarize(text, limit=360):
         used += len(s) + 1
     if warning:
         selected.append(warning[:limit // 2])
-    if chinese(text):
-        return '回覆節錄。' + ' '.join(selected) + ' 完整內容可選全文播放。'
-    return 'Excerpt. ' + ' '.join(selected) + ' Play the full reply for the rest.'
+    notes = SPOKEN[spoken(text)]
+    return notes[0] + ' '.join(selected) + notes[1]
 
 
 def completed_reply(event):
@@ -205,8 +191,12 @@ class Reader:
         self.save()
 
     def save(self):
-        self.state["status_en"] = english(self.state.get("status", ""))
-        self.state["error_en"] = english(self.state.get("error", ""))
+        # The tiles show these; 'status' and 'error' stay as written, for the next change of language.
+        language = chosen()
+        self.state['status_ui'] = local(self.state.get('status', ''), language)
+        self.state['error_ui'] = local(self.state.get('error', ''), language)
+        for old in ('status_en', 'error_en', 'checked_at'):
+            self.state.pop(old, None)
         stamp = self.state.get('reply_at')
         if isinstance(stamp, str):
             try:
@@ -214,7 +204,6 @@ class Reader:
             except ValueError:
                 self.state['reply_at'] = None
         self.state.update(auto=self.config['auto'], mode=self.config['mode'], thread=self.config['thread'], engine=self.config['engine'], follow_latest=self.config['follow_latest'], source=self.config['source'], pause_minutes=self.config['pause_minutes'], source_name=self.state.get('source_name','Codex'))
-        self.state.pop('checked_at', None)
         # The tiles redraw on every write, so write only what changed.
         if self.state != self.saved:
             atomic_json(CACHE / 'state.json', self.state)
@@ -411,12 +400,13 @@ class Reader:
                 self.next_terminal = 0
             self.poll()
         if action == 'status':
+            # Also how a change of interface language reaches the tiles: save() writes only what changed.
+            self.save()
             return self.state
         if action == 'replay':
             self.play(self.state.get('full' if request.get('full') else 'summary', ''))
         elif action == 'test':
-            zh = (read_text(HOME / '.config/omalauncher/voice-ui-language') == 'zh')
-            self.play('語音播報已連接。之後會自動播放這個對話的回覆摘要。' if zh else 'Voice is connected. A summary of each reply in this chat will be read aloud.')
+            self.play(SPOKEN[chosen()][4])
         elif action == 'stop':
             self.stop()
         elif action == 'auto':
@@ -547,7 +537,7 @@ def serve():
                             raise ValueError('請求太大')
                         response = reader.command(json.loads(data))
                     except Exception as exc:
-                        response = {'ok': False, 'error': str(exc), 'error_en': english(str(exc))}
+                        response = {'ok': False, 'error': str(exc), 'error_ui': local(str(exc))}
                     try:
                         conn.sendall((json.dumps(response, ensure_ascii=False) + '\n').encode())
                     except OSError:
@@ -597,14 +587,18 @@ def main():
     parser.add_argument('--json', action='store_true')
     args = parser.parse_args()
     if args.action == 'language':
-        if args.value not in ('zh', 'en'):
-            raise ValueError('Choose zh or en')
-        path = HOME / '.config/omalauncher/voice-ui-language'
+        if args.value not in LANGUAGES:
+            raise ValueError(local('請選擇介面語言：')+' '.join(LANGUAGES))
+        path = CHOICE
         path.parent.mkdir(parents=True, exist_ok=True)
         temp = path.with_name(path.name + '.' + uuid.uuid4().hex + '.tmp')
         temp.write_text(args.value)
         temp.chmod(0o600)
         temp.replace(path)
+        try:
+            request({'action': 'status'})
+        except (OSError, ValueError):
+            pass
         return
     if args.action == 'daemon':
         serve()
@@ -615,8 +609,10 @@ def main():
     result = request({'action': args.action, 'value': args.value or 'toggle',
                       'thread': args.value, 'text': args.text or '', 'full': args.full})
     result['request_id'] = uuid.uuid4().hex
+    if result.get('ok') is not False and 'status' in result:
+        result['status_ui'] = local(result['status'])
     print(json.dumps(result, ensure_ascii=False) if args.action == 'status' or args.json else
-          result.get('error') or result.get('status', '完成'))
+          result.get('error_ui') or local(result.get('status', '完成')))
     if result.get('ok') is False:
         sys.exit(1)
 
@@ -625,5 +621,5 @@ if __name__ == '__main__':
     try:
         main()
     except (OSError, ValueError) as error:
-        print(str(error), file=sys.stderr)
+        print(local(str(error)), file=sys.stderr)
         sys.exit(1)

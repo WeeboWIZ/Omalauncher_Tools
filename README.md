@@ -17,7 +17,7 @@ These screenshots use example text. The English pair shows a Claude terminal con
 
 - **Codex chat mode:** follows the latest local Codex conversation, displays completed replies and can automatically read a summary aloud. Dictation is sent through Omalauncher's `codex queue` command.
 - **Terminal mode:** reads the visible text of a dedicated tmux pane and sends dictated text to it when you tap **Send to target**. Start Codex, Claude, or another terminal program in that pane. Terminal playback is manual so changing prompts and progress messages are not read aloud repeatedly.
-- Both home-screen widgets and the browser dictation page share an English/Chinese interface switch; English is the default. The reply or dictated text stays in its original language.
+- Both home-screen widgets and the browser dictation page share one interface language: English (default), 中文, Español, Deutsch, Français, 日本語 or 한국어. A reply is read aloud in its own language with a matching voice. The reply or dictated text stays in its original language.
 - The voice widget offers summary/full-screen playback, stop, refresh, source selection, and a detailed view. Online speech converts to playable WAV; offline speech uses espeak-ng.
 
 ## Install

@@ -1,7 +1,8 @@
 # Dictation (語音輸入)
 
 Dictate in the browser, then send the text to the Codex chat or tmux terminal that Terminal Voice is following.
-English and Chinese interface. Chrome is recommended; the browser asks for the microphone.
+Interface in English (default), 中文, Español, Deutsch, Français, 日本語 and 한국어; the page has a list for the language you
+speak. Chrome is recommended; the browser asks for the microphone.
 
 Sending to a Codex chat uses Omalauncher's `codex queue`; sending to a terminal types into the tmux session `oma-voice`.
 

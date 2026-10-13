@@ -9,6 +9,15 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).parent
+sys.path.insert(0, str(ROOT))
+from language import spoken
+
+# The voice for each language a text can be spoken in: (Microsoft Edge online, espeak-ng offline).
+SPEAKERS = {
+    'en': ('en-US-AriaNeural', 'en-us'), 'zh': ('zh-CN-XiaoxiaoNeural', 'cmn'), 'es': ('es-ES-ElviraNeural', 'es'),
+    'de': ('de-DE-KatjaNeural', 'de'), 'fr': ('fr-FR-DeniseNeural', 'fr'), 'ja': ('ja-JP-NanamiNeural', 'ja'),
+    'ko': ('ko-KR-SunHiNeural', 'ko'),
+}
 
 # Why online speech was skipped, shown beside the offline voice's name.
 NOT_INSTALLED = '線上語音未安裝'
@@ -19,13 +28,13 @@ def offline(text, output, reason=''):
     note = '（'+reason+'）' if reason else ''
     runtime = ROOT / 'tts/sherpa-onnx-v1.13.8-linux-aarch64-shared-cpu/bin/sherpa-onnx-offline-tts'
     model = ROOT / 'tts/vits-piper-zh_CN-huayan-medium'
-    if runtime.exists() and (model / 'zh_CN-huayan-medium.onnx').exists():
+    if spoken(text) == 'zh' and runtime.exists() and (model / 'zh_CN-huayan-medium.onnx').exists():
         Path(str(output)+'.backend').write_text('離線神經語音'+note)
         os.execv(str(runtime), [str(runtime), '--vits-model='+str(model/'zh_CN-huayan-medium.onnx'),
                  '--vits-tokens='+str(model/'tokens.txt'), '--vits-data-dir='+str(model/'espeak-ng-data'),
                  '--num-threads=2', '--output-filename='+str(output), '--', text])
     Path(str(output)+'.backend').write_text('離線基本語音'+note)
-    os.execvp('espeak-ng', ['espeak-ng', '-v', 'cmn', '-s', '175', '-w', str(output), '--', text])
+    os.execvp('espeak-ng', ['espeak-ng', '-v', SPEAKERS[spoken(text)][1], '-s', '175', '-w', str(output), '--', text])
 
 def pieces(text, limit=1200):
     # One request per piece: a long reply in one request ran past the time limit and fell back to espeak-ng.
@@ -55,7 +64,7 @@ async def online(text, output):
         raise FileNotFoundError('mpg123')
     mp3 = output.with_suffix('.mp3')
     try:
-        voice = 'zh-CN-XiaoxiaoNeural' if any('㐀' <= c <= '鿿' for c in text) else 'en-US-AriaNeural'
+        voice = SPEAKERS[spoken(text)][0]
         with mp3.open('wb') as audio:
             for part in pieces(text):
                 for attempt in range(3):

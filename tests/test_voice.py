@@ -78,6 +78,13 @@ class VoiceTests(unittest.TestCase):
                         reader.save()
                 self.assertEqual(written,[state])
                 self.assertNotIn('checked_at',reader.state)
+                # A change of interface language reaches the tiles through the state file.
+                choice = base/'language'
+                with mock.patch.object(sys.modules['language'],'CHOICE',choice):
+                    for code,text in (('ko','채팅 기록 대기 중'),('zh','等待會話記錄'),('nonsense','Waiting for chat log')):
+                        choice.write_text(code)
+                        self.assertEqual(reader.command({'action':'status'})['status_ui'],text)
+                        self.assertEqual(json.loads(state.read_text())['status_ui'],text)
                 voice.ALIVE.touch()
                 self.assertEqual(reader.state['pause_minutes'],10)
                 self.assertFalse(reader.idle())
@@ -128,6 +135,61 @@ class VoiceTests(unittest.TestCase):
             finally:
                 original_run(['tmux','-L',socket_name,'kill-server'],check=False,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 
+    def test_every_language_has_every_text_and_keeps_the_live_parts(self):
+        import re
+        import ui_strings
+        language = sys.modules['language']
+        self.assertEqual(tuple(ui_strings.LANGUAGES),language.LANGUAGES)
+        self.assertEqual(set(ui_strings.NAMES),set(language.LANGUAGES))
+        self.assertEqual(set(ui_strings.SHORT),set(language.LANGUAGES))
+        for english,others in ui_strings.STRINGS.items():
+            self.assertEqual(len(others),len(language.LANGUAGES)-1,english)
+            for text in others:
+                self.assertTrue(text.strip(),english)
+                # ${...} is an OWL expression: only quoted words inside it may differ.
+                live = lambda value: [re.sub(r"'[^']*'","''",part) for part in re.findall(r'\$\{.*\}',value)]
+                self.assertEqual(live(text),live(english),english)
+        for table in (language.MESSAGES,language.PREFIXES,language.VOICES,language.REASONS):
+            for chinese,others in table.items():
+                self.assertEqual(len(others),len(language.LANGUAGES)-1,chinese)
+                self.assertTrue(all(text.strip() for text in others),chinese)
+        self.assertEqual(language.local('已停止','zh'),'已停止')
+        self.assertEqual(language.local('已停止','de'),'Gestoppt')
+        self.assertEqual(language.local('已送到終端 · Claude','fr'),'Envoyé au terminal · Claude')
+        self.assertEqual(language.local('not a known message','ja'),'not a known message')
+        page = (ROOT/'dictation/index.html').read_text()
+        table = json.loads(next(line for line in page.split('\n') if line.startswith('const UI_STRINGS = '))[len('const UI_STRINGS = '):].rstrip(';'))
+        for chinese,texts in table.items():
+            self.assertEqual(set(texts),set(language.LANGUAGES)-{'zh'},chinese)
+        for code in language.LANGUAGES:
+            self.assertIn('<option value="%s">'%code,page)
+            self.assertIn("'%s'"%code,(ROOT/'dictation/server.py').read_text())
+
+    def test_replies_are_read_in_their_own_language(self):
+        language = sys.modules['language']
+        samples = {
+            'en':'The build is done and all of the tests are passing for this change.',
+            'es':'He terminado la tarea y los cambios que pediste ya están en la rama principal.',
+            'de':'Die Aufgabe ist fertig und die Änderungen sind nicht mehr auf dem alten Zweig.',
+            'fr':"J'ai terminé la tâche et les changements sont dans la branche pour que vous puissiez les voir.",
+            'ja':'タスクが完了しました。変更をご確認ください。',
+            'ko':'작업이 완료되었습니다. 변경 사항을 확인하세요.',
+            'zh':'已完成今天的工作摘要。',
+        }
+        for code,text in samples.items():
+            for interface in language.LANGUAGES:
+                self.assertEqual(language.spoken(text,interface),code,(code,interface))
+            long = voice.summarize((text+' ')*40)
+            self.assertTrue(long.startswith(language.SPOKEN[code][0]),long[:40])
+            self.assertEqual(language.spoken(long,'en'),code)
+        # Too little to tell: the interface language decides, and a language without a voice of its own is English.
+        self.assertEqual(language.spoken('OK','de'),'de')
+        self.assertEqual(language.spoken('OK','ja'),'en')
+        spec = importlib.util.spec_from_file_location('synthesize', ROOT/'voice/synthesize.py')
+        synthesize = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(synthesize)
+        self.assertEqual(set(synthesize.SPEAKERS),set(language.LANGUAGES))
+
     def test_ignores_nonfinal_events(self):
         self.assertIsNone(voice.completed_reply({'type':'event_msg','payload':{'type':'agent_message','message':'interim'}}))
         self.assertIsNone(voice.completed_reply({'type':'event_msg','payload':{'type':'turn_aborted'}}))
@@ -173,7 +235,7 @@ class VoiceTests(unittest.TestCase):
         self.assertEqual(voice.english('正在播放 · 自然語音（線上）'),'Playing · online natural')
         self.assertEqual(voice.english('播放完成 · 離線基本語音（'+synthesize.UNREACHABLE+'）'),'Finished · offline basic (online voice unreachable)')
         for reason in (synthesize.NOT_INSTALLED,synthesize.NO_MPG123,synthesize.UNREACHABLE):
-            self.assertIn(reason,voice.REASONS)
+            self.assertIn(reason,sys.modules['language'].REASONS)
 
     def test_store_widgets_are_current_and_within_store_rules(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -189,8 +251,11 @@ class VoiceTests(unittest.TestCase):
                 self.assertIn('version: "%s"'%build_store.VERSION,text)
                 # The store shows the name, the description and the preview as they are: English.
                 head = text.split('requires')[0]
-                self.assertFalse(voice.chinese(head),head)
+                self.assertFalse(voice.chinese(head.split('source uiLanguage')[0]),head)
                 self.assertEqual(text.count('"""')%2,0)
+                # The store's reviewer reads these as a request for root; a translation must not look like one.
+                import re
+                self.assertIsNone(re.search(r'\bsudo\b|\bsu\s',text))
 
     def test_setup_script_installs_the_same_files_as_the_installer(self):
         with tempfile.TemporaryDirectory(prefix='voice test ') as directory:

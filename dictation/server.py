@@ -12,6 +12,7 @@ PORT = 18763
 ORIGIN = f'http://127.0.0.1:{PORT}'
 PAGE_PATH = Path(__file__).with_name('index.html')
 LANG_PATH = Path.home() / '.config/omalauncher/voice-ui-language'
+LANGUAGES = ('en', 'zh', 'es', 'de', 'fr', 'ja', 'ko')
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
@@ -31,7 +32,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.headers.get('Host') != f'127.0.0.1:{PORT}':
             return self.reply(403, 'Invalid host')
         if self.path == '/language':
-            return self.reply(200, 'zh' if LANG_PATH.exists() and LANG_PATH.read_text().strip() == 'zh' else 'en')
+            value = LANG_PATH.read_text().strip() if LANG_PATH.exists() else ''
+            return self.reply(200, value if value in LANGUAGES else LANGUAGES[0])
         if self.path == '/health':
             return self.reply(200, 'oma-speak-v1')
         if self.path != '/':
@@ -49,7 +51,7 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(size))
             if self.path == '/language':
                 value = body.get('language')
-                if value not in ('zh', 'en'):
+                if value not in LANGUAGES:
                     raise ValueError()
                 LANG_PATH.parent.mkdir(parents=True, exist_ok=True)
                 temp = LANG_PATH.with_name(LANG_PATH.name+'.tmp')

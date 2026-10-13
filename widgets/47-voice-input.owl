@@ -3,14 +3,16 @@ widget "Dictation" {
  order: 7
  size: 3x3
  minSize: 3x3
- meta { owl: 5; description: "Dictate by voice and send the text to a Codex chat or a tmux terminal running Claude or any CLI. English and Chinese."; version: "__VERSION__"; license: "MIT"; category: "productivity" }
+ meta { owl: 6; description: "Dictate by voice and send the text to a Codex chat or a tmux terminal running Claude or any CLI. English, Chinese, Spanish, German, French, Japanese, Korean."; version: "__VERSION__"; license: "MIT"; category: "productivity" }
  requires { pacman: ["python", "espeak-ng", "libpulse", "mpg123", "tmux", "curl", "util-linux"] }
  source uiLanguage = file("~/.config/omalauncher/voice-ui-language")
- let zh = uiLanguage == "zh"
+ let nextLanguage = __LANGUAGE_NEXT__
+ let languageName = __LANGUAGE_NAME__
+ let languageShort = __LANGUAGE_SHORT__
  source installed = file("~/.local/share/oma-voice/store-version")
  source setupState = file("~/.cache/oma-voice/setup-state")
  let ready = installed == "__PAYLOAD_ID__"
- let setupText = setupState == "installing" && !ready ? (zh ? "安裝中，約需一分鐘…" : "Installing, about a minute…") : setupState == "failed" ? (zh ? "安裝失敗，請查看 ~/.cache/oma-voice/setup.log" : "Setup failed: see ~/.cache/oma-voice/setup.log") : installed == "" ? (zh ? "首次使用：把播報與聽寫程式寫入 ~/.local，並下載 edge-tts 線上語音。" : "First use: writes the voice and dictation programs to ~/.local and downloads edge-tts for online speech.") : (zh ? "程式有新版，更新後才能使用。" : "The programs have an update; install it to continue.")
+ let setupText = setupState == "installing" && !ready ? _("Installing, about a minute…") : setupState == "failed" ? _("Setup failed: see ~/.cache/oma-voice/setup.log") : installed == "" ? _("First use: writes the voice and dictation programs to ~/.local and downloads edge-tts for online speech.") : _("The programs have an update; install it to continue.")
  source voice = file("~/.cache/oma-voice/state.json") json
  source latest = file("~/.cache/oma-speak/latest.txt")
  state result = ""
@@ -19,22 +21,22 @@ widget "Dictation" {
  Column {
   gap: 5
   if !ready {
-   Text { text: zh ? "語音輸入" : "DICTATION"; style: label; color: accent }
+   Text { text: _("DICTATION"); style: label; color: accent }
    Text { text: setupText; style: small; maxLines: 8; weight: 1; color: setupState == "failed" ? red : muted }
-   Button { fill: width; height: 36; text: installed == "" ? (zh ? "安裝" : "Set up") : (zh ? "更新" : "Update"); onTap: run("""__SETUP_COMMAND__""") }
-   Button { fill: width; height: 36; text: zh ? "English" : "中文"; onTap: run(zh ? "mkdir -p ~/.config/omalauncher && printf en > ~/.config/omalauncher/voice-ui-language" : "mkdir -p ~/.config/omalauncher && printf zh > ~/.config/omalauncher/voice-ui-language") }
+   Button { fill: width; height: 36; text: installed == "" ? _("Set up") : _("Update"); onTap: run("""__SETUP_COMMAND__""") }
+   Button { fill: width; height: 36; text: "${languageName} ›"; onTap: run("mkdir -p ~/.config/omalauncher && printf %s ${sh(nextLanguage)} > ~/.config/omalauncher/voice-ui-language") }
   } else {
   Row {
-   Text { text: zh ? "語音輸入" : "DICTATION"; style: label; color: accent; weight: 1 }
-   Button { text: zh ? "EN" : "中"; width: 46; onTap: run(zh ? "python ~/.local/share/oma-voice/oma_voice.py language en" : "python ~/.local/share/oma-voice/oma_voice.py language zh") }
+   Text { text: _("DICTATION"); style: label; color: accent; weight: 1 }
+   Button { text: languageShort; width: 46; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language ${sh(nextLanguage)}") }
   }
-  Button { text: (zh ? "開始語音輸入" : "Start dictation"); onTap: run("bash ~/.local/bin/speak") }
-  Text { text: zh ? "送入：${voice.source == 'terminal' ? (voice.source_name ?? '終端') : 'Codex 會話'}" : "Send to: ${voice.source == 'terminal' ? (voice.source_name ?? 'Terminal') : 'Codex chat'}"; style: small; color: accent; maxLines: 2 }
-  Text { text: latest == "" || latest == null ? (zh ? "開始 → 說話 → 停止並保存" : "Start → speak → stop and save") : latest; style: small; maxLines: 3; weight: 1 }
-  Text { text: result == "" ? (zh ? "保存後可送出" : "Save, then send") : parseJson(result).ok ? (zh ? "已送到目前目標" : "Sent to current target") : (zh ? parseJson(result).error : parseJson(result).error_en) ?? (zh ? "送出完成" : "Request completed"); style: small; maxLines: 2 }
-  if sending { Text { text: (zh ? "正在送出…" : "Sending…"); style: small; color: accent } }
-  else { Button { text: (zh ? "送到目前目標" : "Send to target"); onTap: { sending = true; result = run("python ~/.local/bin/oma-send-dictation") } } }
-  Button { text: (zh ? "複製文字" : "Copy text"); onTap: copy(latest) }
+  Button { text: _("Start dictation"); onTap: run("bash ~/.local/bin/speak") }
+  Text { text: _("Send to: ${voice.source == 'terminal' ? (voice.source_name ?? 'Terminal') : 'Codex chat'}"); style: small; color: accent; maxLines: 2 }
+  Text { text: latest == "" || latest == null ? _("Start → speak → stop and save") : latest; style: small; maxLines: 3; weight: 1 }
+  Text { text: result == "" ? _("Save, then send") : parseJson(result).ok ? _("Sent to current target") : parseJson(result).error_ui ?? _("Request completed"); style: small; maxLines: 2 }
+  if sending { Text { text: _("Sending…"); style: small; color: accent } }
+  else { Button { text: _("Send to target"); onTap: { sending = true; result = run("python ~/.local/bin/oma-send-dictation") } } }
+  Button { text: _("Copy text"); onTap: copy(latest) }
   }
  }
 }
