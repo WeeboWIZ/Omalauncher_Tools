@@ -85,6 +85,11 @@ class VoiceTests(unittest.TestCase):
                         choice.write_text(code)
                         self.assertEqual(reader.command({'action':'status'})['status_ui'],text)
                         self.assertEqual(json.loads(state.read_text())['status_ui'],text)
+                    # Written by something else, as the dictation page does: the service notices by the file's time.
+                    self.assertEqual(sys.modules['language'].changed_at(),reader.language_at)
+                    choice.write_text('fr')
+                    os.utime(choice,ns=(1,reader.language_at+1))
+                    self.assertNotEqual(sys.modules['language'].changed_at(),reader.language_at)
                 voice.ALIVE.touch()
                 self.assertEqual(reader.state['pause_minutes'],10)
                 self.assertFalse(reader.idle())

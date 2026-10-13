@@ -15,6 +15,14 @@ def chosen():
     return value if value in LANGUAGES else LANGUAGES[0]
 
 
+def changed_at():
+    '''When the choice was last written, however it was: a tile, the dictation page or by hand.'''
+    try:
+        return CHOICE.stat().st_mtime_ns
+    except OSError:
+        return 0
+
+
 # The programs write Chinese; these are the same messages in (en, es, de, fr, ja, ko).
 MESSAGES = {
     '已連接，等待回覆': ('Connected, waiting for reply', 'Conectado, esperando respuesta', 'Verbunden, warte auf Antwort', 'Connecté, en attente d’une réponse', '接続済み、返信待ち', '연결됨, 응답 대기 중'),

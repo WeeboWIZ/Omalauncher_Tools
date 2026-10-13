@@ -11,7 +11,7 @@ widget "Terminal Voice" {
   let languageShort = (uiLanguage == "zh" ? "中" : uiLanguage == "es" ? "ES" : uiLanguage == "de" ? "DE" : uiLanguage == "fr" ? "FR" : uiLanguage == "ja" ? "日" : uiLanguage == "ko" ? "한" : "EN")
   source installed = file("~/.local/share/oma-voice/store-version")
   source setupState = file("~/.cache/oma-voice/setup-state")
-  let ready = installed == "3.3-4e14e8c3"
+  let ready = installed == "3.3-32999871"
   let setupText = setupState == "installing" && !ready ? (uiLanguage == "zh" ? "安裝中，約需一分鐘…" : uiLanguage == "es" ? "Instalando, cerca de un minuto…" : uiLanguage == "de" ? "Installation läuft, etwa eine Minute…" : uiLanguage == "fr" ? "Installation, environ une minute…" : uiLanguage == "ja" ? "インストール中、約1分…" : uiLanguage == "ko" ? "설치 중, 약 1분…" : "Installing, about a minute…") : setupState == "failed" ? (uiLanguage == "zh" ? "安裝失敗，請查看 ~/.cache/oma-voice/setup.log" : uiLanguage == "es" ? "La instalación falló: consulta ~/.cache/oma-voice/setup.log" : uiLanguage == "de" ? "Installation fehlgeschlagen: siehe ~/.cache/oma-voice/setup.log" : uiLanguage == "fr" ? "Échec de l’installation : voir ~/.cache/oma-voice/setup.log" : uiLanguage == "ja" ? "インストール失敗：~/.cache/oma-voice/setup.log を確認" : uiLanguage == "ko" ? "설치 실패: ~/.cache/oma-voice/setup.log 확인" : "Setup failed: see ~/.cache/oma-voice/setup.log") : installed == "" ? (uiLanguage == "zh" ? "首次使用：把播報與聽寫程式寫入 ~/.local，並下載 edge-tts 線上語音。" : uiLanguage == "es" ? "Primer uso: escribe los programas de voz y dictado en ~/.local y descarga edge-tts para la voz en línea." : uiLanguage == "de" ? "Erste Nutzung: schreibt die Programme für Sprachausgabe und Diktat nach ~/.local und lädt edge-tts für die Online-Stimme." : uiLanguage == "fr" ? "Première utilisation : écrit les programmes de voix et de dictée dans ~/.local et télécharge edge-tts pour la voix en ligne." : uiLanguage == "ja" ? "初回：読み上げと音声入力のプログラムを ~/.local に書き込み、オンライン音声用の edge-tts をダウンロードします。" : uiLanguage == "ko" ? "처음 사용: 음성 읽기와 받아쓰기 프로그램을 ~/.local 에 쓰고 온라인 음성용 edge-tts 를 내려받습니다." : "First use: writes the voice and dictation programs to ~/.local and downloads edge-tts for online speech.") : (uiLanguage == "zh" ? "程式有新版，更新後才能使用。" : uiLanguage == "es" ? "Hay una actualización de los programas; instálala para continuar." : uiLanguage == "de" ? "Für die Programme gibt es ein Update; zum Fortfahren installieren." : uiLanguage == "fr" ? "Les programmes ont une mise à jour ; installez-la pour continuer." : uiLanguage == "ja" ? "プログラムの更新があります。続けるには更新してください。" : uiLanguage == "ko" ? "프로그램 업데이트가 있습니다. 계속하려면 설치하세요." : "The programs have an update; install it to continue.")
   source service = cmd("if [ -f ~/.local/share/oma-voice/oma_voice.py ]; then python ~/.local/share/oma-voice/oma_voice.py ensure; fi") every 30s status
   source voice = file("~/.cache/oma-voice/state.json") json
@@ -62,6 +62,14 @@ def chosen():
     except OSError:
         value = ''
     return value if value in LANGUAGES else LANGUAGES[0]
+
+
+def changed_at():
+    '''When the choice was last written, however it was: a tile, the dictation page or by hand.'''
+    try:
+        return CHOICE.stat().st_mtime_ns
+    except OSError:
+        return 0
 
 
 # The programs write Chinese; these are the same messages in (en, es, de, fr, ja, ko).
@@ -204,7 +212,7 @@ import time
 import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from language import CHOICE, LANGUAGES, SPOKEN, chosen, local, spoken
+from language import CHOICE, LANGUAGES, SPOKEN, changed_at, chosen, local, spoken
 
 
 def english(text):
@@ -380,6 +388,7 @@ class Reader:
     def save(self):
         # The tiles show these; 'status' and 'error' stay as written, for the next change of language.
         language = chosen()
+        self.language_at = changed_at()
         self.state['status_ui'] = local(self.state.get('status', ''), language)
         self.state['error_ui'] = local(self.state.get('error', ''), language)
         for old in ('status_en', 'error_en', 'checked_at'):
@@ -701,6 +710,9 @@ def serve():
             SOCKET.chmod(0o600)
             server.listen(4)
             while not reader.idle():
+                # The dictation page and the setup screen write the language without telling the service.
+                if changed_at() != reader.language_at:
+                    reader.save()
                 if time.monotonic() >= reader.retry_at:
                     try:
                         reader.poll()
@@ -1172,7 +1184,7 @@ venv="$share/oma-voice/venv"
 # Stop the old voice service and dictation page; the widget starts the new ones.
 pkill -f '^[^ ]*python[0-9.]* .*/oma_voice\.py daemon$' || true
 pkill -f '^[^ ]*python[0-9.]* .*/oma-speak/server\.py$' || true
-printf '%s' '3.3-4e14e8c3' > "$HOME/.local/share/oma-voice/store-version"
+printf '%s' '3.3-32999871' > "$HOME/.local/share/oma-voice/store-version"
 say done
 """) }
       Button { fill: width; height: 40; text: "${languageName} ›"; onTap: run("mkdir -p ~/.config/omalauncher && printf %s ${sh(nextLanguage)} > ~/.config/omalauncher/voice-ui-language") }

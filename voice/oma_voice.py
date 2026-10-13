@@ -17,7 +17,7 @@ import time
 import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from language import CHOICE, LANGUAGES, SPOKEN, chosen, local, spoken
+from language import CHOICE, LANGUAGES, SPOKEN, changed_at, chosen, local, spoken
 
 
 def english(text):
@@ -193,6 +193,7 @@ class Reader:
     def save(self):
         # The tiles show these; 'status' and 'error' stay as written, for the next change of language.
         language = chosen()
+        self.language_at = changed_at()
         self.state['status_ui'] = local(self.state.get('status', ''), language)
         self.state['error_ui'] = local(self.state.get('error', ''), language)
         for old in ('status_en', 'error_en', 'checked_at'):
@@ -514,6 +515,9 @@ def serve():
             SOCKET.chmod(0o600)
             server.listen(4)
             while not reader.idle():
+                # The dictation page and the setup screen write the language without telling the service.
+                if changed_at() != reader.language_at:
+                    reader.save()
                 if time.monotonic() >= reader.retry_at:
                     try:
                         reader.poll()
