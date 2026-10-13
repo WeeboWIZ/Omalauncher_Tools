@@ -11,10 +11,9 @@ widget "終端播報" {
   source setupState = file("~/.cache/oma-voice/setup-state")
   let ready = installed == "__PAYLOAD_ID__"
   let setupText = setupState == "installing" && !ready ? (zh ? "安裝中，約需一分鐘…" : "Installing, about a minute…") : setupState == "failed" ? (zh ? "安裝失敗，請查看 ~/.cache/oma-voice/setup.log" : "Setup failed: see ~/.cache/oma-voice/setup.log") : installed == "" ? (zh ? "首次使用：把播報與聽寫程式寫入 ~/.local，並下載 edge-tts 線上語音。" : "First use: writes the voice and dictation programs to ~/.local and downloads edge-tts for online speech.") : (zh ? "程式有新版，更新後才能使用。" : "The programs have an update; install it to continue.")
-  source service = cmd("if [ -f ~/.local/share/oma-voice/oma_voice.py ]; then python ~/.local/share/oma-voice/oma_voice.py ensure; fi") every 30s
+  source service = cmd("if [ -f ~/.local/share/oma-voice/oma_voice.py ]; then python ~/.local/share/oma-voice/oma_voice.py ensure; fi") every 30s status
   source voice = file("~/.cache/oma-voice/state.json") json
-  source now = clock every 5s
-  let offline = voice.checked_at == null || now - voice.checked_at > 30
+  let offline = service.ok == false
   let replyTime = voice.reply_at == null ? (zh ? "尚無可讀內容" : "Nothing to read yet") : (zh ? "回覆 ${fmtTime(voice.reply_at, 'MM-dd HH:mm')}" : "Reply ${fmtTime(voice.reply_at, 'MM-dd HH:mm')}")
   let statusText = offline ? (zh ? "服務未更新 · 點同步重試" : "Service offline · tap Sync") : voice.awaiting ? (zh ? "正在回覆 · 下方為上次內容" : "Working · previous reply below") : (zh ? voice.status : voice.status_en) ?? (zh ? "連接中…" : "Connecting…")
   onTap: screen()

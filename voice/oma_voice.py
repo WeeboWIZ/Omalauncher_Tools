@@ -36,6 +36,11 @@ SOCKET = CACHE / 'control.sock'
 CONFIG = HOME / '.config/omalauncher/voice.json'
 SESSIONS = HOME / '.codex/sessions'
 TMUX_SESSION = 'oma-voice'
+# ensure() touches this; the service quits once it is older than IDLE_EXIT seconds.
+ALIVE = CACHE / 'alive'
+IDLE_EXIT = 90
+# Seconds between looks for a Codex session or tmux pane while there is none.
+RETRY = 15
 
 
 def atomic_json(path, value):
@@ -167,7 +172,9 @@ class Reader:
         self.config.setdefault('source', 'codex')
         self.term_last = None
         self.checked_session = 0
-        self.heartbeat = 0
+        self.next_terminal = 0
+        self.retry_at = 0
+        self.saved = None
         atomic_json(CONFIG, self.config)
         self.state = read_json(CACHE / 'state.json', {})
         self.state.update(status='已連接，等待回覆', playing=False, error='')
@@ -189,8 +196,12 @@ class Reader:
                 self.state['reply_at'] = datetime.datetime.fromisoformat(stamp.replace('Z', '+00:00')).timestamp()
             except ValueError:
                 self.state['reply_at'] = None
-        self.state.update(auto=self.config['auto'], mode=self.config['mode'], thread=self.config['thread'], engine=self.config['engine'], follow_latest=self.config['follow_latest'], source=self.config['source'], source_name=self.state.get('source_name','Codex'), checked_at=time.time())
-        atomic_json(CACHE / 'state.json', self.state)
+        self.state.update(auto=self.config['auto'], mode=self.config['mode'], thread=self.config['thread'], engine=self.config['engine'], follow_latest=self.config['follow_latest'], source=self.config['source'], source_name=self.state.get('source_name','Codex'))
+        self.state.pop('checked_at', None)
+        # The tiles redraw on every write, so write only what changed.
+        if self.state != self.saved:
+            atomic_json(CACHE / 'state.json', self.state)
+            self.saved = dict(self.state)
 
     def bind(self, thread):
         path = find_session(thread)
@@ -227,19 +238,19 @@ class Reader:
             return self.poll_terminal()
         if not self.config['thread']:
             self.config['thread'] = latest_session()
-        if time.monotonic() - self.checked_session >= 5:
+        if time.monotonic() - self.checked_session >= RETRY:
             self.checked_session = time.monotonic()
             if self.config['follow_latest']:
                 thread = latest_session()
                 if thread != self.config['thread']:
                     self.stop()
                     self.bind(thread)
-        if time.monotonic() - self.heartbeat >= 10:
-            self.heartbeat = time.monotonic()
-            self.save()
         if self.path is None:
             self.bind(self.config['thread'])
-        if self.path.stat().st_size < self.offset:
+        size = self.path.stat().st_size
+        if size == self.offset:
+            return
+        if size < self.offset:
             self.bind(self.config['thread'])
         with self.path.open('rb') as f:
             f.seek(self.offset)
@@ -269,12 +280,13 @@ class Reader:
                 self.play(self.state[self.config['mode']])
 
     def poll_terminal(self):
-        if time.monotonic() - self.heartbeat < 2:
+        if time.monotonic() < self.next_terminal:
             return
-        self.heartbeat = time.monotonic()
+        self.next_terminal = time.monotonic() + 3
         try:
             pane, label, full = terminal_snapshot()
         except ValueError as exc:
+            self.next_terminal = time.monotonic() + RETRY
             self.state.update(source_name='Terminal', term_pane='', status=str(exc),
                               full='', summary='', error='', reply_at=None, awaiting=False)
             self.save()
@@ -285,6 +297,18 @@ class Reader:
             self.term_last = full
             self.state.update(full=full, summary=clean_text(full)[-360:], reply_at=time.time() if full else None)
         self.save()
+
+    def idle(self):
+        '''No tile or command has asked lately, and nothing is being spoken or awaited.'''
+        try:
+            if time.time() - ALIVE.stat().st_mtime < IDLE_EXIT:
+                return False
+            # A reply still being written is waited for, so it is read aloud with the tile off screen.
+            if self.state.get('awaiting') and self.path and time.time() - self.path.stat().st_mtime < 600:
+                return False
+        except OSError:
+            pass
+        return not self.state.get('playing')
 
     def stop(self):
         with self.player_lock:
@@ -363,9 +387,11 @@ class Reader:
 
     def command(self, request):
         action = request.get('action')
+        if action != 'status':
+            self.retry_at = 0
         if action in ('replay', 'send'):
             if self.config['source'] == 'terminal':
-                self.heartbeat = 0
+                self.next_terminal = 0
             self.poll()
         if action == 'status':
             return self.state
@@ -397,7 +423,7 @@ class Reader:
         elif action == 'refresh':
             self.stop()
             if self.config['source'] == 'terminal':
-                self.heartbeat = 0
+                self.next_terminal = 0
                 self.poll_terminal()
             else:
                 self.bind(latest_session() if self.config['follow_latest'] else self.config['thread'])
@@ -410,7 +436,7 @@ class Reader:
             self.state.update(full='', summary='', reply_at=None, source_name='Codex' if value == 'codex' else 'Terminal')
             atomic_json(CONFIG, self.config)
             if value == 'terminal':
-                self.heartbeat = 0
+                self.next_terminal = 0
                 self.term_last = None
                 self.poll_terminal()
             else:
@@ -456,6 +482,7 @@ def serve():
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             return
+        ALIVE.touch()
         reader = Reader()
         if reader.config['source'] == 'terminal':
             reader.poll_terminal()
@@ -466,12 +493,14 @@ def serve():
             server.bind(str(SOCKET))
             SOCKET.chmod(0o600)
             server.listen(4)
-            while True:
-                try:
-                    reader.poll()
-                except (OSError, ValueError) as exc:
-                    reader.state.update(status='等待會話記錄', error=str(exc))
-                    reader.save()
+            while not reader.idle():
+                if time.monotonic() >= reader.retry_at:
+                    try:
+                        reader.poll()
+                    except (OSError, ValueError) as exc:
+                        reader.state.update(status='等待會話記錄', error=str(exc))
+                        reader.save()
+                        reader.retry_at = time.monotonic() + RETRY
                 if not select.select([server], [], [], 0.5)[0]:
                     continue
                 conn, _ = server.accept()
@@ -510,12 +539,13 @@ def request(value):
 
 
 def ensure():
+    CACHE.mkdir(parents=True, exist_ok=True, mode=0o700)
+    ALIVE.touch()
     try:
         request({'action': 'status'})
         return
     except (OSError, ValueError):
         pass
-    CACHE.mkdir(parents=True, exist_ok=True, mode=0o700)
     with (CACHE / 'daemon.log').open('ab') as log:
         subprocess.Popen([sys.executable, str(Path(__file__).resolve()), 'daemon'],
                          stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)

@@ -34,7 +34,8 @@
 - [x] 在手機上實測：`owl-check`、內嵌安裝腳本、自然語音播放、語音輸入送出、麥克風
 - [x] 用手機重繪的乾淨截圖更新 `preview.png`（保存在 `store/` 內，打包腳本不會覆蓋）
 - [x] 擁有者確認後開 PR：https://github.com/SimonSchubert/omarchy-widgets/pull/82 （CI 通過，等待維護者審核）
-- [ ] 手機複驗最後一次修改：小工具改以 `python …/oma_voice.py`、`bash …/speak` 呼叫程式
+- [x] 依維護者審核意見修改（3.2）：狀態檔只在變動時寫入；沒有會話或 tmux 時每 15 秒才檢查；90 秒沒有小工具詢問就結束服務
+- [ ] 手機複驗 3.2：小工具改以 `python …/oma_voice.py`、`bash …/speak` 呼叫程式；服務在小工具離開畫面後結束、回來後重啟；自動播報仍正常
 - [ ] PR 合併後把 `store-release` 合併回 `main`
 
 ## 投稿時踩到的商店 CI 規則
@@ -42,6 +43,11 @@
 - 檔案不能帶可執行權限（從 Windows 磁碟複製時會帶上，提交前 `chmod 644`）。
 - 命令的第一個字必須是 Arch 套件提供的程式；自己安裝的 `oma-voice`、`speak` 會讓套件檢查中止，所以改由 `python`、`bash` 呼叫。
 - 在 proot 內 `id -u` 是 0，但行程屬於 App 的實際使用者，不要用 `pkill -u`。
+
+## 播報服務何時運行
+
+`ensure` 每次被呼叫都更新 `~/.cache/oma-voice/alive`。服務發現它超過 90 秒沒更新就結束，但正在播放、或 Codex 回覆還在寫入（10 分鐘內有動靜）時會等。
+代價：小工具離開畫面超過 90 秒後才開始的回覆不會自動播報，回到畫面後只顯示。小工具改用 `ensure` 的結束碼判斷服務是否離線，不再看 `checked_at`。
 
 ## 改了程式之後
 

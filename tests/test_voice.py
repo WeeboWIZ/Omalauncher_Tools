@@ -60,6 +60,33 @@ class VoiceTests(unittest.TestCase):
         finally:
             voice.CACHE, voice.CONFIG, voice.SESSIONS = previous
 
+    def test_service_rests_without_a_session_and_quits_when_no_tile_asks(self):
+        previous = voice.CACHE, voice.CONFIG, voice.SESSIONS, voice.ALIVE
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                base = Path(directory)
+                voice.CACHE, voice.CONFIG, voice.SESSIONS, voice.ALIVE = base/'cache', base/'config.json', base/'sessions', base/'cache/alive'
+                voice.SESSIONS.mkdir()
+                reader = voice.Reader()
+                state = voice.CACHE/'state.json'
+                # What the service loop does on each pass with no Codex session: one write, not three.
+                written = []
+                with mock.patch.object(voice,'atomic_json',side_effect=lambda path,value: written.append(path)):
+                    for _ in range(3):
+                        self.assertRaises(ValueError,reader.poll)
+                        reader.state.update(status='等待會話記錄',error='找不到 Codex 會話')
+                        reader.save()
+                self.assertEqual(written,[state])
+                self.assertNotIn('checked_at',reader.state)
+                voice.ALIVE.touch()
+                self.assertFalse(reader.idle())
+                os.utime(voice.ALIVE,(time.time()-voice.IDLE_EXIT-5,)*2)
+                self.assertTrue(reader.idle())
+                reader.state['playing'] = True
+                self.assertFalse(reader.idle())
+        finally:
+            voice.CACHE, voice.CONFIG, voice.SESSIONS, voice.ALIVE = previous
+
     def test_tmux_capture_and_send_in_isolated_session(self):
         with tempfile.TemporaryDirectory() as directory:
             socket_name = 'oma-voice-test-' + uuid.uuid4().hex[:10]

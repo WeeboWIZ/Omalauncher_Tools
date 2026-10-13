@@ -6,7 +6,7 @@ import re
 import sys
 
 ROOT = Path(__file__).resolve().parent.parent
-VERSION = '3.1'
+VERSION = '3.2'
 AUTHOR = 'weebowiz'
 # template -> store folder. Each folder's preview.png and README.md are kept by hand.
 WIDGETS = {'46-speak.owl': 'terminal-voice', '47-voice-input.owl': 'dictation'}

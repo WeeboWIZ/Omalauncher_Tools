@@ -16,6 +16,13 @@ The tile shows a **Set up** button until its programs are installed. Tapping it:
 Nothing is downloaded and run apart from that pip package. The log is `~/.cache/oma-voice/setup.log`.
 Terminal Voice and Dictation hold the same programs: setting up one sets up both.
 
+## Background service
+
+The tile starts a small voice service and asks for it every 30 s while it is on screen. The service writes its
+state file only when something changes, looks for a missing Codex session or tmux pane every 15 s, and quits
+90 s after the last request unless it is speaking or a Codex reply is still being written. With the tile off
+screen for longer, replies are shown but not read aloud until you come back.
+
 ## Privacy
 
 Online speech sends the text being read to Microsoft Edge TTS; choose **Voice: offline** to keep it local.
