@@ -79,11 +79,32 @@ class VoiceTests(unittest.TestCase):
                 self.assertEqual(written,[state])
                 self.assertNotIn('checked_at',reader.state)
                 voice.ALIVE.touch()
+                self.assertEqual(reader.state['pause_minutes'],10)
                 self.assertFalse(reader.idle())
-                os.utime(voice.ALIVE,(time.time()-voice.IDLE_EXIT-5,)*2)
+                os.utime(voice.ALIVE,(time.time()-601,)*2)
                 self.assertTrue(reader.idle())
                 reader.state['playing'] = True
                 self.assertFalse(reader.idle())
+                reader.state['playing'] = False
+                # Codex still writing its log keeps the service for a task that outlasts the screen.
+                log = voice.SESSIONS/'log.jsonl'
+                log.write_text('')
+                reader.path = log
+                self.assertFalse(reader.idle())
+                os.utime(log,(time.time()-601,)*2)
+                self.assertTrue(reader.idle())
+                reader.command({'action':'pause','value':'45'})
+                self.assertFalse(reader.idle())
+                os.utime(voice.ALIVE,(time.time()-2701,)*2)
+                os.utime(log,(time.time()-2701,)*2)
+                self.assertTrue(reader.idle())
+                reader.command({'action':'pause','value':'off'})
+                self.assertFalse(reader.idle())
+                self.assertEqual(voice.read_json(voice.CONFIG)['pause_minutes'],0)
+                reader.command({'action':'pause','value':'toggle'})
+                self.assertEqual(reader.state['pause_minutes'],10)
+                for bad in ('-1','1441','ten','1.5',''):
+                    self.assertRaises(ValueError,reader.command,{'action':'pause','value':bad})
         finally:
             voice.CACHE, voice.CONFIG, voice.SESSIONS, voice.ALIVE = previous
 

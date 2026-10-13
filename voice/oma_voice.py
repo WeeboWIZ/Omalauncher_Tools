@@ -16,7 +16,7 @@ import threading
 import time
 import uuid
 
-TRANSLATIONS = {'已連接，等待回覆': 'Connected, waiting for reply', '已同步最近回覆': 'Latest reply synced', 'Codex 正在回覆…': 'Codex is working…', '收到新回覆': 'New reply received', '已停止': 'Stopped', '正在播放': 'Preparing audio', '播放完成': 'Playback complete', '播放失敗': 'Playback failed', '自動播報已開啟': 'Auto-read enabled', '自動播報已關閉': 'Auto-read disabled', '已切換線上自然語音': 'Online voice selected', '已切換離線神經語音': 'Offline voice selected', '已送到這個 Codex 會話的佇列': 'Sent to this Codex chat queue', '已連接終端 · 點播放讀取畫面': 'Terminal connected · tap Play to read screen', '請在現有終端執行 tmux new -A -s oma-voice': 'Run tmux new -A -s oma-voice in your existing terminal', '等待會話記錄': 'Waiting for chat log', '還沒有可播放的回覆': 'No reply available to play', '找不到 Codex 會話': 'No local Codex chat found', '找不到指定會話': 'Chat not found', '需要 espeak-ng 和 paplay': 'espeak-ng and paplay are required', '播放逾時': 'Playback timed out', '請先輸入內容（最多 16000 字）': 'Enter text first (maximum 16000 characters)', '文字含有控制字元': 'Text contains control characters', '送出失敗': 'Could not send text', '未知命令': 'Unknown command', '請選 online 或 offline': 'Choose online or offline', '請先開始語音輸入，停止後保存。': 'Start dictation, stop and save first.'}
+TRANSLATIONS = {'已連接，等待回覆': 'Connected, waiting for reply', '已同步最近回覆': 'Latest reply synced', 'Codex 正在回覆…': 'Codex is working…', '收到新回覆': 'New reply received', '已停止': 'Stopped', '正在播放': 'Preparing audio', '播放完成': 'Playback complete', '播放失敗': 'Playback failed', '自動播報已開啟': 'Auto-read enabled', '自動播報已關閉': 'Auto-read disabled', '已切換線上自然語音': 'Online voice selected', '已切換離線神經語音': 'Offline voice selected', '已送到這個 Codex 會話的佇列': 'Sent to this Codex chat queue', '已連接終端 · 點播放讀取畫面': 'Terminal connected · tap Play to read screen', '請在現有終端執行 tmux new -A -s oma-voice': 'Run tmux new -A -s oma-voice in your existing terminal', '等待會話記錄': 'Waiting for chat log', '還沒有可播放的回覆': 'No reply available to play', '找不到 Codex 會話': 'No local Codex chat found', '找不到指定會話': 'Chat not found', '需要 espeak-ng 和 paplay': 'espeak-ng and paplay are required', '播放逾時': 'Playback timed out', '請先輸入內容（最多 16000 字）': 'Enter text first (maximum 16000 characters)', '文字含有控制字元': 'Text contains control characters', '送出失敗': 'Could not send text', '未知命令': 'Unknown command', '請選 online 或 offline': 'Choose online or offline', '請先開始語音輸入，停止後保存。': 'Start dictation, stop and save first.', '已更新閒置暫停時間': 'Idle pause time updated', '閒置後不再暫停': 'The service no longer pauses when idle', '請輸入 1 到 1440 的分鐘數，或 off': 'Enter 1 to 1440 minutes, or off'}
 
 VOICES = {'離線神經語音':'offline neural','離線基本語音':'offline basic','自然語音（線上）':'online natural','語音':'audio'}
 REASONS = {'線上語音未安裝':'online voice not installed: tap Update on the tile','缺少 mpg123':'mpg123 missing','線上語音無回應':'online voice unreachable'}
@@ -36,9 +36,10 @@ SOCKET = CACHE / 'control.sock'
 CONFIG = HOME / '.config/omalauncher/voice.json'
 SESSIONS = HOME / '.codex/sessions'
 TMUX_SESSION = 'oma-voice'
-# ensure() touches this; the service quits once it is older than IDLE_EXIT seconds.
+# ensure() touches this. The service quits once neither it nor the Codex log has changed
+# for the 'pause_minutes' setting (0 = never), and ensure() starts it again.
 ALIVE = CACHE / 'alive'
-IDLE_EXIT = 90
+PAUSE_MINUTES = 10
 # Seconds between looks for a Codex session or tmux pane while there is none.
 RETRY = 15
 
@@ -170,6 +171,7 @@ class Reader:
                 self.config['thread'] = None
         self.config.setdefault('follow_latest', True)
         self.config.setdefault('source', 'codex')
+        self.config.setdefault('pause_minutes', PAUSE_MINUTES)
         self.term_last = None
         self.checked_session = 0
         self.next_terminal = 0
@@ -196,7 +198,7 @@ class Reader:
                 self.state['reply_at'] = datetime.datetime.fromisoformat(stamp.replace('Z', '+00:00')).timestamp()
             except ValueError:
                 self.state['reply_at'] = None
-        self.state.update(auto=self.config['auto'], mode=self.config['mode'], thread=self.config['thread'], engine=self.config['engine'], follow_latest=self.config['follow_latest'], source=self.config['source'], source_name=self.state.get('source_name','Codex'))
+        self.state.update(auto=self.config['auto'], mode=self.config['mode'], thread=self.config['thread'], engine=self.config['engine'], follow_latest=self.config['follow_latest'], source=self.config['source'], pause_minutes=self.config['pause_minutes'], source_name=self.state.get('source_name','Codex'))
         self.state.pop('checked_at', None)
         # The tiles redraw on every write, so write only what changed.
         if self.state != self.saved:
@@ -299,16 +301,16 @@ class Reader:
         self.save()
 
     def idle(self):
-        '''No tile or command has asked lately, and nothing is being spoken or awaited.'''
+        '''Nothing is being spoken, and no tile, command or Codex activity for the chosen time.'''
+        limit = self.config['pause_minutes'] * 60
+        if not limit or self.state.get('playing'):
+            return False
+        # Codex still writing its log counts, so a long task is read aloud with the screen off.
+        seen = [ALIVE] + ([self.path] if self.path and self.config['source'] == 'codex' else [])
         try:
-            if time.time() - ALIVE.stat().st_mtime < IDLE_EXIT:
-                return False
-            # A reply still being written is waited for, so it is read aloud with the tile off screen.
-            if self.state.get('awaiting') and self.path and time.time() - self.path.stat().st_mtime < 600:
-                return False
+            return time.time() - max(path.stat().st_mtime for path in seen) >= limit
         except OSError:
-            pass
-        return not self.state.get('playing')
+            return False
 
     def stop(self):
         with self.player_lock:
@@ -419,6 +421,18 @@ class Reader:
             self.config['engine'] = value
             atomic_json(CONFIG, self.config)
             self.state['status'] = '已切換線上自然語音' if value == 'online' else '已切換離線神經語音'
+            self.save()
+        elif action == 'pause':
+            value = str(request.get('value', 'toggle')).strip().lower()
+            if value == 'toggle':
+                value = '0' if self.config['pause_minutes'] else str(PAUSE_MINUTES)
+            if value == 'off':
+                value = '0'
+            if not value.isascii() or not value.isdigit() or int(value) > 1440:
+                raise ValueError('請輸入 1 到 1440 的分鐘數，或 off')
+            self.config['pause_minutes'] = int(value)
+            atomic_json(CONFIG, self.config)
+            self.state['status'] = '已更新閒置暫停時間' if int(value) else '閒置後不再暫停'
             self.save()
         elif action == 'refresh':
             self.stop()
@@ -560,7 +574,7 @@ def ensure():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['daemon', 'ensure', 'status', 'replay', 'stop', 'auto', 'bind', 'send', 'test', 'engine', 'refresh', 'follow', 'language', 'source'])
+    parser.add_argument('action', choices=['daemon', 'ensure', 'status', 'replay', 'stop', 'auto', 'bind', 'send', 'test', 'engine', 'refresh', 'follow', 'language', 'source', 'pause'])
     parser.add_argument('value', nargs='?')
     parser.add_argument('--text')
     parser.add_argument('--full', action='store_true')

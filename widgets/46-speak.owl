@@ -3,7 +3,7 @@ widget "終端播報" {
   order: 6
   size: 3x4
   minSize: 3x4
-  meta { owl: 5; description: "朗讀 Codex 回覆或 tmux 終端畫面；支援 Codex、Claude 與一般終端程式。"; version: "__VERSION__"; license: "MIT"; category: "productivity" }
+  meta { owl: 6; description: "朗讀 Codex 回覆或 tmux 終端畫面；支援 Codex、Claude 與一般終端程式。"; version: "__VERSION__"; license: "MIT"; category: "productivity" }
   requires { pacman: ["python", "espeak-ng", "libpulse", "mpg123", "tmux", "curl", "util-linux"] }
   source uiLanguage = file("~/.config/omalauncher/voice-ui-language")
   let zh = uiLanguage != "en"
@@ -92,6 +92,9 @@ widget "終端播報" {
         if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.follow_latest ? (zh ? "對話：自動跟隨" : "Chat: follow latest") : (zh ? "對話：固定" : "Chat: pinned"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py follow") } }
         if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.auto ? (zh ? "自動播報：開" : "Auto-read: on") : (zh ? "自動播報：關" : "Auto-read: off"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py auto toggle") } }
         Button { fill: width; height: 44; text: voice.engine == "offline" ? (zh ? "聲音：離線" : "Voice: offline") : (zh ? "聲音：自然（線上）" : "Voice: online"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py engine toggle") }
+        Button { fill: width; height: 44; text: voice.pause_minutes == 0 ? (zh ? "閒置暫停：無限制（不暫停）" : "Idle pause: never") : (zh ? "閒置暫停：${voice.pause_minutes ?? 10} 分鐘" : "Idle pause: ${voice.pause_minutes ?? 10} min"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py pause toggle") }
+        Input { placeholder: zh ? "自訂分鐘數（1–1440），輸入後送出" : "Custom minutes (1–1440), then send"; clear: true; onSubmit: run("python ~/.local/share/oma-voice/oma_voice.py pause ${sh(value)}") }
+        Text { text: zh ? "小工具不在畫面上、Codex 也沒有動靜超過這段時間，播報服務就暫停；回到畫面時自動恢復。點按鈕在 10 分鐘與無限制之間切換。" : "The voice service pauses after this long with the tile off screen and no Codex activity, and resumes when the tile is back. Tap the button to switch between 10 minutes and never."; style: small; color: muted; maxLines: 4 }
         Button { fill: width; height: 44; text: (zh ? "開始語音輸入" : "Start dictation"); onTap: run("bash ~/.local/bin/speak") }
       }
     }
