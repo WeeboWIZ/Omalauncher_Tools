@@ -31,7 +31,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.headers.get('Host') != f'127.0.0.1:{PORT}':
             return self.reply(403, 'Invalid host')
         if self.path == '/language':
-            return self.reply(200, 'en' if LANG_PATH.exists() and LANG_PATH.read_text().strip() == 'en' else 'zh')
+            return self.reply(200, 'zh' if LANG_PATH.exists() and LANG_PATH.read_text().strip() == 'zh' else 'en')
         if self.path == '/health':
             return self.reply(200, 'oma-speak-v1')
         if self.path != '/':

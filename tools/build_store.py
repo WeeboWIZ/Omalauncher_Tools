@@ -6,7 +6,7 @@ import re
 import sys
 
 ROOT = Path(__file__).resolve().parent.parent
-VERSION = '3.2'
+VERSION = '3.3'
 AUTHOR = 'weebowiz'
 # template -> store folder. Each folder's preview.png and README.md are kept by hand.
 WIDGETS = {'46-speak.owl': 'terminal-voice', '47-voice-input.owl': 'dictation'}
@@ -50,6 +50,14 @@ def setup_script():
         '# Written beside the old file and moved over it, so a running copy is never half written.',
         'put() { cat > "$1.new" && mv -f "$1.new" "$1" || { say failed; exit 1; }; }',
         'say installing',
+        '# English became the default in 3.3: an earlier install that never chose a language stays Chinese.',
+        'language="$HOME/.config/omalauncher/voice-ui-language"',
+        'earlier=no',
+        'case "$(cut -d- -f1 "$HOME/%s" 2>/dev/null)" in' % MARKER,
+        '  3.0|3.1|3.2) earlier=yes ;;',
+        '  "") [ -f "$share/oma-voice/oma_voice.py" ] && earlier=yes ;;',
+        'esac',
+        '[ "$earlier" = yes ] && [ ! -f "$language" ] && mkdir -p "$HOME/.config/omalauncher" && printf zh > "$language"',
     ]
     executables = []
     for number, (file, target, executable) in enumerate(payload_files()):

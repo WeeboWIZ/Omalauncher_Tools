@@ -1,6 +1,6 @@
 # Terminal Voice (終端播報)
 
-Reads Codex replies or a tmux terminal aloud. English and Chinese interface.
+Reads Codex replies or a tmux terminal aloud. The interface is English by default; tap **中** on the tile for Chinese.
 
 - **Codex chat:** follows the latest local Codex conversation and can read a summary of each finished reply.
 - **Terminal / Claude:** run `tmux new -A -s oma-voice`, start Claude, Codex or any CLI there, and tap **Play** to hear the pane.

@@ -1,12 +1,12 @@
-widget "語音輸入" {
+widget "Dictation" {
  page: 1
  order: 7
  size: 3x3
  minSize: 3x3
- meta { owl: 5; description: "語音聽寫後送到選定的 Codex 會話或 tmux 終端，可與 Claude 等程式互動。"; version: "__VERSION__"; license: "MIT"; category: "productivity" }
+ meta { owl: 5; description: "Dictate by voice and send the text to a Codex chat or a tmux terminal running Claude or any CLI. English and Chinese."; version: "__VERSION__"; license: "MIT"; category: "productivity" }
  requires { pacman: ["python", "espeak-ng", "libpulse", "mpg123", "tmux", "curl", "util-linux"] }
  source uiLanguage = file("~/.config/omalauncher/voice-ui-language")
- let zh = uiLanguage != "en"
+ let zh = uiLanguage == "zh"
  source installed = file("~/.local/share/oma-voice/store-version")
  source setupState = file("~/.cache/oma-voice/setup-state")
  let ready = installed == "__PAYLOAD_ID__"

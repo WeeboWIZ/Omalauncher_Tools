@@ -43,6 +43,14 @@ def main():
         temp.chmod(0o700 if executable else 0o600)
         temp.replace(target)
         installed.append(relative)
+    # English became the default in 3.3: an earlier install that never chose a language stays Chinese.
+    language = home / '.config/omalauncher/voice-ui-language'
+    marker = home / build_store.MARKER
+    before = marker.read_text().split('-')[0] if marker.exists() else ''
+    earlier = before in ('3.0', '3.1', '3.2') or not before and (home / '.local/share/oma-voice/oma_voice.py').exists()
+    if earlier and not language.exists():
+        language.parent.mkdir(parents=True, exist_ok=True)
+        language.write_text('zh')
     for folder, destination in [('voice', '.local/share/oma-voice'), ('dictation', '.local/share/oma-speak'), ('bin', '.local/bin')]:
         for file in sorted((ROOT/folder).iterdir()):
             if file.is_file():
@@ -51,11 +59,11 @@ def main():
         write('.config/omalauncher/widgets/'+file.name, build_store.render(file.read_text()).encode())
     # The widgets show their own setup button until this names the programs they were built with.
     write(build_store.MARKER, build_store.payload_id().encode())
-    print('Installed 終端播報 and 語音輸入. Personal settings and conversation data were preserved.')
+    print('Installed Terminal Voice and Dictation. Personal settings and conversation data were preserved.')
     print('Updated files backed up at:', backup)
     print('After updating an already-running version, restart Linux once to reload its voice service.')
     print('Open Details to choose Codex chat or a tmux terminal, then tap Sync.')
-    print('Online voice sends reply text to Microsoft Edge TTS. Choose 聲音：離線 for local basic speech.')
+    print('Online voice sends reply text to Microsoft Edge TTS. Choose Voice: offline for local basic speech.')
     checker = shutil.which('owl-check')
     if checker and not args.skip_deps:
         for name in ('46-speak.owl', '47-voice-input.owl'):

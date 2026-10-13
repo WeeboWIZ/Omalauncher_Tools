@@ -1,15 +1,15 @@
-widget "語音輸入" {
+widget "Dictation" {
  page: 1
  order: 7
  size: 3x3
  minSize: 3x3
- meta { owl: 5; description: "語音聽寫後送到選定的 Codex 會話或 tmux 終端，可與 Claude 等程式互動。"; version: "3.2"; license: "MIT"; category: "productivity" }
+ meta { owl: 5; description: "Dictate by voice and send the text to a Codex chat or a tmux terminal running Claude or any CLI. English and Chinese."; version: "3.3"; license: "MIT"; category: "productivity" }
  requires { pacman: ["python", "espeak-ng", "libpulse", "mpg123", "tmux", "curl", "util-linux"] }
  source uiLanguage = file("~/.config/omalauncher/voice-ui-language")
- let zh = uiLanguage != "en"
+ let zh = uiLanguage == "zh"
  source installed = file("~/.local/share/oma-voice/store-version")
  source setupState = file("~/.cache/oma-voice/setup-state")
- let ready = installed == "3.2-a17095f3"
+ let ready = installed == "3.3-91d32174"
  let setupText = setupState == "installing" && !ready ? (zh ? "安裝中，約需一分鐘…" : "Installing, about a minute…") : setupState == "failed" ? (zh ? "安裝失敗，請查看 ~/.cache/oma-voice/setup.log" : "Setup failed: see ~/.cache/oma-voice/setup.log") : installed == "" ? (zh ? "首次使用：把播報與聽寫程式寫入 ~/.local，並下載 edge-tts 線上語音。" : "First use: writes the voice and dictation programs to ~/.local and downloads edge-tts for online speech.") : (zh ? "程式有新版，更新後才能使用。" : "The programs have an update; install it to continue.")
  source voice = file("~/.cache/oma-voice/state.json") json
  source latest = file("~/.cache/oma-speak/latest.txt")
@@ -34,6 +34,14 @@ say() { printf '%s' "$1" > "$cache/setup-state"; }
 # Written beside the old file and moved over it, so a running copy is never half written.
 put() { cat > "$1.new" && mv -f "$1.new" "$1" || { say failed; exit 1; }; }
 say installing
+# English became the default in 3.3: an earlier install that never chose a language stays Chinese.
+language="$HOME/.config/omalauncher/voice-ui-language"
+earlier=no
+case "$(cut -d- -f1 "$HOME/.local/share/oma-voice/store-version" 2>/dev/null)" in
+  3.0|3.1|3.2) earlier=yes ;;
+  "") [ -f "$share/oma-voice/oma_voice.py" ] && earlier=yes ;;
+esac
+[ "$earlier" = yes ] && [ ! -f "$language" ] && mkdir -p "$HOME/.config/omalauncher" && printf zh > "$language"
 put "$HOME/.local/share/oma-voice/oma_voice.py" <<'OMA_VOICE_FILE_0_END'
 #!/usr/bin/env python3
 '''Voice reader and dictation bridge for Codex logs or a tmux terminal.'''
@@ -96,10 +104,23 @@ def read_json(path, default=None):
         return default
 
 
+def chinese(text):
+    return any('㐀' <= c <= '鿿' for c in text)
+
+
+def read_text(path):
+    try:
+        return path.read_text().strip()
+    except OSError:
+        return ''
+
+
 def clean_text(text):
-    text = re.sub(r'```.*?```', '（程式碼略過）', text, flags=re.S)
+    # Spoken notes are in the language of the reply, or a Chinese voice would be picked for English text.
+    zh = chinese(text)
+    text = re.sub(r'```.*?```', '（程式碼略過）' if zh else ' (code omitted) ', text, flags=re.S)
     text = re.sub(r'!?\[([^\]]+)\]\([^)]*\)', r'\1', text)
-    text = re.sub(r'https?://\S+', '連結略過', text)
+    text = re.sub(r'https?://\S+', '連結略過' if zh else 'link omitted', text)
     text = re.sub(r'(?m)^\s*(?:#{1,6}\s+|[-*+]\s+|\d+[.)]\s+|>\s*)', '', text)
     text = text.replace('`', '').replace('**', '').replace('__', '')
     return ''.join(c for c in text if c in '\n\t' or (ord(c) >= 32 and ord(c) != 127)).strip()
@@ -128,7 +149,9 @@ def summarize(text, limit=360):
         used += len(s) + 1
     if warning:
         selected.append(warning[:limit // 2])
-    return '回覆節錄。' + ' '.join(selected) + ' 完整內容可選全文播放。'
+    if chinese(text):
+        return '回覆節錄。' + ' '.join(selected) + ' 完整內容可選全文播放。'
+    return 'Excerpt. ' + ' '.join(selected) + ' Play the full reply for the rest.'
 
 
 def completed_reply(event):
@@ -437,7 +460,8 @@ class Reader:
         if action == 'replay':
             self.play(self.state.get('full' if request.get('full') else 'summary', ''))
         elif action == 'test':
-            self.play('語音播報已連接。之後會自動播放這個對話的回覆摘要。')
+            zh = (read_text(HOME / '.config/omalauncher/voice-ui-language') == 'zh')
+            self.play('語音播報已連接。之後會自動播放這個對話的回覆摘要。' if zh else 'Voice is connected. A summary of each reply in this chat will be read aloud.')
         elif action == 'stop':
             self.stop()
         elif action == 'auto':
@@ -787,7 +811,7 @@ $('ui-language').onclick=async()=>{
  try{const response=await fetch('/language',{method:'POST',headers:{'Content-Type':'application/json','X-Speak-Token':token},body:JSON.stringify({language:value})});if(!response.ok)throw Error(await response.text());uiLanguage=value;applyLanguage();}
  catch(error){status.textContent='Language change failed: '+error.message;}
 };
-fetch('/language').then(r=>r.text()).then(value=>{uiLanguage=value.trim()==='en'?'en':'zh';applyLanguage();}).catch(()=>{});
+fetch('/language').then(r=>r.text()).then(value=>{uiLanguage=value.trim()==='zh'?'zh':'en';applyLanguage();if(!localStorage.getItem('oma-speak-language'))$('language').value=uiLanguage==='zh'?'zh-TW':'en-US';}).catch(()=>{});
 
 const Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
 let recognition=null,wanted=false,timer=null,failures=0,committed='',interim='',afterStop=null;
@@ -893,7 +917,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.headers.get('Host') != f'127.0.0.1:{PORT}':
             return self.reply(403, 'Invalid host')
         if self.path == '/language':
-            return self.reply(200, 'en' if LANG_PATH.exists() and LANG_PATH.read_text().strip() == 'en' else 'zh')
+            return self.reply(200, 'zh' if LANG_PATH.exists() and LANG_PATH.read_text().strip() == 'zh' else 'en')
         if self.path == '/health':
             return self.reply(200, 'oma-speak-v1')
         if self.path != '/':
@@ -990,7 +1014,7 @@ venv="$share/oma-voice/venv"
 # Stop the old voice service and dictation page; the widget starts the new ones.
 pkill -f '^[^ ]*python[0-9.]* .*/oma_voice\.py daemon$' || true
 pkill -f '^[^ ]*python[0-9.]* .*/oma-speak/server\.py$' || true
-printf '%s' '3.2-a17095f3' > "$HOME/.local/share/oma-voice/store-version"
+printf '%s' '3.3-91d32174' > "$HOME/.local/share/oma-voice/store-version"
 say done
 """) }
    Button { fill: width; height: 36; text: zh ? "English" : "中文"; onTap: run(zh ? "mkdir -p ~/.config/omalauncher && printf en > ~/.config/omalauncher/voice-ui-language" : "mkdir -p ~/.config/omalauncher && printf zh > ~/.config/omalauncher/voice-ui-language") }

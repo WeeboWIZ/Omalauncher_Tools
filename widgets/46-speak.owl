@@ -1,12 +1,12 @@
-widget "終端播報" {
+widget "Terminal Voice" {
   page: 1
   order: 6
   size: 3x4
   minSize: 3x4
-  meta { owl: 6; description: "朗讀 Codex 回覆或 tmux 終端畫面；支援 Codex、Claude 與一般終端程式。"; version: "__VERSION__"; license: "MIT"; category: "productivity" }
+  meta { owl: 6; description: "Reads Codex replies or a tmux terminal aloud, for Codex, Claude or any CLI. Reads a finished task with the screen off. English and Chinese."; version: "__VERSION__"; license: "MIT"; category: "productivity" }
   requires { pacman: ["python", "espeak-ng", "libpulse", "mpg123", "tmux", "curl", "util-linux"] }
   source uiLanguage = file("~/.config/omalauncher/voice-ui-language")
-  let zh = uiLanguage != "en"
+  let zh = uiLanguage == "zh"
   source installed = file("~/.local/share/oma-voice/store-version")
   source setupState = file("~/.cache/oma-voice/setup-state")
   let ready = installed == "__PAYLOAD_ID__"

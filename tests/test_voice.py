@@ -142,6 +142,12 @@ class VoiceTests(unittest.TestCase):
             for _ in range(2):
                 subprocess.run([sys.executable,str(ROOT/'install.py'),'--skip-deps'],env=env,check=True,stdout=subprocess.DEVNULL)
             self.assertEqual(config.read_text(),'{"auto":false}')
+            # A new install is English; one from before 3.3 that never chose a language stays Chinese.
+            language = home/'.config/omalauncher/voice-ui-language'
+            self.assertFalse(language.exists())
+            (home/build_store.MARKER).write_text('3.2-00000000')
+            subprocess.run([sys.executable,str(ROOT/'install.py'),'--skip-deps'],env=env,check=True,stdout=subprocess.DEVNULL)
+            self.assertEqual(language.read_text(),'zh')
             tile = (home/'.config/omalauncher/widgets/46-speak.owl').read_text()
             self.assertNotIn('__',tile.split('"""')[0])
             self.assertNotIn(directory,tile)
@@ -158,6 +164,12 @@ class VoiceTests(unittest.TestCase):
         self.assertEqual(''.join(parts),text)
         self.assertTrue(all(len(part) <= 1200 for part in parts))
         self.assertEqual(synthesize.pieces('短句'),['短句'])
+        # Notes added to English text are English, so the English voice is the one chosen for it.
+        english = voice.summarize('This sentence is part of a long reply. '*30+'See https://example.com and\n```\ncode\n```')
+        self.assertTrue(english.startswith('Excerpt. '))
+        self.assertFalse(voice.chinese(english))
+        self.assertFalse(voice.chinese(voice.clean_text('See https://example.com and\n```\ncode\n```')))
+        self.assertTrue(voice.summarize('這是一句很長的回覆。'*80).startswith('回覆節錄。'))
         self.assertEqual(voice.english('正在播放 · 自然語音（線上）'),'Playing · online natural')
         self.assertEqual(voice.english('播放完成 · 離線基本語音（'+synthesize.UNREACHABLE+'）'),'Finished · offline basic (online voice unreachable)')
         for reason in (synthesize.NOT_INSTALLED,synthesize.NO_MPG123,synthesize.UNREACHABLE):
@@ -175,6 +187,9 @@ class VoiceTests(unittest.TestCase):
                 for personal in ('/root/','/home/','__HOME__'):
                     self.assertNotIn(personal,text)
                 self.assertIn('version: "%s"'%build_store.VERSION,text)
+                # The store shows the name, the description and the preview as they are: English.
+                head = text.split('requires')[0]
+                self.assertFalse(voice.chinese(head),head)
                 self.assertEqual(text.count('"""')%2,0)
 
     def test_setup_script_installs_the_same_files_as_the_installer(self):
@@ -188,6 +203,16 @@ class VoiceTests(unittest.TestCase):
                 self.assertEqual(os.access(home/target,os.X_OK),executable)
             self.assertEqual((home/build_store.MARKER).read_text(),build_store.payload_id())
             self.assertEqual((home/'.cache/oma-voice/setup-state').read_text(),'done')
+            language = home/'.config/omalauncher/voice-ui-language'
+            subprocess.run(['bash','-c',script],env=dict(os.environ,HOME=directory),check=True)
+            self.assertFalse(language.exists())
+            (home/build_store.MARKER).write_text('3.2-00000000')
+            subprocess.run(['bash','-c',script],env=dict(os.environ,HOME=directory),check=True)
+            self.assertEqual(language.read_text(),'zh')
+            language.write_text('en')
+            (home/build_store.MARKER).write_text('3.1-00000000')
+            subprocess.run(['bash','-c',script],env=dict(os.environ,HOME=directory),check=True)
+            self.assertEqual(language.read_text(),'en')
 
 if __name__ == '__main__':
     unittest.main()

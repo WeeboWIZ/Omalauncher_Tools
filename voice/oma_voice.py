@@ -59,10 +59,23 @@ def read_json(path, default=None):
         return default
 
 
+def chinese(text):
+    return any('㐀' <= c <= '鿿' for c in text)
+
+
+def read_text(path):
+    try:
+        return path.read_text().strip()
+    except OSError:
+        return ''
+
+
 def clean_text(text):
-    text = re.sub(r'```.*?```', '（程式碼略過）', text, flags=re.S)
+    # Spoken notes are in the language of the reply, or a Chinese voice would be picked for English text.
+    zh = chinese(text)
+    text = re.sub(r'```.*?```', '（程式碼略過）' if zh else ' (code omitted) ', text, flags=re.S)
     text = re.sub(r'!?\[([^\]]+)\]\([^)]*\)', r'\1', text)
-    text = re.sub(r'https?://\S+', '連結略過', text)
+    text = re.sub(r'https?://\S+', '連結略過' if zh else 'link omitted', text)
     text = re.sub(r'(?m)^\s*(?:#{1,6}\s+|[-*+]\s+|\d+[.)]\s+|>\s*)', '', text)
     text = text.replace('`', '').replace('**', '').replace('__', '')
     return ''.join(c for c in text if c in '\n\t' or (ord(c) >= 32 and ord(c) != 127)).strip()
@@ -91,7 +104,9 @@ def summarize(text, limit=360):
         used += len(s) + 1
     if warning:
         selected.append(warning[:limit // 2])
-    return '回覆節錄。' + ' '.join(selected) + ' 完整內容可選全文播放。'
+    if chinese(text):
+        return '回覆節錄。' + ' '.join(selected) + ' 完整內容可選全文播放。'
+    return 'Excerpt. ' + ' '.join(selected) + ' Play the full reply for the rest.'
 
 
 def completed_reply(event):
@@ -400,7 +415,8 @@ class Reader:
         if action == 'replay':
             self.play(self.state.get('full' if request.get('full') else 'summary', ''))
         elif action == 'test':
-            self.play('語音播報已連接。之後會自動播放這個對話的回覆摘要。')
+            zh = (read_text(HOME / '.config/omalauncher/voice-ui-language') == 'zh')
+            self.play('語音播報已連接。之後會自動播放這個對話的回覆摘要。' if zh else 'Voice is connected. A summary of each reply in this chat will be read aloud.')
         elif action == 'stop':
             self.stop()
         elif action == 'auto':

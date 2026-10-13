@@ -32,7 +32,7 @@ $('ui-language').onclick=async()=>{
  try{const response=await fetch('/language',{method:'POST',headers:{'Content-Type':'application/json','X-Speak-Token':token},body:JSON.stringify({language:value})});if(!response.ok)throw Error(await response.text());uiLanguage=value;applyLanguage();}
  catch(error){status.textContent='Language change failed: '+error.message;}
 };
-fetch('/language').then(r=>r.text()).then(value=>{uiLanguage=value.trim()==='en'?'en':'zh';applyLanguage();}).catch(()=>{});
+fetch('/language').then(r=>r.text()).then(value=>{uiLanguage=value.trim()==='zh'?'zh':'en';applyLanguage();if(!localStorage.getItem('oma-speak-language'))$('language').value=uiLanguage==='zh'?'zh-TW':'en-US';}).catch(()=>{});
 
 const Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
 let recognition=null,wanted=false,timer=null,failures=0,committed='',interim='',afterStop=null;
