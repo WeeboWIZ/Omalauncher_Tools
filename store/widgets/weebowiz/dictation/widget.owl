@@ -953,14 +953,14 @@ say done
   } else {
   Row {
    Text { text: zh ? "語音輸入" : "DICTATION"; style: label; color: accent; weight: 1 }
-   Button { text: zh ? "EN" : "中"; width: 46; onTap: run(zh ? "~/.local/bin/oma-voice language en" : "~/.local/bin/oma-voice language zh") }
+   Button { text: zh ? "EN" : "中"; width: 46; onTap: run(zh ? "python ~/.local/share/oma-voice/oma_voice.py language en" : "python ~/.local/share/oma-voice/oma_voice.py language zh") }
   }
-  Button { text: (zh ? "開始語音輸入" : "Start dictation"); onTap: run("~/.local/bin/speak") }
+  Button { text: (zh ? "開始語音輸入" : "Start dictation"); onTap: run("bash ~/.local/bin/speak") }
   Text { text: zh ? "送入：${voice.source == 'terminal' ? (voice.source_name ?? '終端') : 'Codex 會話'}" : "Send to: ${voice.source == 'terminal' ? (voice.source_name ?? 'Terminal') : 'Codex chat'}"; style: small; color: accent; maxLines: 2 }
   Text { text: latest == "" || latest == null ? (zh ? "開始 → 說話 → 停止並保存" : "Start → speak → stop and save") : latest; style: small; maxLines: 3; weight: 1 }
   Text { text: result == "" ? (zh ? "保存後可送出" : "Save, then send") : parseJson(result).ok ? (zh ? "已送到目前目標" : "Sent to current target") : (zh ? parseJson(result).error : parseJson(result).error_en) ?? (zh ? "送出完成" : "Request completed"); style: small; maxLines: 2 }
   if sending { Text { text: (zh ? "正在送出…" : "Sending…"); style: small; color: accent } }
-  else { Button { text: (zh ? "送到目前目標" : "Send to target"); onTap: { sending = true; result = run("~/.local/bin/oma-send-dictation") } } }
+  else { Button { text: (zh ? "送到目前目標" : "Send to target"); onTap: { sending = true; result = run("python ~/.local/bin/oma-send-dictation") } } }
   Button { text: (zh ? "複製文字" : "Copy text"); onTap: copy(latest) }
   }
  }

@@ -11,7 +11,7 @@ widget "終端播報" {
   source setupState = file("~/.cache/oma-voice/setup-state")
   let ready = installed == "3.1-226dd9d4"
   let setupText = setupState == "installing" && !ready ? (zh ? "安裝中，約需一分鐘…" : "Installing, about a minute…") : setupState == "failed" ? (zh ? "安裝失敗，請查看 ~/.cache/oma-voice/setup.log" : "Setup failed: see ~/.cache/oma-voice/setup.log") : installed == "" ? (zh ? "首次使用：把播報與聽寫程式寫入 ~/.local，並下載 edge-tts 線上語音。" : "First use: writes the voice and dictation programs to ~/.local and downloads edge-tts for online speech.") : (zh ? "程式有新版，更新後才能使用。" : "The programs have an update; install it to continue.")
-  source service = cmd("if [ -x ~/.local/bin/oma-voice ]; then ~/.local/bin/oma-voice ensure; fi") every 30s
+  source service = cmd("if [ -f ~/.local/share/oma-voice/oma_voice.py ]; then python ~/.local/share/oma-voice/oma_voice.py ensure; fi") every 30s
   source voice = file("~/.cache/oma-voice/state.json") json
   source now = clock every 5s
   let offline = voice.checked_at == null || now - voice.checked_at > 30
@@ -956,7 +956,7 @@ say done
     } else {
     Row {
       Text { text: zh ? "終端播報" : "TERMINAL VOICE"; style: label; color: accent; weight: 1 }
-      Button { text: zh ? "EN" : "中"; width: 46; onTap: run(zh ? "~/.local/bin/oma-voice language en" : "~/.local/bin/oma-voice language zh") }
+      Button { text: zh ? "EN" : "中"; width: 46; onTap: run(zh ? "python ~/.local/share/oma-voice/oma_voice.py language en" : "python ~/.local/share/oma-voice/oma_voice.py language zh") }
     }
     Text { text: voice.source == "terminal" ? (zh ? "來源：${voice.source_name ?? '終端'}" : "Source: ${voice.source_name ?? 'Terminal'}") : (zh ? "來源：Codex 會話" : "Source: Codex chat"); style: small; color: accent }
     Text { text: statusText; style: small; maxLines: 2; color: offline ? yellow : muted }
@@ -964,12 +964,12 @@ say done
     Text { text: voice.summary == "" || voice.summary == null ? (zh ? "選擇 Codex 會話或連接 tmux 終端。" : "Choose a Codex chat or connect a tmux terminal.") : voice.summary; style: small; maxLines: 4; weight: 1 }
     Row {
       gap: 4
-      Button { text: (zh ? "播放" : "Play"); weight: 1; height: 40; onTap: run("~/.local/bin/oma-voice replay") }
-      Button { text: (zh ? "停止" : "Stop"); weight: 1; height: 40; onTap: run("~/.local/bin/oma-voice stop") }
+      Button { text: (zh ? "播放" : "Play"); weight: 1; height: 40; onTap: run("python ~/.local/share/oma-voice/oma_voice.py replay") }
+      Button { text: (zh ? "停止" : "Stop"); weight: 1; height: 40; onTap: run("python ~/.local/share/oma-voice/oma_voice.py stop") }
     }
     Row {
       gap: 4
-      Button { text: (zh ? "同步" : "Sync"); weight: 1; height: 40; onTap: run("~/.local/bin/oma-voice refresh") }
+      Button { text: (zh ? "同步" : "Sync"); weight: 1; height: 40; onTap: run("python ~/.local/share/oma-voice/oma_voice.py refresh") }
       Button { text: (zh ? "詳情" : "Details"); weight: 1; height: 40; onTap: screen() }
     }
     }
@@ -982,8 +982,8 @@ say done
       gap: 10
       Row {
         height: 44
-        Button { weight: 1; height: 44; text: (zh ? "同步回覆" : "Sync reply"); onTap: run("~/.local/bin/oma-voice refresh") }
-        Button { weight: 1; height: 44; text: (zh ? "停止播放" : "Stop audio"); onTap: run("~/.local/bin/oma-voice stop") }
+        Button { weight: 1; height: 44; text: (zh ? "同步回覆" : "Sync reply"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py refresh") }
+        Button { weight: 1; height: 44; text: (zh ? "停止播放" : "Stop audio"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py stop") }
         Button { weight: 1; height: 44; text: (zh ? "返回" : "Back"); onTap: close() }
       }
       Column {
@@ -997,8 +997,8 @@ say done
         Text { text: (zh ? voice.error : voice.error_en) ?? ""; style: small; color: red; maxLines: 5 }
         Text { text: voice.source == "terminal" ? (zh ? "目前讀取：${voice.source_name ?? '終端'} · tmux 工作階段 oma-voice" : "Reading: ${voice.source_name ?? 'Terminal'} · tmux session oma-voice") : (zh ? "目前讀取：Codex 會話" : "Reading: Codex chat"); bold: true; color: accent; maxLines: 3 }
         Row {
-          Button { weight: 1; height: 44; text: zh ? "Codex 會話" : "Codex chat"; onTap: run("~/.local/bin/oma-voice source codex") }
-          Button { weight: 1; height: 44; text: zh ? "終端 / Claude" : "Terminal / Claude"; onTap: run("~/.local/bin/oma-voice source terminal") }
+          Button { weight: 1; height: 44; text: zh ? "Codex 會話" : "Codex chat"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py source codex") }
+          Button { weight: 1; height: 44; text: zh ? "終端 / Claude" : "Terminal / Claude"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py source terminal") }
         }
         if voice.source == "terminal" {
           Text { text: zh ? "在原本的終端輸入下方命令，之後可在該視窗執行 Codex、Claude 或其他程式。播放會讀取目前畫面；語音輸入會送到這個窗格。" : "Run this in your existing terminal, then start Codex, Claude or another program there. Play reads the current screen; dictation sends to that pane."; style: small; color: muted; maxLines: 7 }
@@ -1009,18 +1009,18 @@ say done
         Text { text: (zh ? "正式回覆完成後自動更新；同步只更新文字，不會自動重播舊內容。" : "Completed replies update automatically. Sync refreshes text without replaying older replies."); style: small; maxLines: 4; color: muted }
         }
         Row {
-          Button { weight: 1; height: 44; text: (zh ? "播放摘要" : "Summary"); onTap: run("~/.local/bin/oma-voice replay") }
-          Button { weight: 1; height: 44; text: (zh ? "播放全文" : "Full reply"); onTap: run("~/.local/bin/oma-voice replay --full") }
+          Button { weight: 1; height: 44; text: (zh ? "播放摘要" : "Summary"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py replay") }
+          Button { weight: 1; height: 44; text: (zh ? "播放全文" : "Full reply"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py replay --full") }
         }
         Text { text: voice.source == "terminal" ? (zh ? "終端畫面" : "Terminal screen") : (zh ? "最近回覆" : "Latest reply"); bold: true; color: accent }
         Text { text: voice.full == "" || voice.full == null ? (zh ? "尚無可讀內容" : "Nothing to read yet") : voice.full; maxLines: 160 }
         Button { fill: width; height: 44; text: (zh ? "複製內容" : "Copy text"); onTap: copy(voice.full ?? "") }
-        Button { fill: width; height: 44; text: zh ? "介面語言：中文 → English" : "Language: English → 中文"; onTap: run(zh ? "~/.local/bin/oma-voice language en" : "~/.local/bin/oma-voice language zh") }
+        Button { fill: width; height: 44; text: zh ? "介面語言：中文 → English" : "Language: English → 中文"; onTap: run(zh ? "python ~/.local/share/oma-voice/oma_voice.py language en" : "python ~/.local/share/oma-voice/oma_voice.py language zh") }
         Text { text: (zh ? "播報設定" : "Voice settings"); bold: true; color: accent }
-        if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.follow_latest ? (zh ? "對話：自動跟隨" : "Chat: follow latest") : (zh ? "對話：固定" : "Chat: pinned"); onTap: run("~/.local/bin/oma-voice follow") } }
-        if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.auto ? (zh ? "自動播報：開" : "Auto-read: on") : (zh ? "自動播報：關" : "Auto-read: off"); onTap: run("~/.local/bin/oma-voice auto toggle") } }
-        Button { fill: width; height: 44; text: voice.engine == "offline" ? (zh ? "聲音：離線" : "Voice: offline") : (zh ? "聲音：自然（線上）" : "Voice: online"); onTap: run("~/.local/bin/oma-voice engine toggle") }
-        Button { fill: width; height: 44; text: (zh ? "開始語音輸入" : "Start dictation"); onTap: run("~/.local/bin/speak") }
+        if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.follow_latest ? (zh ? "對話：自動跟隨" : "Chat: follow latest") : (zh ? "對話：固定" : "Chat: pinned"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py follow") } }
+        if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.auto ? (zh ? "自動播報：開" : "Auto-read: on") : (zh ? "自動播報：關" : "Auto-read: off"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py auto toggle") } }
+        Button { fill: width; height: 44; text: voice.engine == "offline" ? (zh ? "聲音：離線" : "Voice: offline") : (zh ? "聲音：自然（線上）" : "Voice: online"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py engine toggle") }
+        Button { fill: width; height: 44; text: (zh ? "開始語音輸入" : "Start dictation"); onTap: run("bash ~/.local/bin/speak") }
       }
     }
   }
