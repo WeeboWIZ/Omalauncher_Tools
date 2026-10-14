@@ -49,13 +49,13 @@ Then start `claude`, `codex`, or any other CLI inside that tmux session. The voi
 
 For Codex chat mode, open or resume a local Codex chat and tap **Sync**. Completed replies update automatically. Sync never replays an old answer. The voice service pauses after 10 minutes with the tile off screen and no Codex activity, and resumes when the tile is back; **Idle pause** in the voice settings changes the time or turns the pause off. This mode needs Omalauncher's `codex queue` for sending; if your Codex build lacks it, copy the dictated text and paste it yourself.
 
-Dictation uses browser speech recognition. Choose a speech language, tap Start, stop, edit, and save. Then tap **Send to target** on the home screen. The browser must grant microphone permission; Chrome is recommended.
+Dictation uses browser speech recognition. Choose a speech language, tap Start, stop, and edit. Tap **Refine with Agent** to create a separate draft below the original text, review it, then choose **Send original** or **Send refined draft** in the page or widget details. Refining uses the locally authenticated Codex CLI and sends the text to Codex; it never submits to the selected target by itself. The browser must grant microphone permission; Chrome is recommended.
 
 ## Update and data
 
 Download or pull the latest version and rerun `python install.py`. It preserves personal settings and draft text and backs up replaced program files under `~/.local/share/oma-voice/install-backups/`. Restart Linux if an older voice service is still running. The widgets hold their background programs: after importing or updating only the `.owl` files, tap **Set up** or **Update** on the tile.
 
-The repository contains no conversation logs, drafts, tokens, audio files, models, or virtual environments. Your Codex logs remain under `~/.codex/sessions/`; voice settings and output under `~/.config/omalauncher/voice.json` and `~/.cache/oma-voice/`; dictation text under `~/.cache/oma-speak/` and browser local storage. Terminal mode reads only the dedicated `oma-voice` tmux session. Online TTS sends the text being spoken to Microsoft Edge TTS. Browser speech recognition may use the browser provider's online service. Select offline speech to use local espeak-ng. The dictation page listens only on `127.0.0.1:18763` and checks an origin and random token before saving text.
+The repository contains no conversation logs, drafts, tokens, audio files, models, or virtual environments. Your Codex logs remain under `~/.codex/sessions/`; voice settings and output under `~/.config/omalauncher/voice.json` and `~/.cache/oma-voice/`; original and refined dictation under `~/.cache/oma-speak/` and the original browser draft in local storage. Terminal mode reads only the dedicated `oma-voice` tmux session. Online TTS sends the text being spoken to Microsoft Edge TTS. Browser speech recognition may use the browser provider's online service. Select offline speech to use local espeak-ng. The dictation page listens only on `127.0.0.1:18763` and checks an origin and random token before saving or sending text.
 
 Run `python -m unittest discover -s tests -v` to check the package. `python tools/build_store.py` rebuilds the store folders under `store/`; see `docs/STORE_PLAN.md`. You can preview a widget after installation with `owl-check ~/.config/omalauncher/widgets/46-speak.owl`.
 
@@ -107,13 +107,13 @@ tmux new -A -s oma-voice
 
 使用 Codex 會話模式時，開啟或恢復本機對話，按「同步」。正式回覆完成後自動更新；同步不會重播歷史回覆。小工具不在畫面上、Codex 也沒有動靜超過 10 分鐘，播報服務會暫停，回到畫面時自動恢復；可在播報設定的「閒置暫停」改時間或設為無限制。送入對話需 Omalauncher 的 `codex queue`；若使用的 Codex 沒有該命令，可複製聽寫文字再手動貼上。
 
-語音輸入使用瀏覽器語音辨識。選好語音語言，開始、停止、修改並保存，最後回首頁按「送到目前目標」。瀏覽器需授予麥克風權限，建議使用 Chrome。
+語音輸入使用瀏覽器語音辨識。選好語音語言，開始、停止並修改文字。按「一鍵 Agent 整理」後，原文下方會出現獨立的整理稿；確認內容後，可在瀏覽器頁或小工具詳情選擇「送出原文」或「送出整理稿」。整理會透過本機已登入的 Codex CLI 把文字傳給 Codex，但不會自動送到目前目標。瀏覽器需授予麥克風權限，建議使用 Chrome。
 
 ## 更新與資料
 
 下載最新版本並重新執行 `python install.py`。安裝會保留個人設定與草稿，並把舊程式備份到 `~/.local/share/oma-voice/install-backups/`。若舊播報服務仍在運行，重啟 Linux 載入新程式。小工具內含背景程式：只匯入或更新 `.owl` 檔時，在小工具上按「安裝」或「更新」即可。
 
-倉庫不包含對話紀錄、草稿、Token、音檔、模型或虛擬環境。Codex 記錄位於 `~/.codex/sessions/`；播報設定和快取位於 `~/.config/omalauncher/voice.json`、`~/.cache/oma-voice/`；聽寫文字位於 `~/.cache/oma-speak/` 和瀏覽器本機儲存。終端模式只讀取指定的 `oma-voice` tmux 工作階段。線上語音會把朗讀文字傳給 Microsoft Edge TTS；瀏覽器語音辨識也可能使用供應商的線上服務。選擇離線語音則使用本機 espeak-ng。聽寫頁只監聽 `127.0.0.1:18763`，保存時檢查來源與隨機 Token。
+倉庫不包含對話紀錄、草稿、Token、音檔、模型或虛擬環境。Codex 記錄位於 `~/.codex/sessions/`；播報設定和快取位於 `~/.config/omalauncher/voice.json`、`~/.cache/oma-voice/`；聽寫原文與整理稿位於 `~/.cache/oma-speak/`，瀏覽器本機儲存原始草稿。終端模式只讀取指定的 `oma-voice` tmux 工作階段。線上語音會把朗讀文字傳給 Microsoft Edge TTS；瀏覽器語音辨識也可能使用供應商的線上服務。選擇離線語音則使用本機 espeak-ng。聽寫頁只監聽 `127.0.0.1:18763`，保存或送出時檢查來源與隨機 Token。
 
 執行 `python -m unittest discover -s tests -v` 可檢查分享包；`python tools/build_store.py` 重新產生 `store/` 下的商店版本，流程見 `docs/STORE_PLAN.md`。安裝後以 `owl-check ~/.config/omalauncher/widgets/46-speak.owl` 預覽首頁和詳情頁。
 

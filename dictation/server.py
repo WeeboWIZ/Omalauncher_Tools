@@ -1,8 +1,11 @@
 import hmac
+import hashlib
 import json
 import os
 from pathlib import Path
 import secrets
+import subprocess
+import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 CACHE = Path.home() / '.cache/oma-speak'
@@ -36,12 +39,39 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, value if value in LANGUAGES else LANGUAGES[0])
         if self.path == '/health':
             return self.reply(200, 'oma-speak-v1')
+        if self.path == '/target':
+            if not hmac.compare_digest(self.headers.get('X-Speak-Token', ''), TOKEN):
+                return self.reply(403, 'Forbidden')
+            try:
+                current = json.loads((Path.home()/'.cache/oma-voice/state.json').read_text())
+            except (OSError, ValueError):
+                current = {}
+            target = {'source': current.get('source', 'codex'),
+                      'source_name': str(current.get('source_name', 'Terminal'))[:80]}
+            return self.reply(200, json.dumps(target, ensure_ascii=False), 'application/json; charset=utf-8')
+        if self.path == '/refine-status':
+            if not hmac.compare_digest(self.headers.get('X-Speak-Token', ''), TOKEN):
+                return self.reply(403, 'Forbidden')
+            try:
+                value = json.loads((CACHE/'refine-status.json').read_text())
+            except (OSError, ValueError):
+                value = {'phase': 'idle'}
+            if value.get('phase') == 'ready':
+                try:
+                    raw = (CACHE/'latest.txt').read_text().strip()
+                    if hashlib.sha256(raw.encode()).hexdigest() != value.get('source_hash'):
+                        value = {'phase': 'idle'}
+                    else:
+                        value['text'] = (CACHE/'refined.txt').read_text()
+                except OSError:
+                    value = {'phase': 'idle'}
+            return self.reply(200, json.dumps(value, ensure_ascii=False), 'application/json; charset=utf-8')
         if self.path != '/':
             return self.reply(404, 'Not found')
         self.reply(200, PAGE_PATH.read_text(), 'text/html; charset=utf-8')
 
     def do_POST(self):
-        if (self.path not in ('/text', '/language') or self.headers.get('Origin') != ORIGIN
+        if (self.path not in ('/text', '/language', '/refine', '/send') or self.headers.get('Origin') != ORIGIN
                 or not hmac.compare_digest(self.headers.get('X-Speak-Token', ''), TOKEN)):
             return self.reply(403, 'Forbidden')
         try:
@@ -59,11 +89,28 @@ class Handler(BaseHTTPRequestHandler):
                 os.chmod(temp, 0o600)
                 temp.replace(LANG_PATH)
                 return self.reply(200, 'Language saved')
+            if self.path == '/send':
+                version = body.get('version')
+                if version not in ('original', 'refined'):
+                    raise ValueError()
+                command = [sys.executable, str(Path.home()/'.local/bin/oma-send-dictation')]
+                if version == 'refined':
+                    command.append('--refined')
+                result = subprocess.run(command, capture_output=True, text=True, timeout=28)
+                output = json.loads(result.stdout.splitlines()[-1])
+                code = 200 if output.get('ok') is True else 400
+                return self.reply(code, json.dumps(output, ensure_ascii=False), 'application/json; charset=utf-8')
             text = body['text']
             if not isinstance(text, str) or len(text) > 16000:
                 raise ValueError()
             # Keep terminal escape/control sequences out of Bash insertion.
             text = ''.join(c for c in text if c >= ' ' and c != '\x7f').strip()
+            if not text:
+                raise ValueError()
+            try:
+                previous = (CACHE/'latest.txt').read_text()
+            except OSError:
+                previous = None
             tmp = CACHE / 'latest.tmp'
             tmp.write_text(text)
             os.chmod(tmp, 0o600)
@@ -73,9 +120,18 @@ class Handler(BaseHTTPRequestHandler):
             status_tmp.write_text(json.dumps({'phase': 'saved'}))
             os.chmod(status_tmp, 0o600)
             status_tmp.replace(status)
+            if self.path == '/refine' or previous != text:
+                (CACHE/'refined.txt').unlink(missing_ok=True)
+                (CACHE/'refine-status.json').unlink(missing_ok=True)
+            if self.path == '/refine':
+                subprocess.run([sys.executable, str(Path.home()/'.local/bin/oma-refine-dictation'), '--start'],
+                               check=True, timeout=5)
+                return self.reply(200, json.dumps({'phase': 'refining'}), 'application/json; charset=utf-8')
             self.reply(200, 'Saved. Return to the launcher and tap Send to target.')
-        except (ValueError, KeyError, TypeError, UnicodeError):
+        except (ValueError, KeyError, IndexError, TypeError, UnicodeError):
             self.reply(400, 'Invalid text')
+        except (OSError, subprocess.TimeoutExpired, subprocess.CalledProcessError):
+            self.reply(503, 'Action unavailable')
 
 if __name__ == '__main__':
     server = ThreadingHTTPServer(('127.0.0.1', PORT), Handler)

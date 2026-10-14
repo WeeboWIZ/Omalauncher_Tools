@@ -22,7 +22,7 @@
 | `terminal-voice` | `widgets/46-speak.owl` | `store/widgets/weebowiz/terminal-voice/` |
 | `dictation` | `widgets/47-voice-input.owl` | `store/widgets/weebowiz/dictation/` |
 
-兩個 widget 內嵌同一份程式與同一個版本標記（`~/.local/share/oma-voice/store-version`），任一個裝過，另一個就直接可用。
+兩個 widget 內嵌同一份程式，共用程式版本記在 `~/.local/share/oma-voice/store-version`；各自的安裝狀態記在 `terminal-voice-version`、`dictation-version`。舊版 widget 的更新不能覆蓋較新的共用程式，避免兩張卡互相要求更新。
 
 ## 進度
 

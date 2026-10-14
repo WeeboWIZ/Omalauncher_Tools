@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # Send the saved dictation and publish progress for both widget views.
 import fcntl
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -32,6 +33,9 @@ def failure(message, detail=''):
 
 
 def main():
+    refined = sys.argv[1:] == ['--refined']
+    if sys.argv[1:] and not refined:
+        sys.exit('Usage: oma-send-dictation [--refined]')
     try:
         cache.mkdir(parents=True, exist_ok=True, mode=0o700)
         with (cache / 'send.lock').open('w') as lock:
@@ -41,12 +45,21 @@ def main():
                 # The first click is still running. Keep its progress visible.
                 return
             try:
-                text = (cache / 'latest.txt').read_text().strip()
+                original = (cache / 'latest.txt').read_text().strip()
+                text = original
+                if refined:
+                    state = json.loads((cache / 'refine-status.json').read_text())
+                    if (state.get('phase') != 'ready' or
+                            state.get('source_hash') != hashlib.sha256(original.encode()).hexdigest()):
+                        publish(failure('請先整理目前文字'))
+                        return
+                    text = (cache / 'refined.txt').read_text().strip()
                 if not text:
                     publish(failure(NO_TEXT))
                     return
                 request_id = uuid.uuid4().hex
-                publish({'phase': 'sending', 'ok': None, 'request_id': request_id})
+                publish({'phase': 'sending', 'ok': None, 'request_id': request_id,
+                         'version': 'refined' if refined else 'original'})
                 result = subprocess.run([str(home / '.local/bin/oma-voice'), 'send', '--json', '--text', text],
                                         capture_output=True, text=True, timeout=24)
                 try:
@@ -60,6 +73,7 @@ def main():
                 else:
                     response['phase'] = 'sent'
                     response['request_id'] = request_id
+                    response['version'] = 'refined' if refined else 'original'
                 publish(response)
             except (OSError, subprocess.TimeoutExpired, ValueError) as error:
                 publish(failure(FAILED, type(error).__name__))

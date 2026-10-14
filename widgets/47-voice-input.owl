@@ -13,8 +13,11 @@ widget "Dictation" {
  let setupText = setupState == "installing" && !ready ? _("Installing, about a minute…") : setupState == "failed" ? _("Setup failed: see ~/.cache/oma-voice/setup.log") : installed == "" ? _("First use: writes the voice and dictation programs to ~/.local and downloads edge-tts for online speech.") : _("The programs have an update; install it to continue.")
  source voice = file("~/.cache/oma-voice/state.json") json
  source latest = file("~/.cache/oma-speak/latest.txt")
+ source refined = file("~/.cache/oma-speak/refined.txt")
+ source refineStatus = file("~/.cache/oma-speak/refine-status.json") json
  source sendStatus = file("~/.cache/oma-speak/send-status.json") json
  let sendMessage = sendStatus.phase == "sending" ? _("Sending…") : sendStatus.phase == "sent" ? _("Queued for current target") : sendStatus.phase == "failed" ? (sendStatus.error_ui ?? _("Send failed")) : _("Save, then send")
+ let refineMessage = refineStatus.phase == "refining" ? _("Refining…") : refineStatus.phase == "ready" ? _("Refined draft ready") : refineStatus.phase == "failed" ? _("Refining failed; original is available") : _("Refine the saved text with Agent")
  onTap: screen()
  Column {
   fill: true
@@ -32,7 +35,7 @@ widget "Dictation" {
   Text { text: sendMessage; style: small; color: sendStatus.phase == "failed" ? red : muted; maxLines: 2 }
   Row {
    gap: 4
-   Button { height: 36; weight: 1; text: sendStatus.phase == "sending" ? _("Sending…") : _("Send"); onTap: run("python ~/.local/bin/oma-send-dictation") }
+   Button { height: 36; weight: 1; text: sendStatus.phase == "sending" ? _("Sending…") : _("Send original"); onTap: run("python ~/.local/bin/oma-send-dictation") }
    Button { height: 36; weight: 1; text: _("Details"); onTap: screen() }
   }
   }
@@ -53,10 +56,17 @@ widget "Dictation" {
     Button { fill: width; height: 44; text: _("Start dictation"); onTap: run("bash ~/.local/bin/speak") }
     Text { text: _("Send to: ${voice.source == 'terminal' ? (voice.source_name ?? 'Terminal') : 'Codex chat'}"); color: accent; maxLines: 2 }
     Text { text: latest == "" || latest == null ? _("Start → speak → stop and save") : latest; maxLines: 160 }
+    Button { fill: width; height: 44; text: _("Refine with Agent"); onTap: run("python ~/.local/bin/oma-refine-dictation --start") }
+    Text { text: refineMessage; style: small; color: refineStatus.phase == "failed" ? red : muted; maxLines: 3 }
+    if refineStatus.phase == "ready" && refined != "" {
+     Text { text: _("Refined draft"); color: accent; bold: true }
+     Text { text: refined; maxLines: 160 }
+     Button { fill: width; height: 44; text: _("Send refined to target"); onTap: run("python ~/.local/bin/oma-send-dictation --refined") }
+    }
     Text { text: sendMessage; style: small; color: sendStatus.phase == "failed" ? red : muted; maxLines: 3 }
     Row {
      gap: 4
-     Button { weight: 1; height: 44; text: sendStatus.phase == "sending" ? _("Sending…") : _("Send to target"); onTap: run("python ~/.local/bin/oma-send-dictation") }
+     Button { weight: 1; height: 44; text: sendStatus.phase == "sending" ? _("Sending…") : _("Send original"); onTap: run("python ~/.local/bin/oma-send-dictation") }
      Button { weight: 1; height: 44; text: _("Copy text"); onTap: copy(latest) }
     }
     Text { text: _("Interface language"); color: accent; bold: true }

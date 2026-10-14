@@ -5,9 +5,11 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 import time
 from unittest import mock
+import urllib.request
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,6 +45,96 @@ class VoiceTests(unittest.TestCase):
             result = run()
             self.assertEqual(json.loads((cache/'send-status.json').read_text())['phase'], 'failed')
             self.assertIn('rejected', result.stdout)
+
+    def test_refined_dictation_is_reviewable_and_cannot_send_stale_text(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            share = home/'.local/share/oma-voice'
+            bin_dir = home/'.local/bin'
+            cache = home/'.cache/oma-speak'
+            share.mkdir(parents=True)
+            bin_dir.mkdir(parents=True)
+            cache.mkdir(parents=True)
+            (share/'language.py').write_text('def local(text): return text\n')
+            (cache/'latest.txt').write_text('Please fix thing thing')
+            codex = bin_dir/'codex'
+            codex.write_text('#!/usr/bin/python\nimport sys\nsys.stdin.read()\nprint("Please fix the issue.")\n')
+            codex.chmod(0o700)
+            target = bin_dir/'oma-voice'
+            target.write_text('#!/usr/bin/python\nimport json, sys\nprint(json.dumps({"ok": True, "status": sys.argv[-1]}))\n')
+            target.chmod(0o700)
+            env = dict(os.environ, HOME=str(home), PATH=str(bin_dir)+os.pathsep+os.environ.get('PATH',''))
+            subprocess.run([sys.executable,str(ROOT/'bin/oma-refine-dictation')],env=env,check=True)
+            deadline = time.monotonic()+5
+            while time.monotonic()<deadline:
+                state = json.loads((cache/'refine-status.json').read_text())
+                if state['phase'] != 'refining':
+                    break
+                time.sleep(.05)
+            self.assertEqual(state['phase'],'ready')
+            self.assertEqual((cache/'refined.txt').read_text(),'Please fix the issue.')
+            send = lambda: subprocess.run([sys.executable,str(ROOT/'bin/oma-send-dictation'),'--refined'],
+                                          env=env,capture_output=True,text=True,timeout=10)
+            self.assertEqual(json.loads(send().stdout.splitlines()[-1])['status'],'Please fix the issue.')
+            (cache/'latest.txt').write_text('Different request')
+            self.assertFalse(json.loads(send().stdout.splitlines()[-1])['ok'])
+
+    def test_dictation_page_refine_and_send_endpoints(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            share = home/'.local/share/oma-voice'
+            bin_dir = home/'.local/bin'
+            share.mkdir(parents=True)
+            bin_dir.mkdir(parents=True)
+            (share/'language.py').write_text('def local(text): return text\n')
+            for name in ('oma-refine-dictation','oma-send-dictation'):
+                (bin_dir/name).write_bytes((ROOT/'bin'/name).read_bytes())
+            codex = bin_dir/'codex'
+            codex.write_text('#!/usr/bin/python\nimport sys\nsys.stdin.read()\nprint("Polished request.")\n')
+            codex.chmod(0o700)
+            target = bin_dir/'oma-voice'
+            target.write_text('#!/usr/bin/python\nimport json,sys\nprint(json.dumps({"ok": True, "status": sys.argv[-1]}))\n')
+            target.chmod(0o700)
+            env = {'HOME': directory, 'PATH': str(bin_dir)+os.pathsep+os.environ.get('PATH','')}
+            with mock.patch.dict(os.environ, env):
+                spec = importlib.util.spec_from_file_location('dictation_server',ROOT/'dictation/server.py')
+                server = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(server)
+                httpd = server.ThreadingHTTPServer(('127.0.0.1',0),server.Handler)
+                server.PORT = httpd.server_port
+                server.ORIGIN = 'http://127.0.0.1:'+str(server.PORT)
+                thread = threading.Thread(target=httpd.serve_forever,daemon=True)
+                thread.start()
+                def request(path, body=None):
+                    headers={'X-Speak-Token': server.TOKEN}
+                    data=None if body is None else json.dumps(body).encode()
+                    if data is not None:
+                        headers.update(Origin=server.ORIGIN,**{'Content-Type':'application/json'})
+                    with urllib.request.urlopen(urllib.request.Request(server.ORIGIN+path,data=data,headers=headers),timeout=5) as response:
+                        payload = response.read().decode()
+                        try:
+                            return json.loads(payload)
+                        except ValueError:
+                            return payload
+                try:
+                    voice_state = home/'.cache/oma-voice/state.json'
+                    voice_state.parent.mkdir(parents=True)
+                    voice_state.write_text(json.dumps({'source':'terminal','source_name':'tmux test'}))
+                    self.assertEqual(request('/target')['source_name'],'tmux test')
+                    self.assertEqual(request('/refine',{'text':'Please fix thing thing'})['phase'],'refining')
+                    deadline=time.monotonic()+5
+                    while time.monotonic()<deadline:
+                        state=request('/refine-status')
+                        if state['phase']!='refining':
+                            break
+                        time.sleep(.05)
+                    self.assertEqual(state['text'],'Polished request.')
+                    request('/text',{'text':'Please fix thing thing'})
+                    self.assertEqual(request('/refine-status')['phase'],'ready')
+                    self.assertEqual(request('/send',{'version':'refined'})['status'],'Polished request.')
+                finally:
+                    httpd.shutdown()
+                    httpd.server_close()
 
     def test_follow_and_completion(self):
         previous = voice.CACHE, voice.CONFIG, voice.SESSIONS

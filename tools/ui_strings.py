@@ -87,5 +87,13 @@ STRINGS = {
     'Sending…': ('正在送出…', 'Enviando…', 'Sende…', 'Envoi…', '送信中…', '전송 중…'),
     'Queued for current target': ('已送到目前目標佇列', 'En cola para el destino actual', 'Für das aktuelle Ziel eingereiht', 'En file pour la cible actuelle', '現在の送信先のキューに追加しました', '현재 대상 대기열에 추가됨'),
     'Send failed': ('送出失敗', 'Error al enviar', 'Senden fehlgeschlagen', 'Échec de l’envoi', '送信に失敗しました', '전송 실패'),
+    'Send original': ('送出原文', 'Enviar original', 'Original senden', 'Envoyer l’original', '原文を送信', '원문 보내기'),
+    'Refine with Agent': ('一鍵 Agent 整理', 'Organizar con Agent', 'Mit Agent ordnen', 'Organiser avec Agent', 'Agent で整理', 'Agent로 정리'),
+    'Refining…': ('正在整理…', 'Organizando…', 'Wird überarbeitet…', 'Révision en cours…', '整理中…', '정리 중…'),
+    'Refined draft ready': ('整理稿已完成，請檢查', 'Versión revisada lista; revísala', 'Überarbeitete Fassung prüfen', 'Version révisée prête ; relisez-la', '整理稿が完成しました。確認してください', '정리한 글이 준비되었습니다. 확인하세요'),
+    'Refining failed; original is available': ('整理失敗，仍可送出原文', 'Error al organizar; puedes enviar el original', 'Überarbeitung fehlgeschlagen; Original verfügbar', 'Échec de la révision ; original disponible', '整理に失敗しました。原文は送信できます', '정리 실패. 원문은 보낼 수 있습니다'),
+    'Refine the saved text with Agent': ('可用 Agent 整理已保存文字', 'Organiza el texto guardado con Agent', 'Gespeicherten Text mit Agent überarbeiten', 'Réviser le texte enregistré avec Agent', '保存した文章を Agent で整理できます', '저장한 글을 Agent로 정리할 수 있습니다'),
+    'Refined draft': ('整理稿', 'Versión revisada', 'Überarbeitete Fassung', 'Version révisée', '整理した文章', '정리한 글'),
+    'Send refined to target': ('送出整理稿到目前目標', 'Enviar versión revisada al destino', 'Überarbeitung an Ziel senden', 'Envoyer la version révisée à la cible', '整理稿を現在の送信先へ送信', '정리한 글을 현재 대상으로 보내기'),
     'Send to target': ('送到目前目標', 'Enviar al destino', 'An Ziel senden', 'Envoyer à la cible', '送信先に送る', '대상으로 보내기'),
 }
