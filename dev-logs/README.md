@@ -16,12 +16,12 @@ Screenshots use fixed English examples rendered by the launcher. No personal log
 
 ## What it does
 
-- **Logs:** write concise development milestones. Browse and switch by day, with 40 entries per page. Storage uses one Markdown file per month, with a full date and time on each entry.
-- **Files:** browse inside your home directory; create, view and edit Markdown; confirm deletion before moving a file into recoverable local trash. Hidden files are omitted; file browsing uses 40 items per page.
-- **System:** collect local widget, style, guest-shell and selected service diagnostics. Filter **Errors / Warnings / All**; Errors is the default. Expand a record and copy only that report. The collector keeps the newest 500 records.
-- **Settings:** choose English on the left or 繁體中文 on the right; messages, copied reports and the heading of a new log file follow it. Copy project instructions for Codex or Claude to record important development changes, verification results and unresolved problems in 1–3 sentences.
+- **Logs:** write concise development milestones. Browse and switch by day, with 40 entries per page. Tap an entry to copy, edit (the time stays) or delete it; deleted lines are kept in local trash. Storage uses one Markdown file per month, with a full date and time on each entry.
+- **Files:** browse inside your home directory as a list or as a grid of pixel folder and file icons, with a tappable path; search names (and optionally Markdown text) below the current folder; create, view and edit Markdown; confirm deletion before moving a file into recoverable local trash. Hidden files are omitted; file browsing uses 40 items per page.
+- **System:** collect local widget, style, guest-shell and selected service diagnostics. Filter **Errors / Warnings / All**; Errors is the default. Expand a record and copy only that report. The collector keeps the newest 500 records. **Analyze with agent** asks the launcher's default coding agent to explain the problem, list likely causes and suggest a fix; **Fix in terminal** lets the agent carry out the fix where you can watch it; **Report to the Omalauncher author** opens a prefilled GitHub issue after hiding your home path, user name, e-mail addresses and keys.
+- **Settings** (the fourth tab; **Refresh** is at the top right): choose English on the left or 繁體中文 on the right; messages, copied reports and the heading of a new log file follow it. Copy project instructions for Codex or Claude to record important development changes, verification results and unresolved problems in 1–3 sentences.
 
-Agent logging works when an agent with local command access saves and follows the copied instructions. DEV LOGS does not capture every reply, summarize conversations automatically, or call an AI API. General Q&A, routine checks and trivial edits should be skipped. The **Auto updated** time indicates that the displayed data was refreshed, not that a new log entry was written.
+Agent logging works when an agent with local command access saves and follows the copied instructions. DEV LOGS does not capture every reply or summarize conversations automatically. It calls an agent only when you tap **Analyze with agent** or **Fix in terminal**, as described under Agent analysis. General Q&A, routine checks and trivial edits should be skipped. The **Auto updated** time indicates that the displayed data was refreshed, not that a new log entry was written.
 
 ## Install from GitHub
 
@@ -61,6 +61,12 @@ The same command can be used manually:
 
 Dates above are examples. Agent instructions should require real results, state when verification is pending, and avoid secrets or duplicate entries.
 
+## Agent analysis
+
+DEV LOGS uses the agent picked in Omalauncher's prompt bar (`~/.config/omalauncher/agent`), or the first installed one. Claude Code and Codex analyze in the background in read-only mode (`claude -p --permission-mode plan`, `codex exec --sandbox read-only`); other agents have no reliable read-only flag, so they analyze in a terminal. Only the selected record and the system type are sent, and the prompt tells the agent the record is data, not instructions. The result stays in `~/.local/share/oma-devlogs/agent/`; you can leave the page while it runs.
+
+Fixes always run in a terminal with the agent's own permission prompts. Afterwards DEV LOGS collects diagnostics again and marks the record unsolved if the same source fails again. Reports go to [SimonSchubert/omalauncher](https://github.com/SimonSchubert/omalauncher/issues) as a prefilled issue that you review and submit in the browser; nothing is sent by DEV LOGS itself. The author lists no contact e-mail, so use **Copy report** to send it another way.
+
 ## Files and recovery
 
 ```text
@@ -76,7 +82,7 @@ Markdown editing opens `micro` (Ctrl+S saves; Ctrl+Q exits). Deleted Markdown fi
 
 ## Diagnostics and privacy
 
-The collector reads local widget `.errors/`, style `errors.txt`, `/tmp/.guest-shell-err-*`, existing terminal diagnostic files and error contexts in the voice, dictation and pixel-console service logs. It has no background service: the widget runs it once a minute while its page is on screen, and when you tap **Refresh**. A pass that finds nothing new does not write to the database. It does not access Android logcat, general terminal screen contents, Codex/Claude conversations or agent API credentials. Nothing is uploaded automatically. Copying a report puts its text on the Android clipboard for you to share.
+The collector reads local widget `.errors/`, style `errors.txt`, `/tmp/.guest-shell-err-*`, existing terminal diagnostic files and error contexts in the voice, dictation and pixel-console service logs. It has no background service: the widget runs it once a minute while its page is on screen, and when you tap **Refresh**. A pass that finds nothing new does not write to the database. It does not access Android logcat, general terminal screen contents, Codex/Claude conversations or agent API credentials. Nothing is uploaded automatically: an analysis sends one record to your agent only when you ask for it. Copying a report puts its text on the Android clipboard for you to share.
 
 Terminal logging is opt-in. To open a terminal that saves its stderr and abnormal exit code, run:
 
@@ -111,8 +117,10 @@ DEV LOGS 提供開發日誌、專案 Markdown 與本機系統錯誤紀錄。畫�
 
 安裝：在倉庫根目錄執行 `python dev-logs/install.py`。商店版匯入 `widget.owl` 後按「安裝」，即可寫入內嵌程式；更新會保留筆記、日誌與錯誤資料。新使用者從空白日誌開始，不會看到開發者的紀錄。
 
-右上角「設定」內可切換語言，左邊 English、右邊繁體中文。「Agent 記錄設定」可複製提示詞給 Codex／Claude，請 agent 保存規則後，以 `~/.local/bin/oma-devlogs log '內容'` 記錄重要功能、變更、驗證結果與待追蹤問題。同一工作合併一筆、簡潔 1–3 句，一般回覆不記錄。工具沒有自動讀取全部回覆或額外呼叫 AI API；「自動更新」只代表畫面資料刷新。
+「更新」在右上角；「設定」是第四個分頁，可切換語言，左邊 English、右邊繁體中文。「Agent 記錄設定」可複製提示詞給 Codex／Claude，請 agent 保存規則後，以 `~/.local/bin/oma-devlogs log '內容'` 記錄重要功能、變更、驗證結果與待追蹤問題。同一工作合併一筆、簡潔 1–3 句，一般回覆不記錄。工具沒有自動讀取全部回覆或額外呼叫 AI API；「自動更新」只代表畫面資料刷新。
 
-「系統」紀錄由工具讀取本機診斷檔，預設只看錯誤，可切換警告／全部；展開後只複製該筆報告。一般終端不會自動被錄製，需用 `~/.local/bin/oma-devlogs-terminal` 開啟有 stderr 診斷的終端。收集時間不等於發生時間，紀錄也不保證能判斷閃退原因。
+「日誌」點一條即可複製、編輯（保留時間）或刪除（原文移至回收區）。「專案」可切換列表或像素資料夾圖示，並可搜尋目前目錄下的檔名與 Markdown 內容。
+
+「系統」紀錄由工具讀取本機診斷檔，預設只看錯誤，可切換警告／全部；展開後只複製該筆報告。「Agent 分析」請啟動器的預設 agent 以只讀方式說明問題、原因與修復建議；「在終端修復」在終端中由 agent 執行；「匯報給 Omalauncher 作者」脫敏後開啟預填的 GitHub Issue，由你確認送出。一般終端不會自動被錄製，需用 `~/.local/bin/oma-devlogs-terminal` 開啟有 stderr 診斷的終端。收集時間不等於發生時間，紀錄也不保證能判斷閃退原因。
 
 本機資料留在 `~/oma-devlogs`，刪除的 Markdown 可從 `~/.local/share/oma-devlogs/trash/` 還原。套件不含私人日誌、資料庫、會話或密鑰；未自動提交商店或傳送報告。

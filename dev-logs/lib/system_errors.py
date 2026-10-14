@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 import datetime as dt
+import getpass
 import hashlib
 import json
 import os
+import platform
 import re
+import urllib.parse
 from pathlib import Path
 import sqlite3
 from contextlib import closing
@@ -14,6 +17,16 @@ ROOT = Path.home() / 'oma-devlogs'
 CONFIG = Path.home() / '.config/omalauncher'
 TERMINALS = ROOT / 'logs/terminals'
 LANGUAGE = 'en'
+# Reports go to the Omalauncher author; the person opening the issue still reviews and submits it.
+ISSUES = 'https://github.com/SimonSchubert/omalauncher/issues/new'
+# Android browsers handle links up to about 8 KB; GitHub rejects much longer ones.
+URL_LIMIT = 7000
+SECRETS = [
+    (re.compile(r'\b(?:sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[abprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{30,})'), '[redacted]'),
+    (re.compile(r'(?i)\b(authorization|bearer|token|api[_-]?key|secret|password|passwd)\b(\s*[:=]\s*|\s+)(["\']?)[^\s"\']{6,}'), r'\1\2\3[redacted]'),
+    (re.compile(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'), '[email]'),
+    (re.compile(r'\b[0-9a-fA-F]{32,}\b|\b(?=[A-Za-z0-9+_-]*\d)(?=[A-Za-z0-9+_-]*[A-Za-z])[A-Za-z0-9+_-]{40,}={0,2}'), '[redacted]'),
+]
 
 
 def sources():
@@ -93,6 +106,53 @@ def single_report(entry):
             ''.join('    ' + line + '\n' for line in entry['text'].splitlines()))
 
 
+def redact(text):
+    '''Hide the home path, user name, e-mail addresses and anything shaped like a key before sharing.'''
+    home = str(Path.home())
+    if home not in ('/', ''):
+        text = text.replace(home, '~')
+    text = re.sub(r'/home/[^/\s]+', '/home/[user]', text)
+    try:
+        user = getpass.getuser()
+    except (KeyError, OSError):
+        user = ''
+    if len(user) >= 3 and user not in ('root', 'user'):
+        text = re.sub(r'\b' + re.escape(user) + r'\b', '[user]', text)
+    for pattern, replacement in SECRETS:
+        text = pattern.sub(replacement, text)
+    return text
+
+
+def environment():
+    version = Path.home() / '.local/share/oma-devlogs/store-version'
+    try:
+        devlogs = version.read_text().strip().split('-')[0]
+    except OSError:
+        devlogs = 'unknown'
+    return f'Linux {platform.release()} {platform.machine()} · Python {platform.python_version()} · DEV LOGS {devlogs}'
+
+
+def issue_url(entry, analysis=None):
+    '''A prefilled GitHub issue in English for the author; nothing is sent until it is submitted there.'''
+    title = redact(f"[DEV LOGS] {entry['name']}: {entry['summary']}")[:120]
+    head = f'Reported from the DEV LOGS widget.\n\n**Environment:** {environment()}\n**Collected:** {entry["time"]}\n**Source:** `{redact(entry["source"])}`\n\n'
+    if analysis:
+        head += '## Agent analysis\n\n' + redact(str(analysis.get('summary', ''))) + '\n\n'
+        for cause in analysis.get('causes') or []:
+            head += f"- {redact(str(cause.get('text', '')))} ({cause.get('confidence', '?')})\n"
+        head += '\n'
+    log = redact(entry['text'])
+    def link(body):
+        return ISSUES + '?' + urllib.parse.urlencode({'title': title, 'body': body}, quote_via=urllib.parse.quote)
+    fenced = head + '## Log\n\n```\n' + log + '\n```\n'
+    url = link(fenced)
+    while len(url) > URL_LIMIT and log:
+        # Keep the end of the log, where the failure usually is.
+        log = log[len(log) // 4 + 1:]
+        url = link(head + '## Log (truncated; the full report can be pasted from DEV LOGS)\n\n```\n…' + log + '\n```\n')
+    return url
+
+
 def classify(text, source=''):
     '''Classify known diagnostics; unknown messages stay informational.'''
     if re.search(r'\b(?:error|exception|traceback|fatal|failed|panic|segfault|segmentation fault|enosys)\b|function not implemented|exited abnormally|異常退出|錯誤|失敗', text, re.I):
@@ -104,6 +164,12 @@ def classify(text, source=''):
     if '/widgets/.errors/' in source or source.endswith('/style/errors.txt'):
         return 'error'
     return 'info'
+
+
+def summarize(text):
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    relevant = [line for line in lines if any(word in line.lower() for word in ('error', 'exception', 'fatal', 'failed', 'exited abnormally', '異常退出')) and not line.startswith(('File ', 'During '))]
+    return (relevant[-1] if relevant else (lines[0] if lines else ''))[:180]
 
 
 def history(offset=0, level='all'):
@@ -121,13 +187,26 @@ def history(offset=0, level='all'):
     total = len(filtered)
     entries = filtered[offset:offset + 20]
     for entry in entries:
-        lines = [line.strip() for line in entry['text'].splitlines() if line.strip()]
-        relevant = [line for line in lines if any(word in line.lower() for word in ('error', 'exception', 'fatal', 'failed', 'exited abnormally', '異常退出')) and not line.startswith(('File ', 'During '))]
-        entry['summary'] = (relevant[-1] if relevant else (lines[0] if lines else ''))[:180]
+        entry['summary'] = summarize(entry['text'])
         entry['name'] = Path(entry['source']).name
         entry['report'] = single_report(entry)
+        entry['shared'] = redact(entry['report'])
+        entry['issue'] = issue_url(entry)
     return {'total': total, 'all_total': len(rows), 'error_total': counts['error'],
             'counts': counts, 'level': level, 'entries': entries, 'offset': offset, 'more': offset + 20 < total}
+
+
+def record(event_id):
+    '''One stored event with the same fields as a history entry, or None.'''
+    with closing(connect()) as db:
+        row = db.execute('SELECT id,time,source,text FROM events WHERE id=?', (int(event_id),)).fetchone()
+    if not row:
+        return None
+    entry = dict(zip(('id', 'time', 'source', 'text'), row))
+    entry['level'] = classify(entry['text'], entry['source'])
+    entry['summary'] = summarize(entry['text'])
+    entry['name'] = Path(entry['source']).name
+    return entry
 
 
 def report():

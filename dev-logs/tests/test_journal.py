@@ -42,15 +42,15 @@ class MonthlyJournalTests(unittest.TestCase):
         self.assertEqual(latest['total'], 45)
         self.assertEqual(len(latest['entries']), 40)
         self.assertTrue(latest['more'])
-        self.assertEqual(latest['entries'][0], '10:44 · 紀錄 44')
+        self.assertEqual(latest['entries'][0]['text'], '10:44 · 紀錄 44')
         self.assertEqual(len(self.history('2026-10-14', 40)['entries']), 5)
-        self.assertEqual(self.history('2026-10-13')['entries'], ['09:00 · 舊日紀錄'])
+        self.assertEqual([e['text'] for e in self.history('2026-10-13')['entries']], ['09:00 · 舊日紀錄'])
 
     def test_legacy_daily_files_and_month_boundaries(self):
         (desk.JOURNAL / '2026-09-30.md').write_text('# daily\n- 23:00 · 舊格式\n')
         (desk.JOURNAL / '2026-10.md').write_text('# monthly\n- 2026-10-01 08:00 · 新格式\n')
         self.assertEqual(self.history()['days'], ['2026-10-01', '2026-09-30'])
-        self.assertEqual(self.history('2026-09-30')['entries'], ['23:00 · 舊格式'])
+        self.assertEqual([e['text'] for e in self.history('2026-09-30')['entries']], ['23:00 · 舊格式'])
         self.assertEqual(desk.read_latest(), ('2026-10-01', '08:00 · 新格式'))
 
     def test_log_writes_monthly_file_with_full_timestamp(self):
@@ -76,6 +76,34 @@ class MonthlyJournalTests(unittest.TestCase):
                     desk.log_entry('   ')
             self.assertTrue(output.getvalue().startswith(saved))
             self.assertEqual(str(raised.exception), empty)
+
+    def test_edit_keeps_the_timestamp_and_delete_keeps_a_copy(self):
+        path = desk.JOURNAL / '2026-10.md'
+        path.write_text('# Dev log\n\n- 2026-10-14 09:00 · First\n- 2026-10-14 10:00 · Second\n')
+        home = Path(self.temp.name) / 'home'
+        with patch.object(Path, 'home', return_value=home):
+            first, second = reversed(self.history('2026-10-14')['entries'])
+            desk.edit_log(first['id'], '  Edited   text ')
+            self.assertIn('- 2026-10-14 09:00 · Edited text\n', path.read_text())
+            # The id names the old line: refused once the line changed.
+            with self.assertRaises(ValueError):
+                desk.edit_log(first['id'], 'Again')
+            with self.assertRaises(ValueError):
+                desk.edit_log(second['id'], '   ')
+            desk.delete_log(second['id'])
+            self.assertNotIn('Second', path.read_text())
+            saved = json.loads(next((home / '.local/share/oma-devlogs/trash').glob('log-*.json')).read_text())
+            self.assertEqual(saved['line'], '- 2026-10-14 10:00 · Second')
+            self.assertEqual([e['text'] for e in self.history('2026-10-14')['entries']], ['09:00 · Edited text'])
+            for bad in ('../x:1:abcdef0123', '2026-10:99:abcdef0123'):
+                with self.assertRaises(ValueError):
+                    desk.delete_log(bad)
+
+    def test_legacy_daily_lines_can_be_edited(self):
+        path = desk.JOURNAL / '2026-09-30.md'
+        path.write_text('# daily\n- 23:00 · Old\n')
+        desk.edit_log(self.history('2026-09-30')['entries'][0]['id'], 'New')
+        self.assertEqual(path.read_text(), '# daily\n- 23:00 · New\n')
 
     def test_invalid_dates_and_empty_days(self):
         self.assertEqual(self.history('2026-10-12')['entries'], [])

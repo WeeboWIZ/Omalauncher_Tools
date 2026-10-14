@@ -67,6 +67,28 @@ class ErrorTests(unittest.TestCase):
                 snapshot.write_text('error: widget\n')
                 self.assertEqual(errors.history()['total'], 4)
 
+    def test_redaction_and_issue_link(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(Path, 'home', return_value=Path(directory)), \
+                patch.object(errors.getpass, 'getuser', return_value='alice'):
+            text = (f'{directory}/app failed for alice@example.com with token=abcdef123456 '
+                    'key sk-ant-abcdefghijklmnopqrstuvwx and /home/bob/x and alicebox')
+            hidden = errors.redact(text)
+            for secret in (directory, 'alice@example.com', 'abcdef123456', 'sk-ant-', '/home/bob'):
+                self.assertNotIn(secret, hidden)
+            self.assertIn('~/app failed', hidden)
+            self.assertIn('alicebox', hidden)
+            self.assertIn('/usr/lib/python3.12/site-packages/some_long_module_name/x.py',
+                          errors.redact('/usr/lib/python3.12/site-packages/some_long_module_name/x.py'))
+            entry = {'name': 'foot.log', 'summary': 'error: alice crashed', 'time': 'now', 'source': f'{directory}/foot.log',
+                     'text': 'error: alice crashed\n' + 'x' * 20000}
+            url = errors.issue_url(entry, {'summary': 'A summary', 'causes': [{'text': 'Cause', 'confidence': 'high'}]})
+            self.assertTrue(url.startswith('https://github.com/SimonSchubert/omalauncher/issues/new?title='))
+            self.assertLessEqual(len(url), errors.URL_LIMIT)
+            decoded = errors.urllib.parse.unquote(url)
+            self.assertIn('truncated', decoded)
+            self.assertIn('A summary', decoded)
+            self.assertNotIn('alice', decoded)
+
 
 if __name__ == '__main__':
     unittest.main()

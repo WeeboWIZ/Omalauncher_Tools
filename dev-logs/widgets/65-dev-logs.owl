@@ -3,7 +3,7 @@ widget "DEV LOGS" {
   order: 2
   size: 3x4
   minSize: 2x2
-  meta { owl: 6; description: "Local development log, Markdown notes and Linux diagnostics, with a prompt that lets your coding agent write log entries."; version: "__VERSION__"; license: "MIT"; category: "productivity" }
+  meta { owl: 6; description: "Dev logs, Markdown project files and Linux diagnostics. Your coding agent writes log entries, explains errors and fixes them in a terminal."; version: "__VERSION__"; license: "MIT"; category: "productivity" }
   requires { pacman: ["python", "bash", "coreutils", "less", "micro"] }
   state language = "en" persist
   let zh = language == "zh"
@@ -26,7 +26,6 @@ widget "DEV LOGS" {
   state day = ""
   state logOffset = 0
   state result = ""
-  state settingsOpen = false
   state agentPromptCopied = false
   let agentPrompt = zh ? """
 請使用 DEV LOGS 記錄本專案的重要開發進展，並把以下規則保存到適用的專案指示檔（Codex：AGENTS.md；Claude：CLAUDE.md），保留既有內容。
@@ -47,25 +46,92 @@ Use DEV LOGS to log important development progress for this project. Save these 
   state errorLevel = "error" persist
   state copiedError = 0
   state expandedError = 0
+  state reportOpen = 0
+  state agentMsg = ""
+  state expandedLog = ""
+  state editingLog = ""
+  state logDraft = ""
+  state deleteLog = ""
+  state copiedLog = ""
   state createOpen = false
   state mdTitle = ""
   state fileResult = ""
   state deletePath = ""
-  on folder { deletePath = ""; createOpen = false; fileResult = "" }
-  on expandedError { copiedError = 0 }
+  state view = "list" persist
+  state searchMode = false
+  state searchContent = false
+  state query = ""
+  state selected = ""
+  state copiedPath = ""
+  let pageSize = view == "grid" ? 24 : 40
+  on folder { deletePath = ""; createOpen = false; fileResult = ""; selected = ""; query = "" }
+  on view { offset = 0; selected = "" }
+  on expandedError { copiedError = 0; reportOpen = 0; agentMsg = "" }
   on errorOffset { expandedError = 0; copiedError = 0 }
   on errorLevel { errorOffset = 0; expandedError = 0; copiedError = 0 }
-  on settingsOpen { agentPromptCopied = false }
-  on language { agentPromptCopied = false; result = ""; fileResult = "" }
+  on tab { agentPromptCopied = false; expandedLog = ""; editingLog = ""; deleteLog = ""; selected = "" }
+  on expandedLog { copiedLog = ""; deleteLog = "" }
+  on day { expandedLog = ""; editingLog = "" }
+  on language { agentPromptCopied = false; result = ""; fileResult = ""; agentMsg = "" }
   source systemErrors = cmd("if [ -f ~/.local/share/oma-devlogs/system_errors.py ]; then python ~/.local/share/oma-devlogs/system_errors.py ${int(errorOffset)} ${sh(errorLevel)} ${sh(language)}; else printf '{}'; fi") every 60s json status
   let errors = systemErrors.out
+  source agentInfo = cmd("if [ -f ~/.local/share/oma-devlogs/agent_help.py ]; then python ~/.local/share/oma-devlogs/agent_help.py which; else printf '{}'; fi") every 5m json
+  let agent = agentInfo
+  source agentState = cmd("if [ ${int(expandedError)} -gt 0 ] && [ -f ~/.local/share/oma-devlogs/agent_help.py ]; then python ~/.local/share/oma-devlogs/agent_help.py state ${int(expandedError)} ${sh(language)}; else printf '{}'; fi") every 5s json
+  let ask = agentState
   source snapshot = cmd("if [ -f ~/.local/bin/oma-devlogs ]; then python ~/.local/bin/oma-devlogs status; else printf '{}'; fi") every 60s json status
-  source directory = cmd("if [ -f ~/.local/bin/oma-devlogs ]; then python ~/.local/bin/oma-devlogs --lang ${sh(language)} browse ${sh(folder)} ${int(offset)}; else printf '{}'; fi") every 5m json status
+  source directory = cmd("if [ -f ~/.local/bin/oma-devlogs ]; then python ~/.local/bin/oma-devlogs --lang ${sh(language)} browse ${sh(folder)} ${int(offset)} ${int(pageSize)}; else printf '{}'; fi") every 5m json status
+  source found = cmd("if [ -n ${sh(query)} ] && [ -f ~/.local/bin/oma-devlogs ]; then python ~/.local/bin/oma-devlogs --lang ${sh(language)} search ${sh(folder)} ${sh(query)} ${sh(searchContent ? "content" : "name")}; else printf '{}'; fi") every 5m json status timeout 15s
   source archive = cmd("if [ -f ~/.local/bin/oma-devlogs ]; then python ~/.local/bin/oma-devlogs --lang ${sh(language)} history ${sh(day)} ${int(logOffset)}; else printf '{}'; fi") every 5m json status
   let desk = snapshot.out
   let listing = directory.out
+  let hits = found.out
   let logs = archive.out
-  onTap: { settingsOpen = false; refresh(); screen() }
+  // Pixel icons on a 12 x 10 grid, as runs: [x, y, colour key, length].
+  let folderArt = [[1,0,"o",4], [0,1,"o",1], [1,1,"t",4], [5,1,"o",6], [0,2,"o",1], [1,2,"t",10], [11,2,"o",1], [0,3,"o",12], [0,4,"o",1], [1,4,"h",10], [11,4,"o",1], [0,5,"o",1], [1,5,"f",10], [11,5,"o",1], [0,6,"o",1], [1,6,"f",10], [11,6,"o",1], [0,7,"o",1], [1,7,"f",10], [11,7,"o",1], [0,8,"o",1], [1,8,"f",10], [11,8,"o",1], [0,9,"o",12]]
+  let fileArt = [[2,0,"o",6], [2,1,"o",1], [3,1,"p",4], [7,1,"k",1], [8,1,"o",1], [2,2,"o",1], [3,2,"p",4], [7,2,"k",2], [9,2,"o",1], [2,3,"o",1], [3,3,"p",6], [9,3,"o",1], [2,4,"o",1], [3,4,"l",4], [7,4,"p",2], [9,4,"o",1], [2,5,"o",1], [3,5,"p",6], [9,5,"o",1], [2,6,"o",1], [3,6,"b",6], [9,6,"o",1], [2,7,"o",1], [3,7,"b",6], [9,7,"o",1], [2,8,"o",1], [3,8,"p",6], [9,8,"o",1], [2,9,"o",8]]
+  component PixelIcon(kind, empty = false) {
+    Canvas {
+      let px = floor(min(width / 12, height / 10))
+      let ox = floor((width - px * 12) / 2)
+      let oy = floor((height - px * 10) / 2)
+      let body = empty ? mix(accent, background, 0.55) : accent
+      let band = kind == "md" ? cyan : kind == "code" ? blue : kind == "image" ? magenta : kind == "archive" ? orange : muted
+      let pal = kind == "folder" ? {o: mix(body, background, 0.45), t: mix(body, background, 0.3), h: mix(body, foreground, 0.45), f: body} : {o: muted, p: mix(foreground, background, 0.15), k: mix(foreground, background, 0.5), l: mix(foreground, background, 0.6), b: band}
+      for c in (kind == "folder" ? folderArt : fileArt) {
+        rect(ox + c[0] * px, oy + c[1] * px, c[3] * px + 0.5, px + 0.5, fill: get(pal, c[2]))
+      }
+    }
+  }
+  component FileActions(item) {
+    Column {
+      padding: 10
+      gap: 8
+      border: 1
+      borderColor: accent
+      radius: 6 * corners
+      background: surface
+      Row {
+        Text { text: item.name; style: small; color: accent; weight: 1; maxLines: 1 }
+        Text { text: fmtBytes(item.size); style: small; color: muted; width: 56; align: end }
+      }
+      Flow {
+        Button { text: zh ? "查看" : "View"; onTap: terminal("less -- ${sh(item.path)}", item.name) }
+        if endsWith(lower(item.name), ".md") && !item.link {
+          Button { text: zh ? "編輯" : "Edit"; onTap: terminal("micro -- ${sh(item.path)}", item.name) }
+        }
+        Button { text: copiedPath == item.path ? (zh ? "已複製路徑" : "Path copied") : (zh ? "複製路徑" : "Copy path"); onTap: { copy(item.path); copiedPath = item.path } }
+        if endsWith(lower(item.name), ".md") && !item.link {
+          Button { text: zh ? "刪除" : "Delete"; color: red; onTap: { deletePath = item.path; fileResult = "" } }
+        }
+        Button { text: "✕"; color: muted; onTap: selected = "" }
+      }
+    }
+  }
+  component Tab(label, name) {
+    Button { text: label; fill: width; color: tab == name ? accent : muted; onTap: { tab = name; refresh() } }
+  }
+  onTap: { refresh(); screen() }
   Column {
     gap: 8
     Row {
@@ -75,11 +141,11 @@ Use DEV LOGS to log important development progress for this project. Save these 
     if !ready { Setup {} } else {
     Text { text: zh ? "${desk.notes ?? 0} 篇筆記 · ${desk.entries ?? 0} 條日誌" : "${desk.notes ?? 0} notes · ${desk.entries ?? 0} logs"; style: small; color: muted }
     Text { text: snapshot.ok == false ? (zh ? "更新失敗，點擊查看" : "Update failed · tap to view") : (desk.latest != "" && desk.latest != null ? desk.latest : (zh ? "在設定中開啟 Agent 記錄教學" : "Open Settings for agent logging instructions")); style: small; maxLines: rows < 3 ? 1 : 3; weight: 1 }
-    Text { text: zh ? "系統錯誤 · ${errors.error_total ?? 0}" : "System errors · ${errors.error_total ?? 0}"; style: small; color: (errors.error_total ?? 0) > 0 ? yellow : muted; onTap: { settingsOpen = false; tab = "errors"; refresh(); screen() } }
+    Text { text: zh ? "系統錯誤 · ${errors.error_total ?? 0}" : "System errors · ${errors.error_total ?? 0}"; style: small; color: (errors.error_total ?? 0) > 0 ? yellow : muted; onTap: { tab = "errors"; refresh(); screen() } }
     Row {
       gap: 8
-      Button { text: zh ? "日誌" : "Logs"; weight: 1; onTap: { settingsOpen = false; tab = "logs"; refresh(); screen() } }
-      Button { text: zh ? "專案" : "Files"; weight: 1; onTap: { settingsOpen = false; tab = "files"; refresh(); screen() } }
+      Button { text: zh ? "日誌" : "Logs"; weight: 1; onTap: { tab = "logs"; refresh(); screen() } }
+      Button { text: zh ? "專案" : "Files"; weight: 1; onTap: { tab = "files"; refresh(); screen() } }
     }
     }
   }
@@ -89,10 +155,18 @@ Use DEV LOGS to log important development progress for this project. Save these 
       fill: true
       gap: 10
       Row {
-        Text { text: settingsOpen ? (zh ? "設定" : "Settings") : (zh ? "本機開發工作台" : "Local workspace"); style: label; color: muted; weight: 1 }
-        Button { text: settingsOpen ? (zh ? "返回" : "Back") : (zh ? "設定" : "Settings"); onTap: settingsOpen = !settingsOpen }
+        Text { text: zh ? "${desk.entries ?? 0} 條日誌 · 自動更新 ${desk.updated ?? "…"}" : "${desk.entries ?? 0} logs · Auto updated ${desk.updated ?? "…"}"; style: small; color: muted; weight: 1 }
+        Button { text: zh ? "更新" : "Refresh"; onTap: refresh() }
       }
-      if !ready { Setup {} } else if settingsOpen {
+      Row {
+        gap: 8
+        Tab { label: zh ? "日誌" : "Logs"; name: "logs"; weight: 1 }
+        Tab { label: zh ? "系統" : "System"; name: "errors"; weight: 1 }
+        Tab { label: zh ? "專案" : "Files"; name: "files"; weight: 1 }
+        Tab { label: zh ? "設定" : "Settings"; name: "settings"; weight: 1 }
+      }
+      if snapshot.ok == false { Text { text: snapshot.err; color: red; maxLines: 3 } }
+      if !ready { Setup {} } else if tab == "settings" {
         Column {
           scroll: true
           weight: 1
@@ -103,22 +177,15 @@ Use DEV LOGS to log important development progress for this project. Save these 
             Button { text: "English"; weight: 1; color: zh ? muted : accent; onTap: language = "en" }
             Button { text: "繁體中文"; weight: 1; color: zh ? accent : muted; onTap: language = "zh" }
           }
+          Text { text: zh ? "分析與修復用的 Agent" : "Agent for analysis and fixes"; style: label; color: accent }
+          Text { text: agent.installed ? (zh ? "跟隨啟動器的預設 agent：${agent.name}" + (agent.batch ? "" : "（在終端分析）") : "Follows the launcher's default agent: ${agent.name}" + (agent.batch ? "" : " (analyzes in a terminal)")) : (zh ? "尚未安裝 agent。" : "No agent installed."); style: small; color: muted }
+          Button { text: zh ? "選擇或安裝 Agent" : "Choose or install an agent"; fill: width; onTap: launcher("agents") }
           Text { text: zh ? "Agent 記錄設定" : "Agent log setup"; style: label; color: accent }
           Text { text: zh ? "複製並貼給 Codex／Claude，請它儲存規則。之後由 agent 記錄重要進展。" : "Copy and send to Codex / Claude to save the rules. Your agent then records important progress."; style: small; color: muted }
           Button { text: agentPromptCopied ? (zh ? "已複製 · 再次複製" : "Copied · Copy again") : (zh ? "複製提示詞" : "Copy prompt"); fill: width; onTap: { copy(agentPrompt); agentPromptCopied = true } }
           Text { text: agentPrompt; style: small; padding: 12; background: surface }
         }
-      } else {
-      Row {
-        gap: 8
-        Button { text: zh ? "日誌" : "Logs"; weight: 1; color: tab == "logs" ? accent : muted; onTap: { tab = "logs"; refresh() } }
-        Button { text: zh ? "系統" : "System"; weight: 1; color: tab == "errors" ? accent : muted; onTap: { tab = "errors"; refresh() } }
-        Button { text: zh ? "專案" : "Files"; weight: 1; color: tab == "files" ? accent : muted; onTap: { tab = "files"; refresh() } }
-        Button { text: zh ? "更新" : "Refresh"; weight: 1; onTap: refresh() }
-      }
-      Text { text: zh ? "${desk.entries ?? 0} 條開發日誌 · 自動更新 ${desk.updated ?? "…"}" : "${desk.entries ?? 0} dev logs · Auto updated ${desk.updated ?? "…"}"; style: small; color: muted }
-      if snapshot.ok == false { Text { text: snapshot.err; color: red; maxLines: 3 } }
-      if tab == "logs" {
+      } else if tab == "logs" {
         Input {
           placeholder: zh ? "寫一條日誌，按送出儲存" : "Write a log, press Enter to save"
           clear: true
@@ -140,11 +207,46 @@ Use DEV LOGS to log important development progress for this project. Save these 
             }
           }
           }
-          Text { text: zh ? "${logs.total ?? 0} 條 · 從新到舊" : "${logs.total ?? 0} entries · Newest first"; style: label; color: accent }
+          Text { text: zh ? "${logs.total ?? 0} 條 · 從新到舊 · 點一條可複製或編輯" : "${logs.total ?? 0} entries · Newest first · Tap one to copy or edit"; style: label; color: accent }
           if archive.ok == false { Text { text: archive.err; color: red } }
           if (logs.total ?? 0) == 0 { Text { text: zh ? "此日期暫無日誌。可在設定中複製 Agent 記錄提示詞，或在上方手動記錄。" : "No logs for this date. Copy the agent logging prompt in Settings, or write a log above."; color: muted } }
-          for entry in (logs.entries ?? []) {
-            Text { text: entry; style: body; padding: 12; background: surface; radius: 6 * corners }
+          for entry in (logs.entries ?? []) key entry.id {
+            Column {
+              padding: 12
+              background: surface
+              radius: 6 * corners
+              border: expandedLog == entry.id ? 1 : 0
+              borderColor: accent
+              gap: 8
+              if editingLog == entry.id {
+                Text { text: split(entry.text, " · ")[0]; style: small; color: muted }
+                Input { text: logDraft; placeholder: zh ? "日誌內容" : "Log text"; onChange: logDraft = value; onSubmit: { result = run("python ~/.local/bin/oma-devlogs --lang ${sh(language)} edit ${sh(entry.id)} ${sh(value)} 2>&1"); editingLog = ""; expandedLog = ""; refresh() } }
+                Row {
+                  gap: 8
+                  Button { text: zh ? "儲存" : "Save"; weight: 1; onTap: { result = run("python ~/.local/bin/oma-devlogs --lang ${sh(language)} edit ${sh(entry.id)} ${sh(logDraft)} 2>&1"); editingLog = ""; expandedLog = ""; refresh() } }
+                  Button { text: zh ? "取消" : "Cancel"; weight: 1; color: muted; onTap: editingLog = "" }
+                }
+              } else {
+                Text { text: entry.text; style: body; onTap: expandedLog = expandedLog == entry.id ? "" : entry.id }
+                if expandedLog == entry.id {
+                  if deleteLog == entry.id {
+                    Text { text: zh ? "刪除這條日誌？原文會移至回收區。" : "Delete this log? The text moves to trash."; style: small; color: yellow }
+                    Row {
+                      gap: 8
+                      Button { text: zh ? "確認刪除" : "Confirm delete"; weight: 1; color: red; onTap: { result = run("python ~/.local/bin/oma-devlogs --lang ${sh(language)} delete-log ${sh(entry.id)} 2>&1"); expandedLog = ""; refresh() } }
+                      Button { text: zh ? "取消" : "Cancel"; weight: 1; color: muted; onTap: deleteLog = "" }
+                    }
+                  } else {
+                    Row {
+                      gap: 8
+                      Button { text: copiedLog == entry.id ? (zh ? "已複製" : "Copied") : (zh ? "複製" : "Copy"); weight: 1; onTap: { copy("${logs.day} ${entry.text}"); copiedLog = entry.id } }
+                      Button { text: zh ? "編輯" : "Edit"; weight: 1; onTap: { logDraft = join(drop(split(entry.text, " · "), 1), " · "); editingLog = entry.id } }
+                      Button { text: zh ? "刪除" : "Delete"; weight: 1; color: red; onTap: deleteLog = entry.id }
+                    }
+                  }
+                }
+              }
+            }
           }
           Row {
             if logOffset > 0 { Button { text: zh ? "上一頁" : "Previous"; onTap: { logOffset = max(0, logOffset - 40); refresh() } } }
@@ -159,7 +261,7 @@ Use DEV LOGS to log important development progress for this project. Save these 
           Button { text: zh ? "全部" : "All"; weight: 1; color: errorLevel == "all" ? accent : muted; onTap: { errorLevel = "all"; refresh() } }
         }
         Text { text: zh ? "自動保留最近 500 筆；時間為收集時間。終端診斷只收集已啟用紀錄的 stderr 與異常退出碼；整個環境被終止時可能無紀錄。" : "Keeps 500 records; times indicate collection. Terminal diagnostics require logging to be enabled. Environment termination may leave no record."; style: small; color: muted }
-        Text { text: zh ? "${errors.total ?? 0} 筆紀錄 · 展開後可複製單筆報告" : "Records: ${errors.total ?? 0} · Expand to copy one report"; color: accent; style: small }
+        Text { text: zh ? "${errors.total ?? 0} 筆紀錄 · 展開後可複製、請 Agent 分析或匯報" : "Records: ${errors.total ?? 0} · Expand to copy, ask the agent or report"; color: accent; style: small }
         Column {
           scroll: true
           weight: 1
@@ -183,6 +285,70 @@ Use DEV LOGS to log important development progress for this project. Save these 
                 Text { text: entry.source; style: small; font: mono; color: muted }
                 Button { text: copiedError == entry.id ? (zh ? "已複製此筆 · 再次複製" : "Copied · Copy again") : (zh ? "複製此筆報告" : "Copy this report"); fill: width; onTap: { copy(entry.report); copiedError = entry.id } }
                 Text { text: entry.text; style: small; font: mono }
+                Column {
+                  padding: 10
+                  gap: 6
+                  border: 1
+                  borderColor: accent
+                  radius: 6 * corners
+                  Text { text: agent.installed ? "AGENT · ${agent.name}" : "AGENT"; style: label; color: accent }
+                  if !agent.installed {
+                    Text { text: zh ? "尚未安裝 coding agent。安裝後即可分析並修復這個問題。" : "No coding agent is installed. Install one to analyze and fix this problem."; style: small; color: muted }
+                    Button { text: zh ? "安裝 Agent" : "Install an agent"; fill: width; onTap: launcher("agents") }
+                  } else if ask.status == "running" {
+                    Text { text: zh ? "${ask.agent} 分析中… 開始於 ${ask.started}，通常需要 1–3 分鐘。可以先離開，結果會保留。" : "${ask.agent} is analyzing… Started ${ask.started}; this usually takes 1–3 minutes. You can leave; the result is kept."; style: small; color: yellow }
+                    Button { text: zh ? "取消分析" : "Cancel analysis"; fill: width; color: muted; onTap: { agentMsg = run("python ~/.local/share/oma-devlogs/agent_help.py cancel ${int(entry.id)} ${sh(language)} 2>&1"); refresh() } }
+                  } else if ask.analysis != null {
+                    Text { text: zh ? "問題說明" : "What happened"; style: small; color: muted }
+                    Text { text: ask.analysis.summary; style: body }
+                    if len(ask.analysis.causes ?? []) > 0 {
+                      Text { text: zh ? "可能原因" : "Likely causes"; style: small; color: muted }
+                      for cause in ask.analysis.causes {
+                        Text { text: "• " + cause.text + (zh ? "（信心：" + (cause.confidence == "high" ? "高" : cause.confidence == "medium" ? "中" : "低") + "）" : " (" + cause.confidence + " confidence)"); style: small }
+                      }
+                    }
+                    if len(ask.analysis.steps ?? []) > 0 {
+                      Text { text: zh ? "修復建議" : "Suggested fix"; style: small; color: muted }
+                      for step, i in ask.analysis.steps {
+                        Text { text: "${i + 1}. ${step.text}"; style: small }
+                        if step.command != "" { Text { text: step.command; style: small; font: mono; padding: 6; background: background } }
+                      }
+                    }
+                    Text { text: ask.analysis.risk == "config" ? (zh ? "風險：只改使用者設定" : "Risk: user settings only") : ask.analysis.risk == "packages" ? (zh ? "風險：會安裝或移除套件" : "Risk: installs or removes packages") : (zh ? "風險：涉及系統檔" : "Risk: touches system files"); style: small; color: ask.analysis.risk == "config" ? green : ask.analysis.risk == "packages" ? yellow : red }
+                    if ask.status == "fixing" { Text { text: zh ? "終端修復進行中…" : "Fix running in the terminal…"; style: small; color: yellow } }
+                    if ask.status == "fixed" { Text { text: zh ? "修復已執行（${ask.fix_finished}）· 等待驗證：問題再出現會標示為未解決。" : "Fix ran (${ask.fix_finished}) · Awaiting verification: a recurrence is marked unsolved."; style: small; color: green } }
+                    if ask.status == "unresolved" { Text { text: zh ? "同一來源又出現錯誤：尚未解決。" : "The same source failed again: not solved yet."; style: small; color: red } }
+                    if ask.status == "fix-stopped" { Text { text: zh ? "終端已關閉，修復可能未完成。" : "The terminal closed; the fix may be incomplete."; style: small; color: yellow } }
+                    Row {
+                      gap: 8
+                      Button { text: zh ? "在終端修復" : "Fix in terminal"; weight: 1; onTap: terminal("python ~/.local/share/oma-devlogs/agent_help.py fix ${int(entry.id)} ${sh(language)}", zh ? "DEV LOGS 修復" : "DEV LOGS fix") }
+                      Button { text: zh ? "重新分析" : "Analyze again"; weight: 1; color: muted; onTap: { agentMsg = run("python ~/.local/share/oma-devlogs/agent_help.py analyze ${int(entry.id)} ${sh(language)} 2>&1"); refresh() } }
+                    }
+                  } else {
+                    if ask.status == "failed" {
+                      Text { text: ask.error ?? ""; style: small; color: red }
+                      if ask.raw != null && ask.raw != "" { Text { text: ask.raw; style: small; font: mono; maxLines: 8 } }
+                    } else {
+                      Text { text: zh ? "Agent 先用白話說明問題，再分析原因並提出修復建議；分析只讀，不會修改任何檔案。" : "The agent explains the problem in plain words, then finds the cause and suggests a fix. Analysis is read-only and changes nothing."; style: small; color: muted }
+                    }
+                    if agent.batch {
+                      Button { text: zh ? "Agent 分析" : "Analyze with agent"; fill: width; onTap: { agentMsg = run("python ~/.local/share/oma-devlogs/agent_help.py analyze ${int(entry.id)} ${sh(language)} 2>&1"); refresh() } }
+                    } else {
+                      Button { text: zh ? "在終端分析" : "Analyze in terminal"; fill: width; onTap: terminal("python ~/.local/share/oma-devlogs/agent_help.py ask ${int(entry.id)} ${sh(language)}", zh ? "DEV LOGS 分析" : "DEV LOGS analysis") }
+                    }
+                  }
+                  if agentMsg != "" && ask.status != "running" { Text { text: agentMsg; style: small; color: muted; maxLines: 3 } }
+                  Button { text: zh ? "匯報給 Omalauncher 作者" + (reportOpen == entry.id ? " ▴" : " ▾") : "Report to the Omalauncher author" + (reportOpen == entry.id ? " ▴" : " ▾"); fill: width; color: muted; onTap: reportOpen = reportOpen == entry.id ? 0 : entry.id }
+                  if reportOpen == entry.id {
+                    Text { text: zh ? "以下為隱藏家目錄、使用者名稱、信箱與密鑰後的內容。開啟後會在瀏覽器預填 GitHub Issue，由你確認後送出。" : "Below is the report with your home path, user name, e-mail addresses and keys hidden. It opens a prefilled GitHub issue in the browser; you submit it there."; style: small; color: muted }
+                    Text { text: entry.shared; style: small; font: mono; maxLines: 12; padding: 6; background: background }
+                    Row {
+                      gap: 8
+                      Button { text: zh ? "開 GitHub Issue" : "Open GitHub issue"; weight: 1; onTap: url(ask.issue ?? entry.issue) }
+                      Button { text: zh ? "複製報告" : "Copy report"; weight: 1; color: muted; onTap: { copy(entry.shared); copiedError = entry.id } }
+                    }
+                  }
+                }
               }
             }
           }
@@ -193,8 +359,10 @@ Use DEV LOGS to log important development progress for this project. Save these 
         }
       } else {
         Row {
-          Button { text: zh ? "位置 ▾" : "Location ▾"; weight: 1; onTap: pathsOpen = !pathsOpen }
+          gap: 8
+          Button { text: zh ? "位置 ▾" : "Places ▾"; weight: 1; onTap: pathsOpen = !pathsOpen }
           Button { text: zh ? "上層" : "Up"; weight: 1; onTap: { folder = listing.parent ?? desk.home ?? "~"; offset = 0; refresh() } }
+          Button { text: view == "grid" ? (zh ? "☰ 列表" : "☰ List") : (zh ? "▦ 圖示" : "▦ Icons"); weight: 1; onTap: { view = view == "grid" ? "list" : "grid"; refresh() } }
         }
         if pathsOpen {
         Grid {
@@ -206,10 +374,26 @@ Use DEV LOGS to log important development progress for this project. Save these 
           Button { text: zh ? "日誌檔案" : "Log files"; onTap: { folder = "~/oma-devlogs/journal"; offset = 0; pathsOpen = false; refresh() } }
         }
         }
-        Text { text: listing.path ?? folder; style: small; font: mono }
-        Input { placeholder: zh ? "輸入家目錄下的目錄路徑" : "Enter a directory under your home"; onSubmit: { folder = value; offset = 0; refresh() } }
-        Button { text: zh ? "新建 Markdown" : "New Markdown"; onTap: { createOpen = !createOpen; mdTitle = ""; fileResult = "" } }
-        if createOpen {
+        Flow {
+          for crumb, i in (listing.crumbs ?? []) {
+            Button { text: (i > 0 ? "› " : "") + (crumb.name == "~" ? (zh ? "家" : "Home") : crumb.name); color: crumb.path == listing.path ? accent : muted; onTap: { folder = crumb.path; offset = 0; refresh() } }
+          }
+        }
+        Row {
+          gap: 8
+          Button { text: zh ? "前往" : "Go to"; weight: 1; color: searchMode ? muted : accent; onTap: searchMode = false }
+          Button { text: zh ? "搜尋" : "Search"; weight: 1; color: searchMode ? accent : muted; onTap: searchMode = true }
+          if searchMode { Button { text: (searchContent ? "✓ " : "") + (zh ? "含內容" : "Contents"); weight: 1; color: searchContent ? accent : muted; onTap: { searchContent = !searchContent; refresh() } } }
+        }
+        if searchMode {
+          Input { placeholder: zh ? "搜尋此目錄下的檔名" + (searchContent ? "與 Markdown 內容" : "") : "Search names below this folder" + (searchContent ? " and Markdown text" : ""); onSubmit: { query = value; refresh() } }
+        } else {
+          Input { placeholder: zh ? "輸入家目錄下的目錄路徑" : "Enter a directory under your home"; onSubmit: { folder = value; offset = 0; refresh() } }
+        }
+        if query == "" {
+          Button { text: zh ? "新建 Markdown" : "New Markdown"; onTap: { createOpen = !createOpen; mdTitle = ""; fileResult = "" } }
+        }
+        if createOpen && query == "" {
           Row {
             Input { text: mdTitle; placeholder: zh ? "Markdown 檔名" : "Markdown filename"; weight: 1; onChange: mdTitle = value; onSubmit: { fileResult = run("python ~/.local/bin/oma-devlogs --lang ${sh(language)} new-at ${sh(listing.path ?? folder)} ${sh(value)} 2>&1"); mdTitle = "" } }
             Button { text: zh ? "建立" : "Create"; onTap: { fileResult = run("python ~/.local/bin/oma-devlogs --lang ${sh(language)} new-at ${sh(listing.path ?? folder)} ${sh(mdTitle)} 2>&1"); mdTitle = "" } }
@@ -219,10 +403,36 @@ Use DEV LOGS to log important development progress for this project. Save these 
         if deletePath != "" {
           Text { text: zh ? "刪除 ${last(split(deletePath, "/"))}？檔案將移至回收區。" : "Delete ${last(split(deletePath, "/"))}? The file will move to trash."; style: small; color: yellow }
           Row {
-            Button { text: zh ? "確認刪除" : "Confirm delete"; color: red; onTap: { fileResult = run("python ~/.local/bin/oma-devlogs --lang ${sh(language)} delete-md ${sh(deletePath)} 2>&1"); deletePath = "" } }
+            Button { text: zh ? "確認刪除" : "Confirm delete"; color: red; onTap: { fileResult = run("python ~/.local/bin/oma-devlogs --lang ${sh(language)} delete-md ${sh(deletePath)} 2>&1"); deletePath = ""; selected = "" } }
             Button { text: zh ? "取消" : "Cancel"; onTap: deletePath = "" }
           }
         }
+        if query != "" {
+          Row {
+            Text { text: found.ok == false ? found.err : (zh ? "「${query}」找到 ${hits.total ?? "…"} 項" + (hits.more ? "（只顯示前 40 項）" : "") : "“${query}”: ${hits.total ?? "…"} found" + (hits.more ? " (first 40 shown)" : "")); style: label; color: found.ok == false ? red : accent; weight: 1 }
+            Button { text: zh ? "清除搜尋" : "Clear"; onTap: query = "" }
+          }
+          Column {
+            scroll: true
+            weight: 1
+            gap: 8
+            if hits.error { Text { text: hits.error; color: red } }
+            for item in (hits.items ?? []) key item.path {
+              Row {
+                gap: 10
+                PixelIcon { kind: item.kind; empty: item.dir && item.count == 0; width: 30; height: 25 }
+                Column {
+                  gap: 2
+                  weight: 1
+                  onTap: { folder = item.dir ? item.path : folder; selected = item.dir ? "" : (selected == item.path ? "" : item.path); refresh() }
+                  Text { text: item.rel + (item.dir ? "/" : ""); style: small; color: item.dir ? accent : foreground }
+                  if item.match != "" { Text { text: item.match; style: small; color: muted; maxLines: 2 } }
+                }
+              }
+              if selected == item.path { FileActions { item: item } }
+            }
+          }
+        } else {
         Text { text: zh ? "${listing.total ?? 0} 項 · 不顯示隱藏檔案" : "${listing.total ?? 0} items · Hidden files excluded"; style: label; color: muted }
         Column {
           scroll: true
@@ -230,9 +440,28 @@ Use DEV LOGS to log important development progress for this project. Save these 
           gap: 8
           if directory.ok == false { Text { text: directory.err; color: red } }
           if listing.error { Text { text: listing.error; color: red } }
+          if view == "grid" {
+            Grid {
+              columns: tileWidth > 600 ? 4 : 3
+              gap: 8
+              for item in (listing.items ?? []) key item.path {
+                Column {
+                  padding: [4, 8]
+                  gap: 4
+                  align: center
+                  radius: 6 * corners
+                  background: selected == item.path ? alpha(accent, 0.18) : surface
+                  onTap: { folder = item.dir ? item.path : folder; offset = item.dir ? 0 : offset; selected = item.dir ? "" : (selected == item.path ? "" : item.path); refresh() }
+                  PixelIcon { kind: item.kind; empty: item.dir && item.count == 0; height: 44; fill: width }
+                  Text { text: item.name; style: small; align: center; maxLines: 2 }
+                  Text { text: item.dir ? (zh ? "${item.count} 項" : "${item.count} items") : fmtBytes(item.size); style: small; color: muted; align: center; maxLines: 1 }
+                }
+              }
+            }
+          } else {
           for item in (listing.items ?? []) key item.path {
             if item.dir {
-              Button { text: "▸ " + item.name + "/"; fill: width; onTap: { folder = item.path; offset = 0; refresh() } }
+              Button { text: "▸ " + item.name + "/  · ${item.count}"; fill: width; onTap: { folder = item.path; offset = 0; refresh() } }
             } else {
               Column {
                 gap: 4
@@ -250,13 +479,18 @@ Use DEV LOGS to log important development progress for this project. Save these 
               }
             }
           }
+          }
           if (listing.total ?? 0) == 0 && !listing.error { Text { text: zh ? "此目錄為空。" : "This directory is empty."; color: muted } }
           Row {
-            if offset > 0 { Button { text: zh ? "上一頁" : "Previous"; onTap: { offset = max(0, offset - 40); refresh() } } }
-            if listing.more { Button { text: zh ? "下一頁" : "Next"; onTap: { offset = offset + 40; refresh() } } }
+            if offset > 0 { Button { text: zh ? "上一頁" : "Previous"; onTap: { offset = max(0, offset - pageSize); refresh() } } }
+            if listing.more { Button { text: zh ? "下一頁" : "Next"; onTap: { offset = offset + pageSize; refresh() } } }
           }
         }
-      }
+        if view == "grid" && selected != "" {
+          let picked = find(listing.items ?? [], i => i.path == selected)
+          if picked != null { FileActions { item: picked } }
+        }
+        }
       }
     }
   }
