@@ -1,4 +1,4 @@
-'''Edge TTS without API keys; local Piper/Sherpa fallback. Reads text on stdin.'''
+'''Edge TTS without API keys; local Matcha or espeak-ng fallback. Reads text on stdin.'''
 import asyncio
 import json
 import os
@@ -27,12 +27,15 @@ UNREACHABLE = '線上語音無回應'
 def offline(text, output, reason=''):
     note = '（'+reason+'）' if reason else ''
     runtime = ROOT / 'tts/sherpa-onnx-v1.13.8-linux-aarch64-shared-cpu/bin/sherpa-onnx-offline-tts'
-    model = ROOT / 'tts/vits-piper-zh_CN-huayan-medium'
-    if spoken(text) == 'zh' and runtime.exists() and (model / 'zh_CN-huayan-medium.onnx').exists():
+    model = ROOT / 'tts/matcha-icefall-zh-en'
+    if spoken(text) in ('zh', 'en') and runtime.exists() and (model / 'model-steps-3.onnx').exists() and (model / 'vocos-16khz-univ.onnx').exists():
         Path(str(output)+'.backend').write_text('離線神經語音'+note)
-        os.execv(str(runtime), [str(runtime), '--vits-model='+str(model/'zh_CN-huayan-medium.onnx'),
-                 '--vits-tokens='+str(model/'tokens.txt'), '--vits-data-dir='+str(model/'espeak-ng-data'),
-                 '--num-threads=2', '--output-filename='+str(output), '--', text])
+        os.execv(str(runtime), [str(runtime), '--matcha-acoustic-model='+str(model/'model-steps-3.onnx'),
+                 '--matcha-vocoder='+str(model/'vocos-16khz-univ.onnx'),
+                 '--matcha-tokens='+str(model/'tokens.txt'), '--matcha-lexicon='+str(model/'lexicon.txt'),
+                 '--matcha-data-dir='+str(model/'espeak-ng-data'), '--num-threads=2',
+                 '--tts-rule-fsts='+','.join(str(model/name) for name in ('phone-zh.fst','date-zh.fst','number-zh.fst')),
+                 '--output-filename='+str(output), '--', text])
     Path(str(output)+'.backend').write_text('離線基本語音'+note)
     os.execvp('espeak-ng', ['espeak-ng', '-v', SPEAKERS[spoken(text)][1], '-s', '175', '-w', str(output), '--', text])
 

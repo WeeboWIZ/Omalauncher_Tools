@@ -55,6 +55,8 @@ def main():
         for file in sorted((ROOT/folder).iterdir()):
             if file.is_file():
                 write(destination+'/'+file.name, file.read_bytes(), folder=='bin')
+    if os.uname().machine == 'aarch64':
+        subprocess.run([sys.executable, str(home/'.local/share/oma-voice/install_matcha.py')], check=False)
     for file in sorted((ROOT/'widgets').glob('*.owl')):
         write('.config/omalauncher/widgets/'+file.name, build_store.render(file.read_text()).encode())
     # The widgets show their own setup button until this names the programs they were built with.
@@ -63,7 +65,7 @@ def main():
     print('Updated files backed up at:', backup)
     print('After updating an already-running version, restart Linux once to reload its voice service.')
     print('Open Details to choose Codex chat or a tmux terminal, then tap Sync.')
-    print('Online voice sends reply text to Microsoft Edge TTS. Choose Voice: offline for local basic speech.')
+    print('Online voice sends reply text to Microsoft Edge TTS. Choose Voice: offline for local Matcha Chinese/English or espeak-ng fallback.')
     checker = shutil.which('owl-check')
     if checker and not args.skip_deps:
         for name in ('46-speak.owl', '47-voice-input.owl'):

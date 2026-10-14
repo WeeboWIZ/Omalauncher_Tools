@@ -13,10 +13,11 @@ A reply is read in its own language with a matching voice; a text too short to t
 The tile shows a **Set up** button until its programs are installed. Tapping it:
 
 - writes the voice and dictation programs held in `widget.owl` to `~/.local/share/oma-voice`, `~/.local/share/oma-speak` and `~/.local/bin` (`oma-voice`, `oma-send-dictation`, `speak`), readable by you only
-- makes a Python environment in `~/.local/share/oma-voice/venv` and installs `edge-tts` from PyPI for online speech; without the network, speech stays offline (espeak-ng)
+- makes a Python environment in `~/.local/share/oma-voice/venv` and installs `edge-tts` from PyPI for online speech; on ARM64 it also downloads the Matcha model and sherpa-onnx runtime, with SHA-256 verification
+- uses Matcha `matcha-icefall-zh-en` with the Vocos 16 kHz vocoder for offline Chinese and English; other languages or unsupported architectures fall back to espeak-ng
 - stops an older voice service and dictation page so the new ones start
 
-Nothing is downloaded and run apart from that pip package. The log is `~/.cache/oma-voice/setup.log`.
+Model files are downloaded from the [sherpa-onnx TTS release](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models) and the [Vocos release](https://github.com/k2-fsa/sherpa-onnx/releases/tag/vocoder-models). See [model details and browser samples](https://k2-fsa.github.io/sherpa/onnx/tts/all/Chinese-English/matcha-icefall-zh-en.html). Local sample audio: [Chinese](../../../../docs/audio/matcha-chinese.wav) · [English](../../../../docs/audio/matcha-english.wav). The setup log is `~/.cache/oma-voice/setup.log`.
 Terminal Voice and Dictation hold the same programs: setting up one sets up both.
 
 ## Background service

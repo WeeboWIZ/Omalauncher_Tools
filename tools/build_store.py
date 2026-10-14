@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ui_strings
 
 ROOT = Path(__file__).resolve().parent.parent
-VERSION = '3.4'
+VERSION = '3.5'
 AUTHOR = 'weebowiz'
 # template -> store folder. Each folder's preview.png and README.md are kept by hand.
 WIDGETS = {'46-speak.owl': 'terminal-voice', '47-voice-input.owl': 'dictation'}
@@ -42,7 +42,7 @@ def payload_id():
 def setup_script():
     lines = [
         '# Writes the voice and dictation programs kept in this widget into ~/.local, then',
-        '# makes a Python environment for edge-tts (online speech). Log: ~/.cache/oma-voice/setup.log',
+        '# makes a Python environment for edge-tts and downloads Matcha on ARM64. Log: ~/.cache/oma-voice/setup.log',
         'set -u',
         'umask 077',
         'share="$HOME/.local/share"',
@@ -77,6 +77,7 @@ def setup_script():
         '[ -x "$venv/bin/python" ] || python -m venv "$venv" || { say failed; exit 1; }',
         '# Without the network this fails and speech stays offline (espeak-ng) until the next setup.',
         '"$venv/bin/python" -m pip install --quiet --disable-pip-version-check %s || echo "edge-tts was not installed"' % requirement(),
+        'if [ "$(uname -m)" = aarch64 ]; then python "$share/oma-voice/install_matcha.py" || echo "Matcha setup failed; offline speech will use espeak-ng"; fi',
         '# Stop the old voice service and dictation page; the widget starts the new ones.',
         # No -u: under proot id says 0 while the processes keep the app's real user, so it matched nothing.
         *('pkill -f \'%s\' || true' % pattern for pattern in SERVICES),

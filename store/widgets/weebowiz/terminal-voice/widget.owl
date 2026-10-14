@@ -3,12 +3,12 @@ widget "Terminal Voice" {
   order: 6
   size: 3x4
   minSize: 3x4
-  meta { owl: 6; description: "Reads Codex replies or a tmux terminal aloud, also a task finished with the screen off. For Codex, Claude or any CLI. English, Chinese, Spanish, German, French, Japanese, Korean."; version: "3.4"; license: "MIT"; category: "productivity" }
+  meta { owl: 6; description: "Reads Codex replies or a tmux terminal aloud, also a task finished with the screen off. For Codex, Claude or any CLI. English, Chinese, Spanish, German, French, Japanese, Korean."; version: "3.5"; license: "MIT"; category: "productivity" }
   requires { pacman: ["python", "espeak-ng", "libpulse", "mpg123", "tmux", "curl", "util-linux"] }
   source uiLanguage = file("~/.config/omalauncher/voice-ui-language")
   source installed = file("~/.local/share/oma-voice/store-version")
   source setupState = file("~/.cache/oma-voice/setup-state")
-  let ready = installed == "3.4-1acdf3a4"
+  let ready = installed == "3.5-bb2740c3"
   let setupText = setupState == "installing" && !ready ? (uiLanguage == "zh" ? "安裝中，約需一分鐘…" : uiLanguage == "es" ? "Instalando, cerca de un minuto…" : uiLanguage == "de" ? "Installation läuft, etwa eine Minute…" : uiLanguage == "fr" ? "Installation, environ une minute…" : uiLanguage == "ja" ? "インストール中、約1分…" : uiLanguage == "ko" ? "설치 중, 약 1분…" : "Installing, about a minute…") : setupState == "failed" ? (uiLanguage == "zh" ? "安裝失敗，請查看 ~/.cache/oma-voice/setup.log" : uiLanguage == "es" ? "La instalación falló: consulta ~/.cache/oma-voice/setup.log" : uiLanguage == "de" ? "Installation fehlgeschlagen: siehe ~/.cache/oma-voice/setup.log" : uiLanguage == "fr" ? "Échec de l’installation : voir ~/.cache/oma-voice/setup.log" : uiLanguage == "ja" ? "インストール失敗：~/.cache/oma-voice/setup.log を確認" : uiLanguage == "ko" ? "설치 실패: ~/.cache/oma-voice/setup.log 확인" : "Setup failed: see ~/.cache/oma-voice/setup.log") : installed == "" ? (uiLanguage == "zh" ? "首次使用：把播報與聽寫程式寫入 ~/.local，並下載 edge-tts 線上語音。" : uiLanguage == "es" ? "Primer uso: escribe los programas de voz y dictado en ~/.local y descarga edge-tts para la voz en línea." : uiLanguage == "de" ? "Erste Nutzung: schreibt die Programme für Sprachausgabe und Diktat nach ~/.local und lädt edge-tts für die Online-Stimme." : uiLanguage == "fr" ? "Première utilisation : écrit les programmes de voix et de dictée dans ~/.local et télécharge edge-tts pour la voix en ligne." : uiLanguage == "ja" ? "初回：読み上げと音声入力のプログラムを ~/.local に書き込み、オンライン音声用の edge-tts をダウンロードします。" : uiLanguage == "ko" ? "처음 사용: 음성 읽기와 받아쓰기 프로그램을 ~/.local 에 쓰고 온라인 음성용 edge-tts 를 내려받습니다." : "First use: writes the voice and dictation programs to ~/.local and downloads edge-tts for online speech.") : (uiLanguage == "zh" ? "程式有新版，更新後才能使用。" : uiLanguage == "es" ? "Hay una actualización de los programas; instálala para continuar." : uiLanguage == "de" ? "Für die Programme gibt es ein Update; zum Fortfahren installieren." : uiLanguage == "fr" ? "Les programmes ont une mise à jour ; installez-la pour continuer." : uiLanguage == "ja" ? "プログラムの更新があります。続けるには更新してください。" : uiLanguage == "ko" ? "프로그램 업데이트가 있습니다. 계속하려면 설치하세요." : "The programs have an update; install it to continue.")
   source service = cmd("if [ -f ~/.local/share/oma-voice/oma_voice.py ]; then python ~/.local/share/oma-voice/oma_voice.py ensure; fi") every 30s status
   source voice = file("~/.cache/oma-voice/state.json") json
@@ -24,7 +24,7 @@ widget "Terminal Voice" {
       Text { text: setupText; style: small; maxLines: 8; weight: 1; color: setupState == "failed" ? red : muted }
       Button { fill: width; height: 40; text: installed == "" ? (uiLanguage == "zh" ? "安裝" : uiLanguage == "es" ? "Instalar" : uiLanguage == "de" ? "Einrichten" : uiLanguage == "fr" ? "Installer" : uiLanguage == "ja" ? "インストール" : uiLanguage == "ko" ? "설치" : "Set up") : (uiLanguage == "zh" ? "更新" : uiLanguage == "es" ? "Actualizar" : uiLanguage == "de" ? "Aktualisieren" : uiLanguage == "fr" ? "Mettre à jour" : uiLanguage == "ja" ? "更新" : uiLanguage == "ko" ? "업데이트" : "Update"); onTap: run("""
 # Writes the voice and dictation programs kept in this widget into ~/.local, then
-# makes a Python environment for edge-tts (online speech). Log: ~/.cache/oma-voice/setup.log
+# makes a Python environment for edge-tts and downloads Matcha on ARM64. Log: ~/.cache/oma-voice/setup.log
 set -u
 umask 077
 share="$HOME/.local/share"
@@ -43,7 +43,95 @@ case "$(cut -d- -f1 "$HOME/.local/share/oma-voice/store-version" 2>/dev/null)" i
   "") [ -f "$share/oma-voice/oma_voice.py" ] && earlier=yes ;;
 esac
 [ "$earlier" = yes ] && [ ! -f "$language" ] && mkdir -p "$HOME/.config/omalauncher" && printf zh > "$language"
-put "$HOME/.local/share/oma-voice/language.py" <<'OMA_VOICE_FILE_0_END'
+put "$HOME/.local/share/oma-voice/install_matcha.py" <<'OMA_VOICE_FILE_0_END'
+'''Download the pinned sherpa-onnx runtime and Matcha zh-en model on ARM64.'''
+import hashlib
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+import urllib.request
+
+ROOT = Path(__file__).resolve().parent
+TTS = ROOT / 'tts'
+RUNTIME = 'sherpa-onnx-v1.13.8-linux-aarch64-shared-cpu'
+MODEL = 'matcha-icefall-zh-en'
+FILES = (
+    ('https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.8/' + RUNTIME + '.tar.bz2',
+     '4e3734f82bc1379fd91f219f5869c7e9d03b7a4f7561907d8abca4849c51a789', RUNTIME + '.tar.bz2'),
+    ('https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/' + MODEL + '.tar.bz2',
+     '271b804af570400d3bcdcb53bf6e53cc9f75180ee763b9f13eb5eaf2b0d086ef', MODEL + '.tar.bz2'),
+    ('https://github.com/k2-fsa/sherpa-onnx/releases/download/vocoder-models/vocos-16khz-univ.onnx',
+     'b599142a1fb8ff03de3e84ac35ff537c619e56f4267a6fe894851a42844acf9e', 'vocos-16khz-univ.onnx'),
+)
+
+
+def digest(path):
+    value = hashlib.sha256()
+    with path.open('rb') as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b''):
+            value.update(block)
+    return value.hexdigest()
+
+
+def download(url, path, expected):
+    request = urllib.request.Request(url, headers={'User-Agent': 'Omalauncher-Terminal-Voice'})
+    with urllib.request.urlopen(request, timeout=60) as response, path.open('wb') as output:
+        shutil.copyfileobj(response, output)
+    if digest(path) != expected:
+        path.unlink(missing_ok=True)
+        raise ValueError('SHA-256 mismatch for ' + url)
+
+
+def extract(archive, destination):
+    destination.mkdir(parents=True)
+    subprocess.run(['tar', '-xjf', str(archive), '--no-same-owner', '--strip-components=1', '-C', str(destination)], check=True)
+
+
+def install():
+    if os.uname().machine != 'aarch64':
+        print('Matcha is available on ARM64; other architectures keep the espeak-ng fallback.')
+        return
+    runtime = TTS / RUNTIME
+    model = TTS / MODEL
+    if (runtime / 'bin/sherpa-onnx-offline-tts').is_file() and (model / 'model-steps-3.onnx').is_file() and (model / 'vocos-16khz-univ.onnx').is_file():
+        print('Matcha and sherpa-onnx are already installed.')
+        return
+
+    TTS.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='.matcha-', dir=TTS) as temporary:
+        temporary = Path(temporary)
+        runtime_archive, model_archive, vocoder_archive = (temporary / name for _, _, name in FILES)
+        for (url, expected, _), path in zip(FILES, (runtime_archive, model_archive, vocoder_archive)):
+            print('Downloading ' + url.rsplit('/', 1)[-1])
+            download(url, path, expected)
+        runtime_stage, model_stage = temporary / 'runtime', temporary / 'model'
+        extract(runtime_archive, runtime_stage)
+        extract(model_archive, model_stage)
+        shutil.copy2(vocoder_archive, model_stage / 'vocos-16khz-univ.onnx')
+        required = ('model-steps-3.onnx', 'vocos-16khz-univ.onnx', 'lexicon.txt', 'tokens.txt', 'espeak-ng-data')
+        if not (runtime_stage / 'bin/sherpa-onnx-offline-tts').is_file() or any(not (model_stage / name).exists() for name in required):
+            raise RuntimeError('Downloaded Matcha files are incomplete')
+        for source, target in ((runtime_stage, runtime), (model_stage, model)):
+            old = target.with_name(target.name + '.old')
+            shutil.rmtree(old, ignore_errors=True)
+            if target.exists():
+                target.replace(old)
+            source.replace(target)
+            shutil.rmtree(old, ignore_errors=True)
+    print('Installed Matcha ' + MODEL + ' with the Vocos 16 kHz vocoder.')
+
+
+if __name__ == '__main__':
+    try:
+        install()
+    except Exception as error:
+        print('Could not install offline Matcha: ' + str(error), file=sys.stderr)
+        raise SystemExit(1)
+OMA_VOICE_FILE_0_END
+put "$HOME/.local/share/oma-voice/language.py" <<'OMA_VOICE_FILE_1_END'
 '''Interface languages, the text shown in them, and which language a text should be spoken in.'''
 from pathlib import Path
 import re
@@ -188,8 +276,8 @@ def spoken(text, interface=None):
     if counts[best] >= 3 and ahead >= 2:
         return best
     return interface if interface in WORDS else 'en'
-OMA_VOICE_FILE_0_END
-put "$HOME/.local/share/oma-voice/oma_voice.py" <<'OMA_VOICE_FILE_1_END'
+OMA_VOICE_FILE_1_END
+put "$HOME/.local/share/oma-voice/oma_voice.py" <<'OMA_VOICE_FILE_2_END'
 #!/usr/bin/env python3
 '''Voice reader and dictation bridge for Codex logs or a tmux terminal.'''
 import argparse
@@ -819,9 +907,9 @@ if __name__ == '__main__':
     except (OSError, ValueError) as error:
         print(local(str(error)), file=sys.stderr)
         sys.exit(1)
-OMA_VOICE_FILE_1_END
-put "$HOME/.local/share/oma-voice/synthesize.py" <<'OMA_VOICE_FILE_2_END'
-'''Edge TTS without API keys; local Piper/Sherpa fallback. Reads text on stdin.'''
+OMA_VOICE_FILE_2_END
+put "$HOME/.local/share/oma-voice/synthesize.py" <<'OMA_VOICE_FILE_3_END'
+'''Edge TTS without API keys; local Matcha or espeak-ng fallback. Reads text on stdin.'''
 import asyncio
 import json
 import os
@@ -850,12 +938,15 @@ UNREACHABLE = '線上語音無回應'
 def offline(text, output, reason=''):
     note = '（'+reason+'）' if reason else ''
     runtime = ROOT / 'tts/sherpa-onnx-v1.13.8-linux-aarch64-shared-cpu/bin/sherpa-onnx-offline-tts'
-    model = ROOT / 'tts/vits-piper-zh_CN-huayan-medium'
-    if spoken(text) == 'zh' and runtime.exists() and (model / 'zh_CN-huayan-medium.onnx').exists():
+    model = ROOT / 'tts/matcha-icefall-zh-en'
+    if spoken(text) in ('zh', 'en') and runtime.exists() and (model / 'model-steps-3.onnx').exists() and (model / 'vocos-16khz-univ.onnx').exists():
         Path(str(output)+'.backend').write_text('離線神經語音'+note)
-        os.execv(str(runtime), [str(runtime), '--vits-model='+str(model/'zh_CN-huayan-medium.onnx'),
-                 '--vits-tokens='+str(model/'tokens.txt'), '--vits-data-dir='+str(model/'espeak-ng-data'),
-                 '--num-threads=2', '--output-filename='+str(output), '--', text])
+        os.execv(str(runtime), [str(runtime), '--matcha-acoustic-model='+str(model/'model-steps-3.onnx'),
+                 '--matcha-vocoder='+str(model/'vocos-16khz-univ.onnx'),
+                 '--matcha-tokens='+str(model/'tokens.txt'), '--matcha-lexicon='+str(model/'lexicon.txt'),
+                 '--matcha-data-dir='+str(model/'espeak-ng-data'), '--num-threads=2',
+                 '--tts-rule-fsts='+','.join(str(model/name) for name in ('phone-zh.fst','date-zh.fst','number-zh.fst')),
+                 '--output-filename='+str(output), '--', text])
     Path(str(output)+'.backend').write_text('離線基本語音'+note)
     os.execvp('espeak-ng', ['espeak-ng', '-v', SPEAKERS[spoken(text)][1], '-s', '175', '-w', str(output), '--', text])
 
@@ -920,8 +1011,8 @@ if __name__ == '__main__':
             print('線上語音不可用，改用離線：'+type(error).__name__+' '+str(error)[:200], file=sys.stderr)
             output.unlink(missing_ok=True)
     offline(text, output, reason)
-OMA_VOICE_FILE_2_END
-put "$HOME/.local/share/oma-speak/bash.sh" <<'OMA_VOICE_FILE_3_END'
+OMA_VOICE_FILE_3_END
+put "$HOME/.local/share/oma-speak/bash.sh" <<'OMA_VOICE_FILE_4_END'
 # Insert at the cursor, preserving any existing input. Never press Enter.
 _oma_speak_insert() {
   local dictated
@@ -931,8 +1022,8 @@ _oma_speak_insert() {
   READLINE_POINT=$((READLINE_POINT + ${#dictated}))
 }
 bind -x '"\C-g":_oma_speak_insert'
-OMA_VOICE_FILE_3_END
-put "$HOME/.local/share/oma-speak/index.html" <<'OMA_VOICE_FILE_4_END'
+OMA_VOICE_FILE_4_END
+put "$HOME/.local/share/oma-speak/index.html" <<'OMA_VOICE_FILE_5_END'
 <!doctype html>
 <html lang="zh-Hant">
 <head>
@@ -1106,8 +1197,8 @@ if(!Speech)status.textContent='此瀏覽器不支援語音辨識，請使用 Chr
 </script>
 </body>
 </html>
-OMA_VOICE_FILE_4_END
-put "$HOME/.local/share/oma-speak/server.py" <<'OMA_VOICE_FILE_5_END'
+OMA_VOICE_FILE_5_END
+put "$HOME/.local/share/oma-speak/server.py" <<'OMA_VOICE_FILE_6_END'
 import hmac
 import json
 import os
@@ -1189,8 +1280,8 @@ if __name__ == '__main__':
     tokenfile.write_text(TOKEN)
     os.chmod(tokenfile, 0o600)
     server.serve_forever()
-OMA_VOICE_FILE_5_END
-put "$HOME/.local/bin/oma-send-dictation" <<'OMA_VOICE_FILE_6_END'
+OMA_VOICE_FILE_6_END
+put "$HOME/.local/bin/oma-send-dictation" <<'OMA_VOICE_FILE_7_END'
 #!/usr/bin/python
 import pathlib, subprocess, json, sys
 home = pathlib.Path.home()
@@ -1204,12 +1295,12 @@ try:
 except (OSError, ValueError):
     message = '請先開始語音輸入，停止後保存。'
     print(json.dumps({'ok': False, 'error': message, 'error_ui': local(message)}, ensure_ascii=False))
-OMA_VOICE_FILE_6_END
-put "$HOME/.local/bin/oma-voice" <<'OMA_VOICE_FILE_7_END'
+OMA_VOICE_FILE_7_END
+put "$HOME/.local/bin/oma-voice" <<'OMA_VOICE_FILE_8_END'
 #!/bin/sh
 exec python "$HOME/.local/share/oma-voice/oma_voice.py" "$@"
-OMA_VOICE_FILE_7_END
-put "$HOME/.local/bin/speak" <<'OMA_VOICE_FILE_8_END'
+OMA_VOICE_FILE_8_END
+put "$HOME/.local/bin/speak" <<'OMA_VOICE_FILE_9_END'
 #!/bin/bash
 set -eu
 cache="$HOME/.cache/oma-speak"
@@ -1235,16 +1326,17 @@ fi
 token=$(cat "$cache/token")
 flock -u 9
 xdg-open "http://127.0.0.1:18763/#$token"
-OMA_VOICE_FILE_8_END
+OMA_VOICE_FILE_9_END
 chmod u+x "$HOME/.local/bin/oma-send-dictation" "$HOME/.local/bin/oma-voice" "$HOME/.local/bin/speak"
 venv="$share/oma-voice/venv"
 [ -x "$venv/bin/python" ] || python -m venv "$venv" || { say failed; exit 1; }
 # Without the network this fails and speech stays offline (espeak-ng) until the next setup.
 "$venv/bin/python" -m pip install --quiet --disable-pip-version-check edge-tts==7.2.8 || echo "edge-tts was not installed"
+if [ "$(uname -m)" = aarch64 ]; then python "$share/oma-voice/install_matcha.py" || echo "Matcha setup failed; offline speech will use espeak-ng"; fi
 # Stop the old voice service and dictation page; the widget starts the new ones.
 pkill -f '^[^ ]*python[0-9.]* .*/oma_voice\.py daemon$' || true
 pkill -f '^[^ ]*python[0-9.]* .*/oma-speak/server\.py$' || true
-printf '%s' '3.4-1acdf3a4' > "$HOME/.local/share/oma-voice/store-version"
+printf '%s' '3.5-bb2740c3' > "$HOME/.local/share/oma-voice/store-version"
 say done
 """) }
       Button { fill: width; height: 40; text: (uiLanguage == "zh" ? "詳情" : uiLanguage == "es" ? "Detalles" : uiLanguage == "de" ? "Details" : uiLanguage == "fr" ? "Détails" : uiLanguage == "ja" ? "詳細" : uiLanguage == "ko" ? "상세" : "Details"); onTap: screen() }
