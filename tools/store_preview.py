@@ -56,10 +56,6 @@ def prepare():
             lines.append(line)
         text = '\n'.join(lines) + '\n'
         text = re.sub(r'page: 1', 'page: 3', text, count=1)
-        # A 3x3 dictation tile gives the weighted draft only one line here.
-        # Use 3x4 for the review page so the complete example fits above the controls.
-        if name == 'dictation':
-            text = text.replace('size: 3x3', 'size: 3x4').replace('minSize: 3x3', 'minSize: 3x4')
         text = re.sub(r'order: \d+', 'order: ' + ('1' if name == 'terminal-voice' else '2'), text, count=1)
         assert not re.search(r'^\s*source\s|\brun\(', text, re.M), 'Demo must have no live sources or shell commands'
         assert '__' not in text

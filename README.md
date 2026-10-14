@@ -7,7 +7,7 @@ Read terminal output aloud and dictate text into Codex, Claude, or another comma
 
 ## Preview
 
-These screenshots use fixed English example text and the launcher's actual rendering. Both review tiles use 3×4 cells so the text and controls fit completely. Each PNG is below 300 KB. See the [English screenshot review](docs/screenshots/README.md) for details. Tap an image to view it at full size.
+These screenshots use fixed English example text and the launcher's actual rendering. Both tiles are shown at their default size of 3×4 cells. Each PNG is below 300 KB. See the [English screenshot review](docs/screenshots/README.md) for details. Tap an image to view it at full size.
 
 | Terminal Voice | Dictation |
 |:---:|:---:|

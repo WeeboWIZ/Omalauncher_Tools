@@ -1,7 +1,7 @@
 widget "Dictation" {
  page: 1
  order: 7
- size: 3x3
+ size: 3x4
  minSize: 3x3
  meta { owl: 6; description: "Dictate by voice and send the text to a Codex chat or a tmux terminal running Claude or any CLI. English, Chinese, Spanish, German, French, Japanese, Korean."; version: "__VERSION__"; license: "MIT"; category: "productivity" }
  requires { pacman: ["python", "espeak-ng", "libpulse", "mpg123", "tmux", "curl", "util-linux"] }

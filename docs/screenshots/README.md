@@ -11,8 +11,8 @@ contains the interface language selector.
 [Overview](overview.png) · [Terminal Voice details](terminal-voice-details.png) ·
 [Dictation details](dictation-details.png)
 
-Both screenshots use 3×4 cells. Dictation's default size is still 3×3; its review
-tile uses 3×4 so the complete example fits. No personal conversations are shown.
+Both screenshots use 3×4 cells, the default size of both widgets. Dictation can
+still be made 3×3. No personal conversations are shown.
 The dictation web page has been redesigned but has no new screenshot.
 
 `manifest.json` records the dimensions, byte sizes and SHA-256 hashes of every

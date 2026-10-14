@@ -2,9 +2,8 @@
 
 Reads Codex replies or a tmux terminal aloud.
 
-**Languages:** English (default), 中文, Español, Deutsch, Français, 日本語, 한국어. Tap the language button on the tile to
-go to the next one, or pick one under **Details**. A reply is read in its own language with a matching voice; a
-text too short to tell is read in the interface language.
+**Languages:** English (default), 中文, Español, Deutsch, Français, 日本語, 한국어. Pick one under **Details**.
+A reply is read in its own language with a matching voice; a text too short to tell is read in the interface language.
 
 - **Codex chat:** follows the latest local Codex conversation and can read a summary of each finished reply.
 - **Terminal / Claude:** run `tmux new -A -s oma-voice`, start Claude, Codex or any CLI there, and tap **Play** to hear the pane.
