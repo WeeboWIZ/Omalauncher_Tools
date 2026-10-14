@@ -26,6 +26,8 @@
 
 ## 進度
 
+- [x] 3.4 版面整理（僅發布至自己的 Omalauncher_Tools 倉庫）：聽寫網頁統一深色綠色風格，移除重複操作、冗長說明及 OMALAUNCHER 字樣；兩個首頁工具移除語言按鈕，語言選擇集中到各自詳情頁。已安裝到本機，重繪英文 widget 圖片並確認均小於 300 KB；網頁不另截圖。
+
 - [x] 換行統一為 LF（`.gitattributes`），避免腳本在 Linux 因 CRLF 失敗
 - [x] 範本改用 `~` 路徑，補齊 `requires`，加入安裝／更新畫面
 - [x] `tools/build_store.py` 產生商店版，`install.py` 共用

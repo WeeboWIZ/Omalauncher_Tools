@@ -7,6 +7,7 @@ SHORT = {'en': 'EN', 'zh': '中', 'es': 'ES', 'de': 'DE', 'fr': 'FR', 'ja': '日
 
 # english: (zh, es, de, fr, ja, ko). ${...} parts are OWL expressions and stay as they are.
 STRINGS = {
+    'Send': ('送出', 'Enviar', 'Senden', 'Envoyer', '送信', '보내기'),
     'Installing, about a minute…': ('安裝中，約需一分鐘…', 'Instalando, cerca de un minuto…', 'Installation läuft, etwa eine Minute…', 'Installation, environ une minute…', 'インストール中、約1分…', '설치 중, 약 1분…'),
     'Setup failed: see ~/.cache/oma-voice/setup.log': ('安裝失敗，請查看 ~/.cache/oma-voice/setup.log', 'La instalación falló: consulta ~/.cache/oma-voice/setup.log', 'Installation fehlgeschlagen: siehe ~/.cache/oma-voice/setup.log', 'Échec de l’installation : voir ~/.cache/oma-voice/setup.log', 'インストール失敗：~/.cache/oma-voice/setup.log を確認', '설치 실패: ~/.cache/oma-voice/setup.log 확인'),
     'First use: writes the voice and dictation programs to ~/.local and downloads edge-tts for online speech.': ('首次使用：把播報與聽寫程式寫入 ~/.local，並下載 edge-tts 線上語音。', 'Primer uso: escribe los programas de voz y dictado en ~/.local y descarga edge-tts para la voz en línea.', 'Erste Nutzung: schreibt die Programme für Sprachausgabe und Diktat nach ~/.local und lädt edge-tts für die Online-Stimme.', 'Première utilisation : écrit les programmes de voix et de dictée dans ~/.local et télécharge edge-tts pour la voix en ligne.', '初回：読み上げと音声入力のプログラムを ~/.local に書き込み、オンライン音声用の edge-tts をダウンロードします。', '처음 사용: 음성 읽기와 받아쓰기 프로그램을 ~/.local 에 쓰고 온라인 음성용 edge-tts 를 내려받습니다.'),

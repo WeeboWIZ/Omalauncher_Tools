@@ -3,15 +3,12 @@ widget "Terminal Voice" {
   order: 6
   size: 3x4
   minSize: 3x4
-  meta { owl: 6; description: "Reads Codex replies or a tmux terminal aloud, also a task finished with the screen off. For Codex, Claude or any CLI. English, Chinese, Spanish, German, French, Japanese, Korean."; version: "3.3"; license: "MIT"; category: "productivity" }
+  meta { owl: 6; description: "Reads Codex replies or a tmux terminal aloud, also a task finished with the screen off. For Codex, Claude or any CLI. English, Chinese, Spanish, German, French, Japanese, Korean."; version: "3.4"; license: "MIT"; category: "productivity" }
   requires { pacman: ["python", "espeak-ng", "libpulse", "mpg123", "tmux", "curl", "util-linux"] }
   source uiLanguage = file("~/.config/omalauncher/voice-ui-language")
-  let nextLanguage = (uiLanguage == "zh" ? "es" : uiLanguage == "es" ? "de" : uiLanguage == "de" ? "fr" : uiLanguage == "fr" ? "ja" : uiLanguage == "ja" ? "ko" : uiLanguage == "ko" ? "en" : "zh")
-  let languageName = (uiLanguage == "zh" ? "中文" : uiLanguage == "es" ? "Español" : uiLanguage == "de" ? "Deutsch" : uiLanguage == "fr" ? "Français" : uiLanguage == "ja" ? "日本語" : uiLanguage == "ko" ? "한국어" : "English")
-  let languageShort = (uiLanguage == "zh" ? "中" : uiLanguage == "es" ? "ES" : uiLanguage == "de" ? "DE" : uiLanguage == "fr" ? "FR" : uiLanguage == "ja" ? "日" : uiLanguage == "ko" ? "한" : "EN")
   source installed = file("~/.local/share/oma-voice/store-version")
   source setupState = file("~/.cache/oma-voice/setup-state")
-  let ready = installed == "3.3-32999871"
+  let ready = installed == "3.4-1acdf3a4"
   let setupText = setupState == "installing" && !ready ? (uiLanguage == "zh" ? "安裝中，約需一分鐘…" : uiLanguage == "es" ? "Instalando, cerca de un minuto…" : uiLanguage == "de" ? "Installation läuft, etwa eine Minute…" : uiLanguage == "fr" ? "Installation, environ une minute…" : uiLanguage == "ja" ? "インストール中、約1分…" : uiLanguage == "ko" ? "설치 중, 약 1분…" : "Installing, about a minute…") : setupState == "failed" ? (uiLanguage == "zh" ? "安裝失敗，請查看 ~/.cache/oma-voice/setup.log" : uiLanguage == "es" ? "La instalación falló: consulta ~/.cache/oma-voice/setup.log" : uiLanguage == "de" ? "Installation fehlgeschlagen: siehe ~/.cache/oma-voice/setup.log" : uiLanguage == "fr" ? "Échec de l’installation : voir ~/.cache/oma-voice/setup.log" : uiLanguage == "ja" ? "インストール失敗：~/.cache/oma-voice/setup.log を確認" : uiLanguage == "ko" ? "설치 실패: ~/.cache/oma-voice/setup.log 확인" : "Setup failed: see ~/.cache/oma-voice/setup.log") : installed == "" ? (uiLanguage == "zh" ? "首次使用：把播報與聽寫程式寫入 ~/.local，並下載 edge-tts 線上語音。" : uiLanguage == "es" ? "Primer uso: escribe los programas de voz y dictado en ~/.local y descarga edge-tts para la voz en línea." : uiLanguage == "de" ? "Erste Nutzung: schreibt die Programme für Sprachausgabe und Diktat nach ~/.local und lädt edge-tts für die Online-Stimme." : uiLanguage == "fr" ? "Première utilisation : écrit les programmes de voix et de dictée dans ~/.local et télécharge edge-tts pour la voix en ligne." : uiLanguage == "ja" ? "初回：読み上げと音声入力のプログラムを ~/.local に書き込み、オンライン音声用の edge-tts をダウンロードします。" : uiLanguage == "ko" ? "처음 사용: 음성 읽기와 받아쓰기 프로그램을 ~/.local 에 쓰고 온라인 음성용 edge-tts 를 내려받습니다." : "First use: writes the voice and dictation programs to ~/.local and downloads edge-tts for online speech.") : (uiLanguage == "zh" ? "程式有新版，更新後才能使用。" : uiLanguage == "es" ? "Hay una actualización de los programas; instálala para continuar." : uiLanguage == "de" ? "Für die Programme gibt es ein Update; zum Fortfahren installieren." : uiLanguage == "fr" ? "Les programmes ont une mise à jour ; installez-la pour continuer." : uiLanguage == "ja" ? "プログラムの更新があります。続けるには更新してください。" : uiLanguage == "ko" ? "프로그램 업데이트가 있습니다. 계속하려면 설치하세요." : "The programs have an update; install it to continue.")
   source service = cmd("if [ -f ~/.local/share/oma-voice/oma_voice.py ]; then python ~/.local/share/oma-voice/oma_voice.py ensure; fi") every 30s status
   source voice = file("~/.cache/oma-voice/state.json") json
@@ -936,20 +933,88 @@ _oma_speak_insert() {
 bind -x '"\C-g":_oma_speak_insert'
 OMA_VOICE_FILE_3_END
 put "$HOME/.local/share/oma-speak/index.html" <<'OMA_VOICE_FILE_4_END'
-<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>語音輸入</title>
-<style>body{font:18px system-ui;background:#121820;color:#eef3fa;margin:24px auto;padding:0 20px;max-width:620px}button,select,textarea{font:inherit;border-radius:10px;padding:14px;margin:6px 0;box-sizing:border-box}button{background:#93c5fd;color:#101820;border:0;min-height:52px}textarea{width:100%;height:240px;background:#202c3a;color:white;border:1px solid #64748b}select{width:100%}p{line-height:1.5}#status{color:#b9d9ff;min-height:80px;white-space:pre-wrap}.buttons{display:flex;gap:10px;flex-wrap:wrap}small{color:#aab8ca}</style>
-<div class="buttons" style="justify-content:space-between;align-items:center"><h1>語音輸入</h1><select id="ui-language" style="width:auto"><option value="en">English</option><option value="zh">中文</option><option value="es">Español</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="ja">日本語</option><option value="ko">한국어</option></select></div><p>按開始後說一段話；結束後可直接點文字修改，再保存到首頁。</p>
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0e17">
+<title>語音輸入</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0e17;--fg:#d9edf4;--accent:#78ffa2;--muted:#989db7;--line:#30364c;--panel:#111522}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 ui-monospace,"SFMono-Regular",Consolas,"Liberation Mono",monospace}
+main{width:min(100%,640px);margin:auto;padding:28px 20px max(24px,env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:22px;border-bottom:1px solid var(--line)}
+h1{font-size:26px;line-height:1.25;letter-spacing:.02em;color:var(--accent);margin:0;font-weight:500}
+button,select,textarea{font:inherit;border-radius:4px}
+button,select{min-height:46px;border:1px solid var(--line);background:transparent;color:var(--fg);padding:10px 14px}
+button{cursor:pointer;touch-action:manipulation}
+button:disabled{opacity:.35;cursor:default}
+button:not(:disabled):hover{border-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+select{max-width:100%;min-width:0;background:var(--panel)}
+#ui-language{width:120px;font-size:14px}
+.speech-language{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:22px 0 14px}
+label,.editor-label{font-size:13px;color:var(--muted)}
+#language{flex:1;max-width:260px}
+.record-controls{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+.primary{border-color:var(--accent);background:var(--accent);color:var(--bg);font-weight:600}
+#start{display:flex;align-items:center;justify-content:center;gap:10px}
+.mic{width:16px;height:20px;flex:none}
+.status-line{display:flex;align-items:baseline;gap:9px;margin:14px 0 24px;min-height:24px}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex:none;align-self:flex-start;margin-top:9px}
+body[data-listening="true"] .status-dot{background:var(--accent);box-shadow:0 0 0 4px #78ffa215}
+#status{font-size:13px;color:var(--muted);margin:0;overflow-wrap:anywhere}
+body[data-listening="true"] #status{color:var(--accent)}
+.editor-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.editor-actions{display:flex;gap:16px}
+.editor-actions button{min-height:40px;padding:5px 0;font-size:13px;border:0;color:var(--muted);border-radius:0}
+.editor-actions button:not(:disabled):hover{color:var(--accent)}
+textarea{display:block;resize:vertical;width:100%;height:clamp(210px,34dvh,360px);min-height:160px;padding:16px;border:1px solid var(--line);background:var(--panel);color:var(--fg);line-height:1.7;caret-color:var(--accent)}
+textarea::placeholder{color:#737b97}
+#alternatives:empty{display:none}
+#alternatives{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+#alternatives small{flex-basis:100%;color:var(--muted)}
+#alternatives button{font-size:13px;text-align:left;overflow-wrap:anywhere;max-width:100%}
+#save{width:100%;margin-top:16px}
+.send-note{font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center}
+details{border-top:1px solid var(--line);margin-top:24px;padding-top:14px;color:var(--muted);font-size:12px}
+summary{cursor:pointer;width:fit-content}details p{line-height:1.7;margin:10px 0 0}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:360px){main{padding:20px 16px}h1{font-size:23px}#ui-language{width:104px}.speech-language{gap:10px}#language{max-width:210px}}
+@media(prefers-reduced-motion:no-preference){button{transition:background .15s,border-color .15s,color .15s}}
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>語音輸入</h1>
+<label for="ui-language" class="sr-only">介面語言</label>
+<select id="ui-language"><option value="en">English</option><option value="zh">中文</option><option value="es">Español</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="ja">日本語</option><option value="ko">한국어</option></select>
+</header>
+<div class="speech-language">
+<label for="language">辨識語言</label>
 <select id="language"><option value="zh-TW">中文（台灣）</option><option value="zh-CN">中文（普通話）</option><option value="en-US">English</option><option value="es-ES">Español</option><option value="de-DE">Deutsch</option><option value="fr-FR">Français</option><option value="ja-JP">日本語</option><option value="ko-KR">한국어</option><option value="th-TH">ไทย</option></select>
-<div class="buttons"><button id="chinese">說中文</button><button id="english">Speak English</button></div><p><small>中英混說可能誤判。說英文前點 English，說完切回中文，文字會接在同一段。</small></p><div class="buttons"><button id="start">開始語音輸入</button><button id="stop" disabled>停止</button></div><p id="status" role="status" aria-live="polite">準備好了。首次使用請允許瀏覽器使用麥克風。</p>
-<div id="alternatives"></div><textarea id="text" placeholder="辨識文字會出現在這裡，也可以手動修改。"></textarea>
-<div class="buttons"><button id="save">保存到首頁</button><button id="copy">複製文字</button><button id="clear">清空</button></div>
-<p>回首頁「語音輸入」工具，按「送到目前目標」，不用複製貼上。</p><small>辨識使用瀏覽器的語音服務，可能將音訊傳給服務供應商。文字不會自動送到目前目標。</small>
+</div>
+<div class="record-controls">
+<button id="start" class="primary"><svg class="mic" viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="5" y="1" width="6" height="11" rx="3"/><path d="M2 8v2a6 6 0 0 0 12 0V8M8 16v3M5 19h6"/></svg><span>開始聽寫</span></button>
+<button id="stop" disabled>停止</button>
+</div>
+<div class="status-line"><span class="status-dot" aria-hidden="true"></span><p id="status" role="status" aria-live="polite">準備就緒</p></div>
+<div class="editor-bar"><label for="text">文字</label><div class="editor-actions"><button id="copy">複製</button><button id="clear">清空</button></div></div>
+<textarea id="text" maxlength="16000" placeholder="說話或在這裡輸入…" spellcheck="true"></textarea>
+<div id="alternatives"></div>
+<button id="save" class="primary">保存到首頁</button>
+<p class="send-note">保存後，回首頁工具送出。</p>
+<details><summary>關於語音辨識</summary><p>辨識使用瀏覽器的語音服務，可能將音訊傳給服務供應商。文字不會自動送到目前目標。</p></details>
+</main>
 <script>
 const $=id=>document.getElementById(id),status=$('status'),text=$('text');
 const token=location.hash.slice(1);history.replaceState(null,'',location.pathname);
 
 // Chinese is what the page is written in; the other interface languages are looked up here.
-const UI_STRINGS = {"語音輸入": {"en": "Dictation", "es": "Dictado", "de": "Diktat", "fr": "Dictée", "ja": "音声入力", "ko": "받아쓰기"}, "按開始後說一段話；結束後可直接點文字修改，再保存到首頁。": {"en": "Tap Start and speak. Edit the text after stopping, then save it to the home screen.", "es": "Toca Iniciar y habla. Al parar puedes corregir el texto y guardarlo en la pantalla de inicio.", "de": "Starten antippen und sprechen. Nach dem Stoppen den Text bearbeiten und auf dem Startbildschirm speichern.", "fr": "Touchez Démarrer et parlez. Après l’arrêt, corrigez le texte puis enregistrez-le sur l’écran d’accueil.", "ja": "開始をタップして話します。停止後にテキストを直して、ホーム画面に保存できます。", "ko": "시작을 누르고 말하세요. 정지한 뒤 텍스트를 고치고 홈 화면에 저장할 수 있습니다."}, "說中文": {"en": "Speak Chinese", "es": "Hablar español", "de": "Deutsch sprechen", "fr": "Parler français", "ja": "日本語で話す", "ko": "한국어로 말하기"}, "中英混說可能誤判。說英文前點 English，說完切回中文，文字會接在同一段。": {"en": "Mixed languages may be misheard. Switch the language before you speak another one; your text is kept.", "es": "Mezclar idiomas puede dar errores. Cambia de idioma antes de hablar en otro; el texto se conserva.", "de": "Gemischte Sprachen werden leicht falsch erkannt. Vor dem Wechsel die Sprache umstellen; der Text bleibt erhalten.", "fr": "Mélanger les langues peut causer des erreurs. Changez de langue avant de parler dans une autre ; le texte est conservé.", "ja": "言語を混ぜると誤認識することがあります。話す言語を変える前に切り替えてください。テキストは残ります。", "ko": "언어를 섞으면 잘못 인식될 수 있습니다. 다른 언어로 말하기 전에 언어를 바꾸세요. 텍스트는 유지됩니다."}, "開始語音輸入": {"en": "Start dictation", "es": "Iniciar dictado", "de": "Diktat starten", "fr": "Démarrer la dictée", "ja": "音声入力を開始", "ko": "받아쓰기 시작"}, "停止": {"en": "Stop", "es": "Parar", "de": "Stopp", "fr": "Arrêter", "ja": "停止", "ko": "정지"}, "準備好了。首次使用請允許瀏覽器使用麥克風。": {"en": "Ready. Allow microphone access when asked.", "es": "Listo. Permite el micrófono cuando el navegador lo pida.", "de": "Bereit. Mikrofon erlauben, wenn der Browser fragt.", "fr": "Prêt. Autorisez le micro quand le navigateur le demande.", "ja": "準備完了。ブラウザに求められたらマイクを許可してください。", "ko": "준비됐습니다. 브라우저가 물으면 마이크를 허용하세요."}, "辨識文字會出現在這裡，也可以手動修改。": {"en": "Recognized text appears here. You can edit it.", "es": "El texto reconocido aparece aquí. Puedes corregirlo.", "de": "Der erkannte Text erscheint hier und kann bearbeitet werden.", "fr": "Le texte reconnu apparaît ici. Vous pouvez le corriger.", "ja": "認識したテキストがここに表示されます。編集もできます。", "ko": "인식된 텍스트가 여기에 나타납니다. 고칠 수 있습니다."}, "保存到首頁": {"en": "Save to home", "es": "Guardar en inicio", "de": "Auf Start speichern", "fr": "Enregistrer sur l’accueil", "ja": "ホームに保存", "ko": "홈에 저장"}, "複製文字": {"en": "Copy text", "es": "Copiar texto", "de": "Text kopieren", "fr": "Copier le texte", "ja": "テキストをコピー", "ko": "텍스트 복사"}, "清空": {"en": "Clear", "es": "Borrar", "de": "Leeren", "fr": "Effacer", "ja": "クリア", "ko": "지우기"}, "回首頁「語音輸入」工具，按「送到目前目標」，不用複製貼上。": {"en": "Return to the Dictation widget and tap Send to target.", "es": "Vuelve al widget Dictado y toca Enviar al destino.", "de": "Zurück zum Diktat-Widget und An Ziel senden antippen.", "fr": "Revenez au widget Dictée et touchez Envoyer à la cible.", "ja": "音声入力ウィジェットに戻り、「送信先に送る」をタップします。", "ko": "받아쓰기 위젯으로 돌아가 대상으로 보내기를 누르세요."}, "辨識使用瀏覽器的語音服務，可能將音訊傳給服務供應商。文字不會自動送到目前目標。": {"en": "Browser speech recognition may send audio to its provider. Saving does not automatically send text to the selected target.", "es": "El reconocimiento de voz del navegador puede enviar audio al proveedor del servicio. Guardar no envía el texto al destino.", "de": "Die Spracherkennung des Browsers kann Audio an ihren Anbieter senden. Speichern sendet den Text nicht an das Ziel.", "fr": "La reconnaissance vocale du navigateur peut envoyer l’audio à son fournisseur. Enregistrer n’envoie pas le texte à la cible.", "ja": "ブラウザの音声認識は音声を提供元に送ることがあります。保存しただけでは送信先に送られません。", "ko": "브라우저 음성 인식은 오디오를 제공업체로 보낼 수 있습니다. 저장만으로는 대상에 전송되지 않습니다."}, "正在聽… 說完按停止；點文字框可立即編輯。": {"en": "Listening… Tap Stop when finished; tap the text box to edit.", "es": "Escuchando… Toca Parar al terminar; toca el texto para corregir.", "de": "Höre zu… Zum Schluss Stopp antippen; Text antippen zum Bearbeiten.", "fr": "Écoute… Touchez Arrêter à la fin ; touchez le texte pour corriger.", "ja": "聞き取り中… 終わったら停止をタップ。テキストをタップすると編集できます。", "ko": "듣는 중… 끝나면 정지를 누르세요. 텍스트를 누르면 고칠 수 있습니다."}, "辨識已停止。直接點文字框修改，再保存到首頁。": {"en": "Recognition stopped. Edit the text, then save it.", "es": "Reconocimiento detenido. Corrige el texto y guárdalo.", "de": "Erkennung beendet. Text bearbeiten, dann speichern.", "fr": "Reconnaissance arrêtée. Corrigez le texte, puis enregistrez.", "ja": "認識を停止しました。テキストを直して保存してください。", "ko": "인식이 멈췄습니다. 텍스트를 고친 뒤 저장하세요."}, "已暫停聽寫，現在可直接編輯文字。": {"en": "Dictation paused. You can edit the text.", "es": "Dictado en pausa. Puedes corregir el texto.", "de": "Diktat pausiert. Der Text kann bearbeitet werden.", "fr": "Dictée en pause. Vous pouvez corriger le texte.", "ja": "音声入力を一時停止しました。テキストを編集できます。", "ko": "받아쓰기를 멈췄습니다. 텍스트를 고칠 수 있습니다."}, "已停止，可保存文字。": {"en": "Stopped. You can save the text.", "es": "Detenido. Puedes guardar el texto.", "de": "Gestoppt. Der Text kann gespeichert werden.", "fr": "Arrêté. Vous pouvez enregistrer le texte.", "ja": "停止しました。テキストを保存できます。", "ko": "정지됨. 텍스트를 저장할 수 있습니다."}, "已清空。": {"en": "Cleared.", "es": "Borrado.", "de": "Geleert.", "fr": "Effacé.", "ja": "クリアしました。", "ko": "지웠습니다."}, "正在停止…": {"en": "Stopping…", "es": "Parando…", "de": "Stoppe…", "fr": "Arrêt…", "ja": "停止中…", "ko": "정지하는 중…"}, "保存失敗：": {"en": "Save failed: ", "es": "Error al guardar: ", "de": "Speichern fehlgeschlagen: ", "fr": "Échec de l’enregistrement : ", "ja": "保存に失敗：", "ko": "저장 실패: "}, "已保存。回首頁「語音輸入」按「送到目前目標」。": {"en": "Saved. Return to the Dictation widget and tap Send to target.", "es": "Guardado. Vuelve al widget Dictado y toca Enviar al destino.", "de": "Gespeichert. Zurück zum Diktat-Widget und An Ziel senden antippen.", "fr": "Enregistré. Revenez au widget Dictée et touchez Envoyer à la cible.", "ja": "保存しました。音声入力ウィジェットに戻り、「送信先に送る」をタップします。", "ko": "저장했습니다. 받아쓰기 위젯으로 돌아가 대상으로 보내기를 누르세요."}, "已複製。": {"en": "Copied.", "es": "Copiado.", "de": "Kopiert.", "fr": "Copié.", "ja": "コピーしました。", "ko": "복사했습니다."}, "請長按選取的文字並複製。": {"en": "Long-press the selected text to copy it.", "es": "Mantén pulsado el texto seleccionado para copiarlo.", "de": "Markierten Text lange drücken, um ihn zu kopieren.", "fr": "Appuyez longuement sur le texte sélectionné pour le copier.", "ja": "選択したテキストを長押ししてコピーしてください。", "ko": "선택한 텍스트를 길게 눌러 복사하세요."}, "此瀏覽器不支援語音辨識，請使用 Chrome 開啟。": {"en": "This browser does not support speech recognition. Open in Chrome.", "es": "Este navegador no admite el reconocimiento de voz. Ábrelo en Chrome.", "de": "Dieser Browser unterstützt keine Spracherkennung. In Chrome öffnen.", "fr": "Ce navigateur ne prend pas en charge la reconnaissance vocale. Ouvrez dans Chrome.", "ja": "このブラウザは音声認識に対応していません。Chrome で開いてください。", "ko": "이 브라우저는 음성 인식을 지원하지 않습니다. Chrome 에서 여세요."}, "麥克風權限被拒絕。請到 Android 設定 → 應用程式 → 目前瀏覽器 → 權限 → 麥克風，並在瀏覽器的本站設定允許麥克風。給 omalauncher 權限不會同時授權瀏覽器。": {"en": "Microphone denied. Allow the browser microphone permission in Android settings and browser site settings.", "es": "Micrófono denegado. Permite el micrófono al navegador en los ajustes de Android y en los ajustes del sitio.", "de": "Mikrofon verweigert. Dem Browser das Mikrofon in den Android-Einstellungen und den Website-Einstellungen erlauben.", "fr": "Micro refusé. Autorisez le micro pour le navigateur dans les réglages Android et les réglages du site.", "ja": "マイクが拒否されました。Android の設定とブラウザのサイト設定でマイクを許可してください。", "ko": "마이크가 거부되었습니다. Android 설정과 브라우저 사이트 설정에서 마이크를 허용하세요."}, "瀏覽器不允許此語音服務，請用 Chrome 開啟。": {"en": "Speech service blocked. Try Chrome.", "es": "Servicio de voz bloqueado. Prueba con Chrome.", "de": "Sprachdienst blockiert. Chrome versuchen.", "fr": "Service vocal bloqué. Essayez Chrome.", "ja": "音声サービスがブロックされました。Chrome をお試しください。", "ko": "음성 서비스가 차단되었습니다. Chrome 을 써 보세요."}, "無法取得麥克風。請確認瀏覽器權限，並關閉其他正在錄音的程式。": {"en": "Microphone unavailable. Check browser permissions and close other recording apps.", "es": "Micrófono no disponible. Revisa los permisos del navegador y cierra otras apps que graben.", "de": "Mikrofon nicht verfügbar. Browser-Berechtigungen prüfen und andere Aufnahme-Apps schließen.", "fr": "Micro indisponible. Vérifiez les autorisations du navigateur et fermez les autres applis qui enregistrent.", "ja": "マイクを使用できません。ブラウザの権限を確認し、録音中の他のアプリを閉じてください。", "ko": "마이크를 쓸 수 없습니다. 브라우저 권한을 확인하고 녹음 중인 다른 앱을 닫으세요."}, "語音服務連線失敗，請檢查網路後重試。": {"en": "Speech service network error. Check connection and retry.", "es": "Error de red del servicio de voz. Revisa la conexión y reintenta.", "de": "Netzwerkfehler beim Sprachdienst. Verbindung prüfen und erneut versuchen.", "fr": "Erreur réseau du service vocal. Vérifiez la connexion et réessayez.", "ja": "音声サービスのネットワークエラー。接続を確認して再試行してください。", "ko": "음성 서비스 네트워크 오류. 연결을 확인하고 다시 시도하세요."}, "沒聽到聲音，請按開始重試。": {"en": "No speech heard. Tap Start to retry.", "es": "No se oyó nada. Toca Iniciar para reintentar.", "de": "Nichts gehört. Starten antippen, um es erneut zu versuchen.", "fr": "Rien entendu. Touchez Démarrer pour réessayer.", "ja": "音声が聞こえませんでした。開始をタップして再試行してください。", "ko": "소리가 들리지 않았습니다. 시작을 눌러 다시 시도하세요."}, "此語音服務不支援所選語言，請切換語言。": {"en": "This speech service does not support the selected language.", "es": "Este servicio de voz no admite el idioma elegido.", "de": "Dieser Sprachdienst unterstützt die gewählte Sprache nicht.", "fr": "Ce service vocal ne prend pas en charge la langue choisie.", "ja": "この音声サービスは選択した言語に対応していません。", "ko": "이 음성 서비스는 선택한 언어를 지원하지 않습니다."}, "語音已停止。": {"en": "Speech stopped.", "es": "Voz detenida.", "de": "Sprache gestoppt.", "fr": "Voix arrêtée.", "ja": "音声を停止しました。", "ko": "음성이 멈췄습니다."}, "先按停止，再選候選文字。": {"en": "Tap Stop before choosing another transcript.", "es": "Toca Parar antes de elegir otra transcripción.", "de": "Vor der Wahl einer anderen Fassung Stopp antippen.", "fr": "Touchez Arrêter avant de choisir une autre transcription.", "ja": "別の候補を選ぶ前に停止をタップしてください。", "ko": "다른 후보를 고르기 전에 정지를 누르세요."}, "這句已修改，請直接編輯文字。": {"en": "This sentence was edited; change it directly.", "es": "Esta frase fue editada; cámbiala directamente.", "de": "Dieser Satz wurde bearbeitet; bitte direkt ändern.", "fr": "Cette phrase a été modifiée ; changez-la directement.", "ja": "この文は編集済みです。直接修正してください。", "ko": "이 문장은 수정되었습니다. 직접 고치세요."}, "最近一句候選（停止後可選）：": {"en": "Alternatives for the last phrase (select after stopping):", "es": "Alternativas para la última frase (elige tras parar):", "de": "Alternativen für den letzten Satz (nach dem Stoppen wählen):", "fr": "Variantes de la dernière phrase (à choisir après l’arrêt) :", "ja": "最後の文の候補（停止後に選択）：", "ko": "마지막 문장의 후보(정지 후 선택):"}, "請從首頁「語音輸入」重新開啟。": {"en": "Reopen from the Dictation widget.", "es": "Vuelve a abrir desde el widget Dictado.", "de": "Über das Diktat-Widget erneut öffnen.", "fr": "Rouvrez depuis le widget Dictée.", "ja": "音声入力ウィジェットから開き直してください。", "ko": "받아쓰기 위젯에서 다시 여세요."}, "辨識錯誤：": {"en": "Recognition error: ", "es": "Error de reconocimiento: ", "de": "Erkennungsfehler: ", "fr": "Erreur de reconnaissance : ", "ja": "認識エラー：", "ko": "인식 오류: "}, "無法開始：": {"en": "Could not start: ", "es": "No se pudo iniciar: ", "de": "Start nicht möglich: ", "fr": "Impossible de démarrer : ", "ja": "開始できません：", "ko": "시작할 수 없음: "}};
+const UI_STRINGS = {"語音輸入": {"en": "Dictation", "es": "Dictado", "de": "Diktat", "fr": "Dictée", "ja": "音声入力", "ko": "받아쓰기"}, "停止": {"en": "Stop", "es": "Parar", "de": "Stopp", "fr": "Arrêter", "ja": "停止", "ko": "정지"}, "保存到首頁": {"en": "Save to home", "es": "Guardar en inicio", "de": "Auf Start speichern", "fr": "Enregistrer sur l’accueil", "ja": "ホームに保存", "ko": "홈에 저장"}, "清空": {"en": "Clear", "es": "Borrar", "de": "Leeren", "fr": "Effacer", "ja": "クリア", "ko": "지우기"}, "辨識使用瀏覽器的語音服務，可能將音訊傳給服務供應商。文字不會自動送到目前目標。": {"en": "Browser speech recognition may send audio to its provider. Saving does not automatically send text to the selected target.", "es": "El reconocimiento de voz del navegador puede enviar audio al proveedor del servicio. Guardar no envía el texto al destino.", "de": "Die Spracherkennung des Browsers kann Audio an ihren Anbieter senden. Speichern sendet den Text nicht an das Ziel.", "fr": "La reconnaissance vocale du navigateur peut envoyer l’audio à son fournisseur. Enregistrer n’envoie pas le texte à la cible.", "ja": "ブラウザの音声認識は音声を提供元に送ることがあります。保存しただけでは送信先に送られません。", "ko": "브라우저 음성 인식은 오디오를 제공업체로 보낼 수 있습니다. 저장만으로는 대상에 전송되지 않습니다."}, "已停止，可保存文字。": {"en": "Stopped. You can save the text.", "es": "Detenido. Puedes guardar el texto.", "de": "Gestoppt. Der Text kann gespeichert werden.", "fr": "Arrêté. Vous pouvez enregistrer le texte.", "ja": "停止しました。テキストを保存できます。", "ko": "정지됨. 텍스트를 저장할 수 있습니다."}, "已清空。": {"en": "Cleared.", "es": "Borrado.", "de": "Geleert.", "fr": "Effacé.", "ja": "クリアしました。", "ko": "지웠습니다."}, "正在停止…": {"en": "Stopping…", "es": "Parando…", "de": "Stoppe…", "fr": "Arrêt…", "ja": "停止中…", "ko": "정지하는 중…"}, "保存失敗：": {"en": "Save failed: ", "es": "Error al guardar: ", "de": "Speichern fehlgeschlagen: ", "fr": "Échec de l’enregistrement : ", "ja": "保存に失敗：", "ko": "저장 실패: "}, "已複製。": {"en": "Copied.", "es": "Copiado.", "de": "Kopiert.", "fr": "Copié.", "ja": "コピーしました。", "ko": "복사했습니다."}, "請長按選取的文字並複製。": {"en": "Long-press the selected text to copy it.", "es": "Mantén pulsado el texto seleccionado para copiarlo.", "de": "Markierten Text lange drücken, um ihn zu kopieren.", "fr": "Appuyez longuement sur le texte sélectionné pour le copier.", "ja": "選択したテキストを長押ししてコピーしてください。", "ko": "선택한 텍스트를 길게 눌러 복사하세요."}, "此瀏覽器不支援語音辨識，請使用 Chrome 開啟。": {"en": "This browser does not support speech recognition. Open in Chrome.", "es": "Este navegador no admite el reconocimiento de voz. Ábrelo en Chrome.", "de": "Dieser Browser unterstützt keine Spracherkennung. In Chrome öffnen.", "fr": "Ce navigateur ne prend pas en charge la reconnaissance vocale. Ouvrez dans Chrome.", "ja": "このブラウザは音声認識に対応していません。Chrome で開いてください。", "ko": "이 브라우저는 음성 인식을 지원하지 않습니다. Chrome 에서 여세요."}, "麥克風權限被拒絕。請到 Android 設定 → 應用程式 → 目前瀏覽器 → 權限 → 麥克風，並在瀏覽器的本站設定允許麥克風。給 omalauncher 權限不會同時授權瀏覽器。": {"en": "Microphone denied. Allow the browser microphone permission in Android settings and browser site settings.", "es": "Micrófono denegado. Permite el micrófono al navegador en los ajustes de Android y en los ajustes del sitio.", "de": "Mikrofon verweigert. Dem Browser das Mikrofon in den Android-Einstellungen und den Website-Einstellungen erlauben.", "fr": "Micro refusé. Autorisez le micro pour le navigateur dans les réglages Android et les réglages du site.", "ja": "マイクが拒否されました。Android の設定とブラウザのサイト設定でマイクを許可してください。", "ko": "마이크가 거부되었습니다. Android 설정과 브라우저 사이트 설정에서 마이크를 허용하세요."}, "瀏覽器不允許此語音服務，請用 Chrome 開啟。": {"en": "Speech service blocked. Try Chrome.", "es": "Servicio de voz bloqueado. Prueba con Chrome.", "de": "Sprachdienst blockiert. Chrome versuchen.", "fr": "Service vocal bloqué. Essayez Chrome.", "ja": "音声サービスがブロックされました。Chrome をお試しください。", "ko": "음성 서비스가 차단되었습니다. Chrome 을 써 보세요."}, "無法取得麥克風。請確認瀏覽器權限，並關閉其他正在錄音的程式。": {"en": "Microphone unavailable. Check browser permissions and close other recording apps.", "es": "Micrófono no disponible. Revisa los permisos del navegador y cierra otras apps que graben.", "de": "Mikrofon nicht verfügbar. Browser-Berechtigungen prüfen und andere Aufnahme-Apps schließen.", "fr": "Micro indisponible. Vérifiez les autorisations du navigateur et fermez les autres applis qui enregistrent.", "ja": "マイクを使用できません。ブラウザの権限を確認し、録音中の他のアプリを閉じてください。", "ko": "마이크를 쓸 수 없습니다. 브라우저 권한을 확인하고 녹음 중인 다른 앱을 닫으세요."}, "語音服務連線失敗，請檢查網路後重試。": {"en": "Speech service network error. Check connection and retry.", "es": "Error de red del servicio de voz. Revisa la conexión y reintenta.", "de": "Netzwerkfehler beim Sprachdienst. Verbindung prüfen und erneut versuchen.", "fr": "Erreur réseau du service vocal. Vérifiez la connexion et réessayez.", "ja": "音声サービスのネットワークエラー。接続を確認して再試行してください。", "ko": "음성 서비스 네트워크 오류. 연결을 확인하고 다시 시도하세요."}, "沒聽到聲音，請按開始重試。": {"en": "No speech heard. Tap Start to retry.", "es": "No se oyó nada. Toca Iniciar para reintentar.", "de": "Nichts gehört. Starten antippen, um es erneut zu versuchen.", "fr": "Rien entendu. Touchez Démarrer pour réessayer.", "ja": "音声が聞こえませんでした。開始をタップして再試行してください。", "ko": "소리가 들리지 않았습니다. 시작을 눌러 다시 시도하세요."}, "此語音服務不支援所選語言，請切換語言。": {"en": "This speech service does not support the selected language.", "es": "Este servicio de voz no admite el idioma elegido.", "de": "Dieser Sprachdienst unterstützt die gewählte Sprache nicht.", "fr": "Ce service vocal ne prend pas en charge la langue choisie.", "ja": "この音声サービスは選択した言語に対応していません。", "ko": "이 음성 서비스는 선택한 언어를 지원하지 않습니다."}, "語音已停止。": {"en": "Speech stopped.", "es": "Voz detenida.", "de": "Sprache gestoppt.", "fr": "Voix arrêtée.", "ja": "音声を停止しました。", "ko": "음성이 멈췄습니다."}, "先按停止，再選候選文字。": {"en": "Tap Stop before choosing another transcript.", "es": "Toca Parar antes de elegir otra transcripción.", "de": "Vor der Wahl einer anderen Fassung Stopp antippen.", "fr": "Touchez Arrêter avant de choisir une autre transcription.", "ja": "別の候補を選ぶ前に停止をタップしてください。", "ko": "다른 후보를 고르기 전에 정지를 누르세요."}, "這句已修改，請直接編輯文字。": {"en": "This sentence was edited; change it directly.", "es": "Esta frase fue editada; cámbiala directamente.", "de": "Dieser Satz wurde bearbeitet; bitte direkt ändern.", "fr": "Cette phrase a été modifiée ; changez-la directement.", "ja": "この文は編集済みです。直接修正してください。", "ko": "이 문장은 수정되었습니다. 직접 고치세요."}, "請從首頁「語音輸入」重新開啟。": {"en": "Reopen from the Dictation widget.", "es": "Vuelve a abrir desde el widget Dictado.", "de": "Über das Diktat-Widget erneut öffnen.", "fr": "Rouvrez depuis le widget Dictée.", "ja": "音声入力ウィジェットから開き直してください。", "ko": "받아쓰기 위젯에서 다시 여세요."}, "辨識錯誤：": {"en": "Recognition error: ", "es": "Error de reconocimiento: ", "de": "Erkennungsfehler: ", "fr": "Erreur de reconnaissance : ", "ja": "認識エラー：", "ko": "인식 오류: "}, "無法開始：": {"en": "Could not start: ", "es": "No se pudo iniciar: ", "de": "Start nicht möglich: ", "fr": "Impossible de démarrer : ", "ja": "開始できません：", "ko": "시작할 수 없음: "}, "開始聽寫": {"en": "Start dictation", "es": "Iniciar dictado", "de": "Diktat starten", "fr": "Dicter", "ja": "音声入力を開始", "ko": "받아쓰기 시작"}, "準備就緒": {"en": "Ready", "es": "Listo", "de": "Bereit", "fr": "Prêt", "ja": "準備完了", "ko": "준비됨"}, "說話或在這裡輸入…": {"en": "Speak or type here…", "es": "Habla o escribe aquí…", "de": "Hier sprechen oder tippen…", "fr": "Parlez ou écrivez ici…", "ja": "話すか、ここに入力…", "ko": "말하거나 여기에 입력하세요…"}, "複製": {"en": "Copy", "es": "Copiar", "de": "Kopieren", "fr": "Copier", "ja": "コピー", "ko": "복사"}, "正在聽…": {"en": "Listening…", "es": "Escuchando…", "de": "Höre zu…", "fr": "Écoute…", "ja": "聞き取り中…", "ko": "듣는 중…"}, "已停止，可編輯文字。": {"en": "Stopped. Edit your text.", "es": "Detenido. Edita el texto.", "de": "Gestoppt. Text bearbeiten.", "fr": "Arrêté. Modifiez le texte.", "ja": "停止しました。編集できます。", "ko": "정지됨. 텍스트를 수정하세요."}, "已暫停，可編輯文字。": {"en": "Paused for editing.", "es": "En pausa para editar.", "de": "Zum Bearbeiten pausiert.", "fr": "En pause pour modifier.", "ja": "編集のため一時停止中。", "ko": "수정을 위해 일시정지됨."}, "已保存至首頁": {"en": "Saved to home", "es": "Guardado en inicio", "de": "Auf Start gespeichert", "fr": "Enregistré sur l’accueil", "ja": "ホームに保存しました", "ko": "홈에 저장됨"}, "其他辨識結果": {"en": "Alternatives", "es": "Alternativas", "de": "Alternativen", "fr": "Autres résultats", "ja": "他の候補", "ko": "다른 인식 결과"}, "介面語言": {"en": "Interface language", "es": "Idioma de interfaz", "de": "Anzeigesprache", "fr": "Langue de l’interface", "ja": "表示言語", "ko": "인터페이스 언어"}, "辨識語言": {"en": "Speech language", "es": "Idioma de voz", "de": "Gesprochene Sprache", "fr": "Langue parlée", "ja": "認識言語", "ko": "음성 언어"}, "文字": {"en": "Text", "es": "Texto", "de": "Text", "fr": "Texte", "ja": "テキスト", "ko": "텍스트"}, "保存後，回首頁工具送出。": {"en": "Save, then send from the home widget.", "es": "Guarda y envía desde el widget.", "de": "Speichern, dann im Widget senden.", "fr": "Enregistrez, puis envoyez depuis le widget.", "ja": "保存後、ホームのウィジェットから送信。", "ko": "저장 후 홈 위젯에서 보내세요."}, "關於語音辨識": {"en": "About speech recognition", "es": "Sobre el reconocimiento de voz", "de": "Über Spracherkennung", "fr": "À propos de la reconnaissance vocale", "ja": "音声認識について", "ko": "음성 인식 안내"}, "保存中…": {"en": "Saving…", "es": "Guardando…", "de": "Speichern…", "fr": "Enregistrement…", "ja": "保存中…", "ko": "저장 중…"}};
 let uiLanguage='zh';
 // The language spoken by default for each interface language.
 const SPEECH={en:'en-US',zh:'zh-TW',es:'es-ES',de:'de-DE',fr:'fr-FR',ja:'ja-JP',ko:'ko-KR'};
@@ -964,8 +1029,7 @@ function applyLanguage(){
  for(const [node,zh] of originalNodes)node.textContent=localize(zh);
  $('text').placeholder=localize(originalPlaceholder);
  $('ui-language').value=uiLanguage;
- // English has its own button beside this one.
- $('chinese').hidden=uiLanguage==='en';
+ document.title=localize('語音輸入');
  const raw=status.dataset.original || status.textContent;status.textContent=localize(raw);
 }
 const statusObserver=new MutationObserver(()=>{if(updatingStatus)return;updatingStatus=true;let v=status.textContent;const old=status.dataset.original;if(v!==localize(old||'')){status.dataset.original=v;const translated=localize(v);if(translated!==v)status.textContent=translated;}updatingStatus=false;});
@@ -983,13 +1047,13 @@ text.value=localStorage.getItem('oma-speak-draft')||'';
 $('language').value=localStorage.getItem('oma-speak-language')||'zh-TW';
 function persist(){localStorage.setItem('oma-speak-draft',text.value);}
 text.oninput=persist;
-function controls(){ $('start').disabled=wanted||!!recognition||!Speech;$('stop').disabled=!wanted&&!recognition;$('language').disabled=wanted||!!recognition;text.readOnly=false; }
+function controls(){ document.body.dataset.listening=String(wanted||!!recognition); $('start').disabled=wanted||!!recognition||!Speech;$('stop').disabled=!wanted&&!recognition;$('language').disabled=wanted||!!recognition;text.readOnly=false; }
 function halt(message){wanted=false;clearTimeout(timer);status.textContent=message;controls();}
 function startSession(){
  if(!wanted||recognition)return;
  const r=new Speech();recognition=r;const base=text.value;committed=base;interim='';
  r.lang=$('language').value;r.interimResults=true;r.continuous=false;r.maxAlternatives=3;let endedByError=false;
- r.onstart=()=>{status.textContent='正在聽… 說完按停止；點文字框可立即編輯。';controls();};
+ r.onstart=()=>{status.textContent='正在聽…';controls();};
  r.onresult=e=>{
   if(recognition!==r)return;
   // Results are a session snapshot, not new append-only sentences.
@@ -1009,7 +1073,7 @@ function startSession(){
   if(recognition!==r)return;
   recognition=null;wanted=false;persist();controls();
   if(afterStop){const f=afterStop;afterStop=null;f();}
-  else if(!endedByError)status.textContent='辨識已停止。直接點文字框修改，再保存到首頁。';
+  else if(!endedByError)status.textContent='已停止，可編輯文字。';
  };
  try{r.start();controls();}catch(e){recognition=null;halt('無法開始：'+e.message);}
 }
@@ -1017,19 +1081,13 @@ function stopForEditing(){
  const r=recognition;recognition=null;wanted=false;clearTimeout(timer);afterStop=null;
  if(r)r.abort();controls();persist();
 }
-text.onfocus=()=>{if(recognition){stopForEditing();status.textContent='已暫停聽寫，現在可直接編輯文字。';}};
+text.onfocus=()=>{if(recognition){stopForEditing();status.textContent='已暫停，可編輯文字。';}};
 text.oninput=()=>{if(recognition)stopForEditing();persist();};
-function switchLanguage(lang){
- stopForEditing();$('language').value=lang;localStorage.setItem('oma-speak-language',lang);failures=0;
- wanted=true;startSession();
-}
-$('chinese').onclick=()=>switchLanguage(uiLanguage==='zh'?'zh-CN':SPEECH[uiLanguage]);
-$('english').onclick=()=>switchLanguage('en-US');
 $('language').onchange=()=>localStorage.setItem('oma-speak-language',$('language').value);
 function showAlternatives(result,prefix){
  const box=$('alternatives');box.replaceChildren();
  if(result.length<2)return;
- const label=document.createElement('small');label.textContent='最近一句候選（停止後可選）：';box.append(label);
+ const label=document.createElement('small');label.textContent='其他辨識結果';box.append(label);
  for(let j=0;j<result.length;j++){
   const b=document.createElement('button');b.textContent=result[j].transcript;
   const original=prefix+result[0].transcript,candidate=prefix+result[j].transcript;
@@ -1039,13 +1097,15 @@ function showAlternatives(result,prefix){
 
 $('start').onclick=()=>{failures=0;wanted=true;startSession();};
 $('stop').onclick=()=>{halt('正在停止…');if(recognition)recognition.stop();else status.textContent='已停止，可保存文字。';};
-async function save(){try{if(!token)throw Error('請從首頁「語音輸入」重新開啟。');const r=await fetch('/text',{method:'POST',headers:{'Content-Type':'application/json','X-Speak-Token':token},body:JSON.stringify({text:text.value}),signal:AbortSignal.timeout(10000)});const msg=await r.text();if(!r.ok)throw Error(msg);status.textContent='已保存。回首頁「語音輸入」按「送到目前目標」。';}catch(e){status.textContent='保存失敗：'+e.message;}}
+async function save(){try{if(!token)throw Error('請從首頁「語音輸入」重新開啟。');const r=await fetch('/text',{method:'POST',headers:{'Content-Type':'application/json','X-Speak-Token':token},body:JSON.stringify({text:text.value}),signal:AbortSignal.timeout(10000)});const msg=await r.text();if(!r.ok)throw Error(msg);status.textContent='已保存至首頁';}catch(e){status.textContent='保存失敗：'+e.message;}}
 $('save').onclick=()=>{wanted=false;clearTimeout(timer);if(recognition){afterStop=save;recognition.stop();}else save();controls();};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(text.value);status.textContent='已複製。';}catch(e){text.focus();text.select();status.textContent='請長按選取的文字並複製。';}};
 $('clear').onclick=()=>{halt('已清空。');afterStop=null;if(recognition){recognition.onresult=null;recognition.abort();}text.value='';committed='';interim='';$('alternatives').replaceChildren();persist();};
 document.addEventListener('visibilitychange',()=>{if(document.hidden){wanted=false;clearTimeout(timer);if(recognition)recognition.stop();persist();}});
 if(!Speech)status.textContent='此瀏覽器不支援語音辨識，請使用 Chrome 開啟。';controls();
-</script></html>
+</script>
+</body>
+</html>
 OMA_VOICE_FILE_4_END
 put "$HOME/.local/share/oma-speak/server.py" <<'OMA_VOICE_FILE_5_END'
 import hmac
@@ -1184,15 +1244,12 @@ venv="$share/oma-voice/venv"
 # Stop the old voice service and dictation page; the widget starts the new ones.
 pkill -f '^[^ ]*python[0-9.]* .*/oma_voice\.py daemon$' || true
 pkill -f '^[^ ]*python[0-9.]* .*/oma-speak/server\.py$' || true
-printf '%s' '3.3-32999871' > "$HOME/.local/share/oma-voice/store-version"
+printf '%s' '3.4-1acdf3a4' > "$HOME/.local/share/oma-voice/store-version"
 say done
 """) }
-      Button { fill: width; height: 40; text: "${languageName} ›"; onTap: run("mkdir -p ~/.config/omalauncher && printf %s ${sh(nextLanguage)} > ~/.config/omalauncher/voice-ui-language") }
+      Button { fill: width; height: 40; text: (uiLanguage == "zh" ? "詳情" : uiLanguage == "es" ? "Detalles" : uiLanguage == "de" ? "Details" : uiLanguage == "fr" ? "Détails" : uiLanguage == "ja" ? "詳細" : uiLanguage == "ko" ? "상세" : "Details"); onTap: screen() }
     } else {
-    Row {
-      Text { text: (uiLanguage == "zh" ? "終端播報" : uiLanguage == "es" ? "VOZ DEL TERMINAL" : uiLanguage == "de" ? "TERMINAL-STIMME" : uiLanguage == "fr" ? "VOIX DU TERMINAL" : uiLanguage == "ja" ? "ターミナル読み上げ" : uiLanguage == "ko" ? "터미널 음성" : "TERMINAL VOICE"); style: label; color: accent; weight: 1 }
-      Button { text: languageShort; width: 46; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language ${sh(nextLanguage)}") }
-    }
+    Text { text: (uiLanguage == "zh" ? "終端播報" : uiLanguage == "es" ? "VOZ DEL TERMINAL" : uiLanguage == "de" ? "TERMINAL-STIMME" : uiLanguage == "fr" ? "VOIX DU TERMINAL" : uiLanguage == "ja" ? "ターミナル読み上げ" : uiLanguage == "ko" ? "터미널 음성" : "TERMINAL VOICE"); style: label; color: accent }
     Text { text: voice.source == "terminal" ? (uiLanguage == "zh" ? "來源：${voice.source_name ?? '終端'}" : uiLanguage == "es" ? "Fuente: ${voice.source_name ?? 'Terminal'}" : uiLanguage == "de" ? "Quelle: ${voice.source_name ?? 'Terminal'}" : uiLanguage == "fr" ? "Source : ${voice.source_name ?? 'Terminal'}" : uiLanguage == "ja" ? "ソース：${voice.source_name ?? 'ターミナル'}" : uiLanguage == "ko" ? "소스: ${voice.source_name ?? '터미널'}" : "Source: ${voice.source_name ?? 'Terminal'}") : (uiLanguage == "zh" ? "來源：Codex 會話" : uiLanguage == "es" ? "Fuente: chat de Codex" : uiLanguage == "de" ? "Quelle: Codex-Chat" : uiLanguage == "fr" ? "Source : chat Codex" : uiLanguage == "ja" ? "ソース：Codex チャット" : uiLanguage == "ko" ? "소스: Codex 채팅" : "Source: Codex chat"); style: small; color: accent }
     Text { text: statusText; style: small; maxLines: 2; color: offline ? yellow : muted }
     Text { text: replyTime; style: small; color: muted }
@@ -1251,16 +1308,16 @@ say done
         Text { text: voice.full == "" || voice.full == null ? (uiLanguage == "zh" ? "尚無可讀內容" : uiLanguage == "es" ? "Aún no hay nada que leer" : uiLanguage == "de" ? "Noch nichts zum Vorlesen" : uiLanguage == "fr" ? "Rien à lire pour l’instant" : uiLanguage == "ja" ? "読み上げる内容はまだありません" : uiLanguage == "ko" ? "아직 읽을 내용이 없습니다" : "Nothing to read yet") : voice.full; maxLines: 160 }
         Button { fill: width; height: 44; text: (uiLanguage == "zh" ? "複製內容" : uiLanguage == "es" ? "Copiar texto" : uiLanguage == "de" ? "Text kopieren" : uiLanguage == "fr" ? "Copier le texte" : uiLanguage == "ja" ? "テキストをコピー" : uiLanguage == "ko" ? "텍스트 복사" : "Copy text"); onTap: copy(voice.full ?? "") }
         Text { text: (uiLanguage == "zh" ? "介面語言" : uiLanguage == "es" ? "Idioma de la interfaz" : uiLanguage == "de" ? "Sprache der Oberfläche" : uiLanguage == "fr" ? "Langue de l’interface" : uiLanguage == "ja" ? "表示言語" : uiLanguage == "ko" ? "표시 언어" : "Interface language"); bold: true; color: accent }
-        Row {
-          Button { weight: 1; height: 44; text: "English"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language en") }
-          Button { weight: 1; height: 44; text: "中文"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language zh") }
-          Button { weight: 1; height: 44; text: "Español"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language es") }
-          Button { weight: 1; height: 44; text: "Deutsch"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language de") }
-        }
-        Row {
-          Button { weight: 1; height: 44; text: "Français"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language fr") }
-          Button { weight: 1; height: 44; text: "日本語"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language ja") }
-          Button { weight: 1; height: 44; text: "한국어"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language ko") }
+        Grid {
+          columns: 2
+          gap: 8
+          Button { fill: width; height: 44; text: "English"; onTap: run("mkdir -p ~/.config/omalauncher && printf en > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: "中文"; onTap: run("mkdir -p ~/.config/omalauncher && printf zh > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: "Español"; onTap: run("mkdir -p ~/.config/omalauncher && printf es > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: "Deutsch"; onTap: run("mkdir -p ~/.config/omalauncher && printf de > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: "Français"; onTap: run("mkdir -p ~/.config/omalauncher && printf fr > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: "日本語"; onTap: run("mkdir -p ~/.config/omalauncher && printf ja > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: "한국어"; onTap: run("mkdir -p ~/.config/omalauncher && printf ko > ~/.config/omalauncher/voice-ui-language") }
         }
         Text { text: (uiLanguage == "zh" ? "播報設定" : uiLanguage == "es" ? "Ajustes de voz" : uiLanguage == "de" ? "Stimm-Einstellungen" : uiLanguage == "fr" ? "Réglages de la voix" : uiLanguage == "ja" ? "読み上げ設定" : uiLanguage == "ko" ? "음성 설정" : "Voice settings"); bold: true; color: accent }
         if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.follow_latest ? (uiLanguage == "zh" ? "對話：自動跟隨" : uiLanguage == "es" ? "Chat: seguir el más reciente" : uiLanguage == "de" ? "Chat: dem neuesten folgen" : uiLanguage == "fr" ? "Chat : suivre le plus récent" : uiLanguage == "ja" ? "チャット：最新を追跡" : uiLanguage == "ko" ? "채팅: 최신 따라가기" : "Chat: follow latest") : (uiLanguage == "zh" ? "對話：固定" : uiLanguage == "es" ? "Chat: fijado" : uiLanguage == "de" ? "Chat: angeheftet" : uiLanguage == "fr" ? "Chat : épinglé" : uiLanguage == "ja" ? "チャット：固定" : uiLanguage == "ko" ? "채팅: 고정" : "Chat: pinned"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py follow") } }

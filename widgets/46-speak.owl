@@ -6,9 +6,6 @@ widget "Terminal Voice" {
   meta { owl: 6; description: "Reads Codex replies or a tmux terminal aloud, also a task finished with the screen off. For Codex, Claude or any CLI. English, Chinese, Spanish, German, French, Japanese, Korean."; version: "__VERSION__"; license: "MIT"; category: "productivity" }
   requires { pacman: ["python", "espeak-ng", "libpulse", "mpg123", "tmux", "curl", "util-linux"] }
   source uiLanguage = file("~/.config/omalauncher/voice-ui-language")
-  let nextLanguage = __LANGUAGE_NEXT__
-  let languageName = __LANGUAGE_NAME__
-  let languageShort = __LANGUAGE_SHORT__
   source installed = file("~/.local/share/oma-voice/store-version")
   source setupState = file("~/.cache/oma-voice/setup-state")
   let ready = installed == "__PAYLOAD_ID__"
@@ -26,12 +23,9 @@ widget "Terminal Voice" {
       Text { text: _("TERMINAL VOICE"); style: label; color: accent }
       Text { text: setupText; style: small; maxLines: 8; weight: 1; color: setupState == "failed" ? red : muted }
       Button { fill: width; height: 40; text: installed == "" ? _("Set up") : _("Update"); onTap: run("""__SETUP_COMMAND__""") }
-      Button { fill: width; height: 40; text: "${languageName} ›"; onTap: run("mkdir -p ~/.config/omalauncher && printf %s ${sh(nextLanguage)} > ~/.config/omalauncher/voice-ui-language") }
+      Button { fill: width; height: 40; text: _("Details"); onTap: screen() }
     } else {
-    Row {
-      Text { text: _("TERMINAL VOICE"); style: label; color: accent; weight: 1 }
-      Button { text: languageShort; width: 46; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language ${sh(nextLanguage)}") }
-    }
+    Text { text: _("TERMINAL VOICE"); style: label; color: accent }
     Text { text: voice.source == "terminal" ? _("Source: ${voice.source_name ?? 'Terminal'}") : _("Source: Codex chat"); style: small; color: accent }
     Text { text: statusText; style: small; maxLines: 2; color: offline ? yellow : muted }
     Text { text: replyTime; style: small; color: muted }
@@ -90,16 +84,16 @@ widget "Terminal Voice" {
         Text { text: voice.full == "" || voice.full == null ? _("Nothing to read yet") : voice.full; maxLines: 160 }
         Button { fill: width; height: 44; text: _("Copy text"); onTap: copy(voice.full ?? "") }
         Text { text: _("Interface language"); bold: true; color: accent }
-        Row {
-          Button { weight: 1; height: 44; text: "English"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language en") }
-          Button { weight: 1; height: 44; text: "中文"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language zh") }
-          Button { weight: 1; height: 44; text: "Español"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language es") }
-          Button { weight: 1; height: 44; text: "Deutsch"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language de") }
-        }
-        Row {
-          Button { weight: 1; height: 44; text: "Français"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language fr") }
-          Button { weight: 1; height: 44; text: "日本語"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language ja") }
-          Button { weight: 1; height: 44; text: "한국어"; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language ko") }
+        Grid {
+          columns: 2
+          gap: 8
+          Button { fill: width; height: 44; text: "English"; onTap: run("mkdir -p ~/.config/omalauncher && printf en > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: "中文"; onTap: run("mkdir -p ~/.config/omalauncher && printf zh > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: "Español"; onTap: run("mkdir -p ~/.config/omalauncher && printf es > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: "Deutsch"; onTap: run("mkdir -p ~/.config/omalauncher && printf de > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: "Français"; onTap: run("mkdir -p ~/.config/omalauncher && printf fr > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: "日本語"; onTap: run("mkdir -p ~/.config/omalauncher && printf ja > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: "한국어"; onTap: run("mkdir -p ~/.config/omalauncher && printf ko > ~/.config/omalauncher/voice-ui-language") }
         }
         Text { text: _("Voice settings"); bold: true; color: accent }
         if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.follow_latest ? _("Chat: follow latest") : _("Chat: pinned"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py follow") } }

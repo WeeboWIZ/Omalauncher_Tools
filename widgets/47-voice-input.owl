@@ -6,9 +6,6 @@ widget "Dictation" {
  meta { owl: 6; description: "Dictate by voice and send the text to a Codex chat or a tmux terminal running Claude or any CLI. English, Chinese, Spanish, German, French, Japanese, Korean."; version: "__VERSION__"; license: "MIT"; category: "productivity" }
  requires { pacman: ["python", "espeak-ng", "libpulse", "mpg123", "tmux", "curl", "util-linux"] }
  source uiLanguage = file("~/.config/omalauncher/voice-ui-language")
- let nextLanguage = __LANGUAGE_NEXT__
- let languageName = __LANGUAGE_NAME__
- let languageShort = __LANGUAGE_SHORT__
  source installed = file("~/.local/share/oma-voice/store-version")
  source setupState = file("~/.cache/oma-voice/setup-state")
  let ready = installed == "__PAYLOAD_ID__"
@@ -18,25 +15,65 @@ widget "Dictation" {
  state result = ""
  state sending = false
  on result { sending = false }
+ onTap: screen()
  Column {
+  fill: true
   gap: 5
   if !ready {
    Text { text: _("DICTATION"); style: label; color: accent }
    Text { text: setupText; style: small; maxLines: 8; weight: 1; color: setupState == "failed" ? red : muted }
    Button { fill: width; height: 36; text: installed == "" ? _("Set up") : _("Update"); onTap: run("""__SETUP_COMMAND__""") }
-   Button { fill: width; height: 36; text: "${languageName} ›"; onTap: run("mkdir -p ~/.config/omalauncher && printf %s ${sh(nextLanguage)} > ~/.config/omalauncher/voice-ui-language") }
+   Button { fill: width; height: 36; text: _("Details"); onTap: screen() }
   } else {
-  Row {
-   Text { text: _("DICTATION"); style: label; color: accent; weight: 1 }
-   Button { text: languageShort; width: 46; onTap: run("python ~/.local/share/oma-voice/oma_voice.py language ${sh(nextLanguage)}") }
-  }
-  Button { text: _("Start dictation"); onTap: run("bash ~/.local/bin/speak") }
+  Text { text: _("DICTATION"); style: label; color: accent }
+  Button { fill: width; height: 36; text: _("Start dictation"); onTap: run("bash ~/.local/bin/speak") }
   Text { text: _("Send to: ${voice.source == 'terminal' ? (voice.source_name ?? 'Terminal') : 'Codex chat'}"); style: small; color: accent; maxLines: 2 }
   Text { text: latest == "" || latest == null ? _("Start → speak → stop and save") : latest; style: small; maxLines: 3; weight: 1 }
   Text { text: result == "" ? _("Save, then send") : parseJson(result).ok ? _("Sent to current target") : parseJson(result).error_ui ?? _("Request completed"); style: small; maxLines: 2 }
-  if sending { Text { text: _("Sending…"); style: small; color: accent } }
-  else { Button { text: _("Send to target"); onTap: { sending = true; result = run("python ~/.local/bin/oma-send-dictation") } } }
-  Button { text: _("Copy text"); onTap: copy(latest) }
+  Row {
+   gap: 4
+   if sending { Text { text: _("Sending…"); style: small; color: accent; weight: 1 } }
+   else { Button { height: 36; weight: 1; text: _("Send"); onTap: { sending = true; result = run("python ~/.local/bin/oma-send-dictation") } } }
+   Button { height: 36; weight: 1; text: _("Details"); onTap: screen() }
+  }
+  }
+ }
+ screen {
+  title: _("DICTATION")
+  Column {
+   fill: true
+   height: screenHeight
+   gap: 10
+   Button { fill: width; height: 44; text: _("Back"); onTap: close() }
+   Column {
+    fill: width
+    scroll: true
+    height: max(1, screenHeight - 54)
+    gap: 12
+    if !ready { Text { text: _("Not set up yet: go back and tap Set up on the tile."); color: yellow; maxLines: 3 } }
+    Button { fill: width; height: 44; text: _("Start dictation"); onTap: run("bash ~/.local/bin/speak") }
+    Text { text: _("Send to: ${voice.source == 'terminal' ? (voice.source_name ?? 'Terminal') : 'Codex chat'}"); color: accent; maxLines: 2 }
+    Text { text: latest == "" || latest == null ? _("Start → speak → stop and save") : latest; maxLines: 160 }
+    Text { text: result == "" ? _("Save, then send") : parseJson(result).ok ? _("Sent to current target") : parseJson(result).error_ui ?? _("Request completed"); style: small; maxLines: 3 }
+    Row {
+     gap: 4
+     if sending { Text { text: _("Sending…"); color: accent; weight: 1 } }
+     else { Button { weight: 1; height: 44; text: _("Send to target"); onTap: { sending = true; result = run("python ~/.local/bin/oma-send-dictation") } } }
+     Button { weight: 1; height: 44; text: _("Copy text"); onTap: copy(latest) }
+    }
+    Text { text: _("Interface language"); color: accent; bold: true }
+    Grid {
+     columns: 2
+     gap: 8
+     Button { fill: width; height: 44; text: "English"; onTap: run("mkdir -p ~/.config/omalauncher && printf en > ~/.config/omalauncher/voice-ui-language") }
+     Button { fill: width; height: 44; text: "中文"; onTap: run("mkdir -p ~/.config/omalauncher && printf zh > ~/.config/omalauncher/voice-ui-language") }
+     Button { fill: width; height: 44; text: "Español"; onTap: run("mkdir -p ~/.config/omalauncher && printf es > ~/.config/omalauncher/voice-ui-language") }
+     Button { fill: width; height: 44; text: "Deutsch"; onTap: run("mkdir -p ~/.config/omalauncher && printf de > ~/.config/omalauncher/voice-ui-language") }
+     Button { fill: width; height: 44; text: "Français"; onTap: run("mkdir -p ~/.config/omalauncher && printf fr > ~/.config/omalauncher/voice-ui-language") }
+     Button { fill: width; height: 44; text: "日本語"; onTap: run("mkdir -p ~/.config/omalauncher && printf ja > ~/.config/omalauncher/voice-ui-language") }
+     Button { fill: width; height: 44; text: "한국어"; onTap: run("mkdir -p ~/.config/omalauncher && printf ko > ~/.config/omalauncher/voice-ui-language") }
+    }
+   }
   }
  }
 }

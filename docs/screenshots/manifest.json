@@ -1,0 +1,47 @@
+[
+  {
+    "file": "terminal-voice.png",
+    "bytes": 37761,
+    "pixels": [
+      516,
+      736
+    ],
+    "sha256": "5d480323887e5699de92d568bff690fa478041a999179773edbb995925128478"
+  },
+  {
+    "file": "dictation.png",
+    "bytes": 28561,
+    "pixels": [
+      516,
+      736
+    ],
+    "sha256": "bb2ce2d011db6a36bf2b97282ff07206ae6364d97bbf20017a72ad561f8b9cf4"
+  },
+  {
+    "file": "overview.png",
+    "bytes": 170166,
+    "pixels": [
+      1080,
+      960
+    ],
+    "sha256": "6e0eafd3d90e12c3c352780deec1da980b9348b1ef99edfdaae48647991f5cf2"
+  },
+  {
+    "file": "terminal-voice-details.png",
+    "bytes": 127002,
+    "pixels": [
+      1080,
+      2400
+    ],
+    "sha256": "1281b85d7e753db2e0f5ed01fc7c8db99fa76cb67f379529bf66d64d5bf26de3"
+  },
+  {
+    "file": "dictation-details.png",
+    "bytes": 64968,
+    "pixels": [
+      1080,
+      2400
+    ],
+    "sha256": "8af7ba0ee269770c271469d2e634dfb301c8be8f0efa7bded9e5f9d559afdec3"
+  }
+]

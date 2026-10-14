@@ -7,17 +7,18 @@ Read terminal output aloud and dictate text into Codex, Claude, or another comma
 
 ## Preview
 
-These screenshots use example text. The English pair shows a Claude terminal connected through tmux. Tap an image to view it at full size.
+These screenshots use fixed English example text and the launcher's actual rendering. Both review tiles use 3×4 cells so the text and controls fit completely. Each PNG is below 300 KB. See the [English screenshot review](docs/screenshots/README.md) for details. Tap an image to view it at full size.
 
 | Terminal Voice | Dictation |
 |:---:|:---:|
-| [![English Terminal Voice widget](docs/codex-voice-en.png)](docs/codex-voice-en.png) | [![English Dictation widget](docs/dictation-en.png)](docs/dictation-en.png) |
+| [![English Terminal Voice widget](docs/screenshots/terminal-voice.png)](docs/screenshots/terminal-voice.png) | [![English Dictation widget](docs/screenshots/dictation.png)](docs/screenshots/dictation.png) |
 
 ## What it does
 
 - **Codex chat mode:** follows the latest local Codex conversation, displays completed replies and can automatically read a summary aloud. Dictation is sent through Omalauncher's `codex queue` command.
 - **Terminal mode:** reads the visible text of a dedicated tmux pane and sends dictated text to it when you tap **Send to target**. Start Codex, Claude, or another terminal program in that pane. Terminal playback is manual so changing prompts and progress messages are not read aloud repeatedly.
 - Both home-screen widgets and the browser dictation page share one interface language: English (default), 中文, Español, Deutsch, Français, 日本語 or 한국어. A reply is read aloud in its own language with a matching voice. The reply or dictated text stays in its original language.
+- Change the interface language in either widget's **Details** screen or in the dictation page. The home tiles keep their controls focused on playback and dictation.
 - The voice widget offers summary/full-screen playback, stop, refresh, source selection, and a detailed view. Online speech converts to playable WAV; offline speech uses espeak-ng.
 
 ## Install
@@ -65,11 +66,11 @@ Run `python -m unittest discover -s tests -v` to check the package. `python tool
 
 ## 工具畫面
 
-截圖使用示例文字。中文組展示 Codex 會話模式；英文組展示透過 tmux 連接 Claude。點圖片可查看原尺寸。
+截圖採用英文示例文字，展示透過 tmux 連接 Claude；介面仍支援繁體中文。點圖片可查看原尺寸。
 
 | 終端播報 | 語音輸入 |
 |:---:|:---:|
-| [![中文終端播報工具](docs/codex-voice.png)](docs/codex-voice.png) | [![中文語音輸入工具](docs/dictation.png)](docs/dictation.png) |
+| [![終端播報工具](docs/screenshots/terminal-voice.png)](docs/screenshots/terminal-voice.png) | [![語音輸入工具](docs/screenshots/dictation.png)](docs/screenshots/dictation.png) |
 
 ## 功能
 
