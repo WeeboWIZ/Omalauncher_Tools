@@ -43,7 +43,7 @@ widget "Dictation" {
   Text { text: sendMessage; style: small; color: sendStatus.phase == "failed" ? red : sendStatus.phase == "sent" || sendStatus.phase == "saved" ? accent : muted; maxLines: 2 }
   Row {
    gap: 4
-   Button { height: 36; weight: 1; text: sendStatus.phase == "sending" ? _("Sending…") : _("Send original"); onTap: run("python ~/.local/bin/oma-send-dictation") }
+   Button { height: 36; weight: 1; text: actionPending == "send" || sendStatus.phase == "sending" ? _("Sending…") : sendStatus.phase == "sent" && sendStatus.version == "original" ? _("Queued") : _("Send original"); onTap: { actionKind = "send"; actionPending = "send"; actionResult = ""; actionResult = run("python ~/.local/bin/oma-send-dictation --json") } }
    Button { height: 36; weight: 1; text: _("Details"); onTap: screen() }
   }
   }
@@ -76,16 +76,15 @@ widget "Dictation" {
     if refineStatus.phase == "ready" && refined != "" {
      Text { text: _("Refined draft"); color: accent; bold: true }
      Text { text: refined; maxLines: 160 }
-     Button { fill: width; height: 44; text: actionPending == "send" && actionKind == "send" ? _("Sending…") : sendStatus.phase == "sent" && sendStatus.version == "refined" ? _("Sent to current target") : _("Send refined to target"); onTap: { actionKind = "send"; actionPending = "send"; actionResult = ""; actionResult = run("python ~/.local/bin/oma-send-dictation --refined --json") } }
+     Button { fill: width; height: 44; text: actionPending == "send" && actionKind == "send" ? _("Sending…") : sendStatus.phase == "sent" && sendStatus.version == "refined" ? _("Queued") : _("Send refined to target"); onTap: { actionKind = "send"; actionPending = "send"; actionResult = ""; actionResult = run("python ~/.local/bin/oma-send-dictation --refined --json") } }
     }
     Text { text: sendMessage; style: small; color: sendStatus.phase == "failed" ? red : sendStatus.phase == "sent" || sendStatus.phase == "saved" ? accent : muted; maxLines: 3 }
     Row {
      gap: 4
-     Button { weight: 1; height: 44; text: actionPending == "send" || sendStatus.phase == "sending" ? _("Sending…") : sendStatus.phase == "sent" && sendStatus.version == "original" ? _("Sent to current target") : _("Send original"); onTap: { actionKind = "send"; actionPending = "send"; actionResult = ""; actionResult = run("python ~/.local/bin/oma-send-dictation --json") } }
+     Button { weight: 1; height: 44; text: actionPending == "send" || sendStatus.phase == "sending" ? _("Sending…") : sendStatus.phase == "sent" && sendStatus.version == "original" ? _("Queued") : _("Send original"); onTap: { actionKind = "send"; actionPending = "send"; actionResult = ""; actionResult = run("python ~/.local/bin/oma-send-dictation --json") } }
      Button { weight: 1; height: 44; text: _("Copy text"); onTap: { copyState = latest == "" || latest == null ? "empty" : "copied"; copy(latest) } }
     }
     if copyNotice != "" { Text { text: copyNotice; style: small; color: latest == "" || latest == null ? red : accent; maxLines: 2 } }
-    if actionKind == "send" && actionMessage != "" { Text { text: actionMessage; style: small; color: actionFailed ? red : accent; maxLines: 3 } }
     Text { text: _("Interface language"); color: accent; bold: true }
     Grid {
      columns: 2

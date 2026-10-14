@@ -87,6 +87,7 @@ STRINGS = {
     'Copied': ('已複製', 'Copiado', 'Kopiert', 'Copié', 'コピーしました', '복사됨'),
     'No saved text': ('尚無保存的文字', 'Aún no hay texto guardado', 'Noch kein Text gespeichert', 'Aucun texte enregistré', '保存した文章はまだありません', '저장된 글이 없습니다'),
     'Sent to current target': ('已送到目前目標', 'Enviado al destino actual', 'An das aktuelle Ziel gesendet', 'Envoyé à la cible actuelle', '現在の送信先に送りました', '현재 대상으로 보냈습니다'),
+    'Queued': ('已排隊', 'En cola', 'Eingereiht', 'Mis en file', 'キュー済み', '대기열 등록'),
     'Request completed': ('送出完成', 'Solicitud completada', 'Anfrage abgeschlossen', 'Demande terminée', '送信が完了しました', '요청 완료'),
     'Sending…': ('正在送出…', 'Enviando…', 'Sende…', 'Envoi…', '送信中…', '전송 중…'),
     'Queued for current target': ('已送到目前目標佇列', 'En cola para el destino actual', 'Für das aktuelle Ziel eingereiht', 'En file pour la cible actuelle', '現在の送信先のキューに追加しました', '현재 대상 대기열에 추가됨'),
