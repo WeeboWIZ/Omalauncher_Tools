@@ -16,6 +16,7 @@ widget "Dictation" {
  source refined = file("~/.cache/oma-speak/refined.txt")
  source refineStatus = file("~/.cache/oma-speak/refine-status.json") json
  source sendStatus = file("~/.cache/oma-speak/send-status.json") json
+ source queued = file("~/.cache/oma-voice/queued.json") json
  let sendMessage = sendStatus.phase == "sending" ? _("Sending…") : sendStatus.phase == "sent" ? (sendStatus.status_ui ?? _("Queued for current target")) : sendStatus.phase == "failed" ? (sendStatus.error_ui ?? sendStatus.error ?? _("Send failed")) : sendStatus.phase == "saved" ? _("Saved to home") : _("Save, then send")
  let refineMessage = refineStatus.phase == "refining" ? _("Refining…") : refineStatus.phase == "ready" ? _("Refined draft ready") : refineStatus.phase == "failed" ? (refineStatus.error ?? _("Refining failed; original is available")) : _("Refine the saved text with Agent")
  state actionKind = ""
@@ -38,13 +39,21 @@ widget "Dictation" {
   } else {
   Text { text: _("DICTATION"); style: label; color: accent }
   Button { fill: width; height: 36; text: _("Start dictation"); onTap: run("bash ~/.local/bin/speak") }
-  Text { text: _("Send to: ${voice.source == 'terminal' ? (voice.source_name ?? 'Terminal') : 'Codex chat'}"); style: small; color: accent; maxLines: 2 }
+  Text { text: _("Send to: ${voice.source == 'terminal' ? (voice.source_name ?? 'Terminal') : voice.source == 'claude' ? 'Claude' : 'Codex chat'}"); style: small; color: accent; maxLines: 2 }
   Text { text: latest == "" || latest == null ? _("Start → speak → stop and save") : latest; style: small; maxLines: 3; weight: 1 }
-  Text { text: sendMessage; style: small; color: sendStatus.phase == "failed" ? red : sendStatus.phase == "sent" || sendStatus.phase == "saved" ? accent : muted; maxLines: 2 }
+  Text { text: queued.id != null ? _("Waiting for Codex: newest message only") : sendMessage; style: small; color: queued.id != null ? yellow : sendStatus.phase == "failed" ? red : sendStatus.phase == "sent" || sendStatus.phase == "saved" ? accent : muted; maxLines: 2 }
   Row {
    gap: 4
+   if voice.source == "claude" && (voice.term_pane == "" || voice.term_pane == null) {
+    Button { height: 36; weight: 1; text: copyState == "copied" ? _("Copied") : _("Copy text"); onTap: { copyState = latest == "" || latest == null ? "empty" : "copied"; copy(latest) } }
+   } else {
    Button { height: 36; weight: 1; text: actionPending == "send" || sendStatus.phase == "sending" ? _("Sending…") : sendStatus.phase == "sent" && sendStatus.version == "original" ? _("Queued") : _("Send original"); onTap: { actionKind = "send"; actionPending = "send"; actionResult = ""; actionResult = run("python ~/.local/bin/oma-send-dictation --json") } }
-   Button { height: 36; weight: 1; text: _("Details"); onTap: screen() }
+   }
+   if queued.id != null {
+    Button { height: 36; weight: 1; text: actionPending == "unqueue" ? _("Working…") : _("Cancel waiting"); onTap: { actionKind = "unqueue"; actionPending = "unqueue"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py unqueue --json") } }
+   } else {
+    Button { height: 36; weight: 1; text: _("Details"); onTap: screen() }
+   }
   }
   }
  }
@@ -63,11 +72,16 @@ widget "Dictation" {
     if !ready { Text { text: _("Not set up yet: go back and tap Set up on the tile."); color: yellow; maxLines: 3 } }
     Button { fill: width; height: 44; text: actionPending == "open" ? _("Working…") : _("Start dictation"); onTap: { actionKind = "open"; actionPending = "open"; actionResult = ""; actionResult = run("bash ~/.local/bin/speak --json") } }
     if actionKind == "open" && actionMessage != "" { Text { text: actionMessage; style: small; color: actionFailed ? red : accent; maxLines: 3 } }
-    Text { text: _("Send to: ${voice.source == 'terminal' ? (voice.source_name ?? 'Terminal') : 'Codex chat'}"); color: accent; maxLines: 2 }
+    Text { text: _("Send to: ${voice.source == 'terminal' ? (voice.source_name ?? 'Terminal') : voice.source == 'claude' ? 'Claude' : 'Codex chat'}"); color: accent; maxLines: 2 }
     Row {
-     gap: 8
-     Button { weight: 1; height: 44; text: actionPending == "source" ? _("Working…") : voice.source == "terminal" ? _("Codex chat") : _("Codex chat selected"); onTap: { actionKind = "source"; actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source codex --json") } }
-     Button { weight: 1; height: 44; text: actionPending == "source" ? _("Working…") : voice.source == "terminal" ? _("Terminal / Claude selected") : _("Terminal / Claude"); onTap: { actionKind = "source"; actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source terminal --json") } }
+     gap: 6
+     Button { weight: 1; height: 44; text: actionPending == "source" ? "…" : voice.source == "codex" ? "✓ Codex" : "Codex"; onTap: { actionKind = "source"; actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source codex --json") } }
+     Button { weight: 1; height: 44; text: actionPending == "source" ? "…" : voice.source == "claude" ? "✓ Claude" : "Claude"; onTap: { actionKind = "source"; actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source claude --json") } }
+     Button { weight: 1; height: 44; text: actionPending == "source" ? "…" : voice.source == "terminal" ? "✓ tmux" : "tmux"; onTap: { actionKind = "source"; actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source terminal --json") } }
+    }
+    if voice.source == "claude" && (voice.term_pane == "" || voice.term_pane == null) {
+     Text { text: _("Dictation: copied for pasting; open Claude in tmux to send directly"); style: small; color: muted; maxLines: 3 }
+     Button { fill: width; height: 44; text: _("Open Claude in tmux"); onTap: terminal("tmux new -A -s oma-voice 'claude; exec bash'", "Claude") }
     }
     if actionKind == "source" && actionMessage != "" { Text { text: actionMessage; style: small; color: actionFailed ? red : accent; maxLines: 3 } }
     Text { text: latest == "" || latest == null ? _("Start → speak → stop and save") : latest; maxLines: 160 }
@@ -79,6 +93,11 @@ widget "Dictation" {
      Button { fill: width; height: 44; text: actionPending == "send" && actionKind == "send" ? _("Sending…") : sendStatus.phase == "sent" && sendStatus.version == "refined" ? _("Queued") : _("Send refined to target"); onTap: { actionKind = "send"; actionPending = "send"; actionResult = ""; actionResult = run("python ~/.local/bin/oma-send-dictation --refined --json") } }
     }
     Text { text: sendMessage; style: small; color: sendStatus.phase == "failed" ? red : sendStatus.phase == "sent" || sendStatus.phase == "saved" ? accent : muted; maxLines: 3 }
+    if queued.id != null {
+     Text { text: _("Waiting for Codex: newest message only"); color: yellow; bold: true }
+     Text { text: queued.text ?? ""; style: small; maxLines: 6 }
+     Button { fill: width; height: 44; text: actionPending == "unqueue" ? _("Working…") : _("Cancel waiting"); onTap: { actionKind = "unqueue"; actionPending = "unqueue"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py unqueue --json") } }
+    }
     Row {
      gap: 4
      Button { weight: 1; height: 44; text: actionPending == "send" || sendStatus.phase == "sending" ? _("Sending…") : sendStatus.phase == "sent" && sendStatus.version == "original" ? _("Queued") : _("Send original"); onTap: { actionKind = "send"; actionPending = "send"; actionResult = ""; actionResult = run("python ~/.local/bin/oma-send-dictation --json") } }

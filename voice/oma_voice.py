@@ -18,10 +18,7 @@ import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from language import CHOICE, LANGUAGES, SPOKEN, changed_at, chosen, local, spoken
-
-
-def english(text):
-    return local(text, 'en')
+import codex_queue
 
 
 HOME = Path.home()
@@ -29,6 +26,9 @@ CACHE = HOME / '.cache/oma-voice'
 SOCKET = CACHE / 'control.sock'
 CONFIG = HOME / '.config/omalauncher/voice.json'
 SESSIONS = HOME / '.codex/sessions'
+# Claude Code keeps one transcript per conversation here, whatever terminal it runs in.
+CLAUDE_PROJECTS = HOME / '.claude/projects'
+SOURCES = ('codex', 'claude', 'terminal')
 TMUX_SESSION = 'oma-voice'
 # ensure() touches this. The service quits once neither it nor the Codex log has changed
 # for the 'pause_minutes' setting (0 = never), and ensure() starts it again.
@@ -36,6 +36,18 @@ ALIVE = CACHE / 'alive'
 PAUSE_MINUTES = 10
 # Seconds between looks for a Codex session or tmux pane while there is none.
 RETRY = 15
+
+
+def sweep(keep=''):
+    '''Remove audio from earlier readings. Some Android file systems refuse to delete a file the
+    player still holds, so what one reading leaves behind goes when the next one starts.'''
+    for old in CACHE.glob('speech-*'):
+        if keep and old.name.startswith(keep):
+            continue
+        try:
+            old.unlink()
+        except OSError:
+            pass
 
 
 def atomic_json(path, value):
@@ -51,10 +63,6 @@ def read_json(path, default=None):
         return json.loads(path.read_text())
     except (OSError, ValueError):
         return default
-
-
-def chinese(text):
-    return any('㐀' <= c <= '鿿' for c in text)
 
 
 def clean_text(text):
@@ -95,17 +103,59 @@ def summarize(text, limit=360):
     return notes[0] + ' '.join(selected) + notes[1]
 
 
-def completed_reply(event):
-    '''Ignore commentary, tool output, subagent logs and aborted turns.'''
-    if event.get('type') != 'event_msg':
+def codex_event(event):
+    '''('start'|'end', None) or ('reply', (turn, text)); commentary, tool output and subagents are skipped.'''
+    payload = event.get('payload')
+    if event.get('type') != 'event_msg' or not isinstance(payload, dict):
         return None
-    payload = event.get('payload', {})
-    if payload.get('type') != 'task_complete':
-        return None
+    kind = payload.get('type')
     text = payload.get('last_agent_message')
-    if not isinstance(text, str) or not text.strip():
+    if kind == 'task_complete' and isinstance(text, str) and text.strip():
+        return 'reply', (payload.get('turn_id') or payload.get('root_turn_id') or event.get('timestamp'), text)
+    if kind == 'task_started':
+        return 'start', None
+    if kind in ('task_complete', 'turn_aborted'):
+        return 'end', None
+    return None
+
+
+def claude_event(event):
+    '''('start', None) when the user asks Claude something, ('reply', (id, text)) for its final answer.'''
+    if event.get('isSidechain'):
         return None
-    return payload.get('turn_id') or payload.get('root_turn_id') or event.get('timestamp'), text
+    message = event.get('message')
+    if not isinstance(message, dict):
+        return None
+    content = message.get('content')
+    if event.get('type') == 'user':
+        # Tool results come back as user entries too; only typed prompts start a turn.
+        if isinstance(content, str) or (isinstance(content, list) and any(
+                isinstance(part, dict) and part.get('type') == 'text' for part in content)):
+            return 'start', None
+        return None
+    if event.get('type') != 'assistant' or message.get('stop_reason') != 'end_turn' or not isinstance(content, list):
+        return None
+    text = '\n\n'.join(part.get('text', '') for part in content
+                         if isinstance(part, dict) and part.get('type') == 'text').strip()
+    if not text:
+        return None
+    return 'reply', (event.get('requestId') or message.get('id') or event.get('uuid'), text)
+
+
+def latest_claude():
+    files = list(CLAUDE_PROJECTS.glob('*/*.jsonl'))
+    if not files:
+        raise ValueError('找不到 Claude 會話')
+    return max(files, key=lambda p: p.stat().st_mtime)
+
+
+def claude_pane():
+    '''The oma-voice tmux pane, only if Claude runs in it: the one place a Claude chat can be typed into.'''
+    try:
+        pane, label, _ = terminal_snapshot()
+    except ValueError:
+        return None
+    return pane if label == 'Claude' else None
 
 
 def find_session(thread):
@@ -213,55 +263,77 @@ class Reader:
             atomic_json(CACHE / 'state.json', self.state)
             self.saved = dict(self.state)
 
+    def open_log(self, path):
+        '''Follow a chat log from its end; older answers are shown, never read aloud.'''
+        self.path, self.pending, self.last_turn = path, b'', None
+        self.state.update(full='', summary='', last_turn='', reply_at=None, awaiting=False)
+        with path.open('rb') as f:
+            for line in f:
+                self.take(line, live=False)
+            self.offset = f.tell()
+        name = 'Claude' if self.config['source'] == 'claude' else 'Codex'
+        self.state['status'] = name+' 正在回覆…' if self.state['awaiting'] else ('已同步最近回覆' if self.state['full'] else '已連接，等待回覆')
+        self.save()
+
+    def take(self, line, live):
+        try:
+            event = json.loads(line)
+        except (ValueError, UnicodeError):
+            return
+        found = (claude_event if self.config['source'] == 'claude' else codex_event)(event)
+        if not found:
+            return
+        kind, reply = found
+        if kind != 'reply':
+            self.state['awaiting'] = kind == 'start'
+            if live and kind == 'start':
+                self.state.update(status=('Claude' if self.config['source'] == 'claude' else 'Codex')+' 正在回覆…', error='')
+                self.save()
+            return
+        if reply[0] == self.last_turn:
+            return
+        self.last_turn, full = reply
+        self.state.update(full=full, summary=summarize(full), last_turn=self.last_turn, awaiting=False, reply_at=event.get('timestamp'))
+        if live:
+            self.state.update(status='收到新回覆', error='')
+            self.save()
+            if self.config['auto']:
+                self.play(self.state[self.config['mode']])
+
     def bind(self, thread):
         path = find_session(thread)
         if path is None:
             raise ValueError('找不到指定會話')
         self.config['thread'] = str(uuid.UUID(thread))
-        self.path = path
-        # Seed replay, but never automatically speak historical answers on startup.
-        self.pending = b''
-        self.last_turn = None
-        self.state.update(full='', summary='', last_turn='', reply_at=None, awaiting=False, status='已連接，等待回覆')
-        with path.open('rb') as f:
-            for line in f:
-                try:
-                    event = json.loads(line)
-                    reply = completed_reply(event)
-                    kind = event.get('payload', {}).get('type')
-                    if kind == 'task_started':
-                        self.state['awaiting'] = True
-                    elif kind in ('task_complete', 'turn_aborted'):
-                        self.state['awaiting'] = False
-                except ValueError:
-                    continue
-                if reply:
-                    self.last_turn, full = reply
-                    self.state.update(full=full, summary=summarize(full), last_turn=self.last_turn, reply_at=event.get('timestamp'))
-            self.offset = f.tell()
-        self.state['status'] = 'Codex 正在回覆…' if self.state['awaiting'] else ('已同步最近回覆' if self.state['full'] else '已連接，等待回覆')
+        self.open_log(path)
         atomic_json(CONFIG, self.config)
-        self.save()
 
     def poll(self):
-        if self.config['source'] == 'terminal':
+        source = self.config['source']
+        if source == 'terminal':
             return self.poll_terminal()
-        if not self.config['thread']:
-            self.config['thread'] = latest_session()
-        if time.monotonic() - self.checked_session >= RETRY:
+        if time.monotonic() - self.checked_session >= RETRY or self.path is None:
             self.checked_session = time.monotonic()
-            if self.config['follow_latest']:
-                thread = latest_session()
-                if thread != self.config['thread']:
+            if source == 'claude':
+                self.state['term_pane'] = claude_pane() or ''
+                latest = latest_claude()
+                if latest != self.path:
                     self.stop()
-                    self.bind(thread)
-        if self.path is None:
-            self.bind(self.config['thread'])
+                    self.open_log(latest)
+                self.save()
+            else:
+                if not self.config['thread']:
+                    self.config['thread'] = latest_session()
+                if self.config['follow_latest'] and latest_session() != self.config['thread']:
+                    self.stop()
+                    self.bind(latest_session())
+                elif self.path is None:
+                    self.bind(self.config['thread'])
         size = self.path.stat().st_size
+        if size < self.offset:
+            return self.open_log(self.path)
         if size == self.offset:
             return
-        if size < self.offset:
-            self.bind(self.config['thread'])
         with self.path.open('rb') as f:
             f.seek(self.offset)
             data = f.read(4 * 1024 * 1024)
@@ -269,25 +341,7 @@ class Reader:
         lines = (self.pending + data).split(b'\n')
         self.pending = lines.pop()
         for line in lines:
-            try:
-                event = json.loads(line)
-                reply = completed_reply(event)
-                kind = event.get('payload', {}).get('type')
-                if kind == 'task_started':
-                    self.state.update(awaiting=True, status='Codex 正在回覆…', error='')
-                    self.save()
-                elif kind in ('task_complete', 'turn_aborted'):
-                    self.state['awaiting'] = False
-            except (ValueError, UnicodeError):
-                continue
-            if not reply or reply[0] == self.last_turn:
-                continue
-            self.last_turn, full = reply
-            self.state.update(full=full, summary=summarize(full), last_turn=self.last_turn,
-                              status='收到新回覆', error='', awaiting=False, reply_at=event.get('timestamp'))
-            self.save()
-            if self.config['auto']:
-                self.play(self.state[self.config['mode']])
+            self.take(line, live=True)
 
     def poll_terminal(self):
         if time.monotonic() < self.next_terminal:
@@ -314,7 +368,7 @@ class Reader:
         if not limit or self.state.get('playing'):
             return False
         # Codex still writing its log counts, so a long task is read aloud with the screen off.
-        seen = [ALIVE] + ([self.path] if self.path and self.config['source'] == 'codex' else [])
+        seen = [ALIVE] + ([self.path] if self.path and self.config['source'] != 'terminal' else [])
         try:
             return time.time() - max(path.stat().st_mtime for path in seen) >= limit
         except OSError:
@@ -345,6 +399,7 @@ class Reader:
 
         def worker():
             wav = CACHE / ('speech-' + uuid.uuid4().hex + '.wav')
+            sweep(keep=wav.stem)
             try:
                 with self.player_lock:
                     if generation != self.generation:
@@ -391,8 +446,12 @@ class Reader:
                         self.state.update(playing=False, status='播放失敗', error=str(exc))
                         self.save()
             finally:
-                wav.unlink(missing_ok=True)
-                Path(str(wav) + '.backend').unlink(missing_ok=True)
+                # Only this reading's files: a newer reading may already be writing its own.
+                for own in CACHE.glob(wav.stem + '*'):
+                    try:
+                        own.unlink()
+                    except OSError:
+                        pass
         threading.Thread(target=worker, daemon=True).start()
 
     def command(self, request):
@@ -449,17 +508,26 @@ class Reader:
             if self.config['source'] == 'terminal':
                 self.next_terminal = 0
                 self.poll_terminal()
+            elif self.config['source'] == 'claude':
+                self.open_log(latest_claude())
             else:
                 self.bind(latest_session() if self.config['follow_latest'] else self.config['thread'])
         elif action == 'source':
             value = request.get('value')
-            if value not in ('codex', 'terminal'):
-                raise ValueError('請選 Codex 或 Terminal')
+            if value not in SOURCES:
+                raise ValueError('請選 Codex、Claude 或 Terminal')
             self.stop()
             self.config['source'] = value
-            self.state.update(full='', summary='', reply_at=None, source_name='Codex' if value == 'codex' else 'Terminal')
+            self.path = None
+            # The last send result belongs to the old target; the dictation tile must not keep showing it.
+            (HOME/'.cache/oma-speak/send-status.json').unlink(missing_ok=True)
+            self.state.update(full='', summary='', reply_at=None, term_pane='',
+                              source_name={'codex': 'Codex', 'claude': 'Claude'}.get(value, 'Terminal'))
             atomic_json(CONFIG, self.config)
-            if value == 'terminal':
+            if value == 'claude':
+                self.state['term_pane'] = claude_pane() or ''
+                self.open_log(latest_claude())
+            elif value == 'terminal':
                 self.next_terminal = 0
                 self.term_last = None
                 self.poll_terminal()
@@ -489,17 +557,41 @@ class Reader:
                 if latest != self.config['thread']:
                     self.bind(latest)
             self.stop()
-            if self.config['source'] == 'terminal':
+            if self.config['source'] == 'claude':
+                pane = claude_pane()
+                if pane is None:
+                    raise ValueError('Claude 不在 oma-voice tmux 中，無法送出；請點「在 tmux 開啟 Claude」')
+                terminal_send(pane, text)
+                self.state.update(status='已送到終端 · Claude', error='', term_pane=pane)
+            elif self.config['source'] == 'terminal':
                 pane, label, _ = terminal_snapshot()
                 terminal_send(pane, text)
                 self.state.update(status='已送到終端 · '+label, error='')
             else:
-                result = subprocess.run(['codex', 'queue', '--thread', self.config['thread'], '--message', text],
+                thread = self.config['thread']
+                # Only the newest dictation may wait for the agent: replace, never pile up.
+                replaced = codex_queue.forget(thread, text)
+                result = subprocess.run(['codex', 'queue', '--thread', thread, '--message', text],
                                         capture_output=True, text=True, timeout=20)
                 if result.returncode:
                     raise ValueError(result.stderr[-500:] or result.stdout[-500:] or '送出失敗')
-                self.state.update(status='已送到這個 Codex 會話的佇列', error='')
+                # An idle chat takes the message at once; a busy one keeps it until its turn ends.
+                waiting = None
+                for _ in range(6):
+                    time.sleep(0.25)
+                    waiting = codex_queue.remember(thread, text)
+                    if waiting is None:
+                        break
+                status = '已送到 Codex 會話' if waiting is None else '已取代排隊中的上一則' if replaced else '排隊中：Codex 回覆完成後送出'
+                self.state.update(status=status, error='')
+                self.save()
+                return {'ok': True, 'status': status, 'queued': waiting is not None, 'replaced': bool(replaced)}
             self.save()
+        elif action == 'unqueue':
+            cancelled = codex_queue.cancel()
+            self.state.update(status='已取消排隊中的訊息' if cancelled else '沒有排隊中的訊息', error='')
+            self.save()
+            return {'ok': True, 'status': self.state['status'], 'text': cancelled and cancelled.get('text')}
         else:
             raise ValueError('未知命令')
         return {'ok': True, 'status': self.state['status']}
@@ -513,9 +605,15 @@ def serve():
         except BlockingIOError:
             return
         ALIVE.touch()
+        sweep()
         reader = Reader()
         if reader.config['source'] == 'terminal':
             reader.poll_terminal()
+        elif reader.config['source'] == 'claude':
+            try:
+                reader.poll()
+            except (OSError, ValueError) as exc:
+                reader.state.update(status='等待會話記錄', error=str(exc))
         elif reader.config['thread']:
             reader.bind(reader.config['thread'])
         SOCKET.unlink(missing_ok=True)
@@ -593,7 +691,7 @@ def ensure():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['daemon', 'ensure', 'status', 'replay', 'stop', 'auto', 'bind', 'send', 'test', 'engine', 'refresh', 'follow', 'language', 'source', 'pause'])
+    parser.add_argument('action', choices=['daemon', 'ensure', 'status', 'replay', 'stop', 'auto', 'bind', 'send', 'test', 'engine', 'refresh', 'follow', 'language', 'source', 'pause', 'unqueue'])
     parser.add_argument('value', nargs='?')
     parser.add_argument('--text')
     parser.add_argument('--full', action='store_true')

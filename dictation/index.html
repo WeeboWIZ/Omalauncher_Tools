@@ -6,62 +6,64 @@
 <meta name="theme-color" content="#0b0e17">
 <title>語音輸入</title>
 <style>
-:root{color-scheme:dark;--bg:#0b0e17;--fg:#d9edf4;--accent:#78ffa2;--muted:#989db7;--line:#30364c;--panel:#111522}
+:root{color-scheme:dark;--bg:#0b0e17;--fg:#d9edf4;--accent:#78ffa2;--muted:#989db7;--line:#30364c;--panel:#111522;--warn:#ffd36e;--bad:#ff8484}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 ui-monospace,"SFMono-Regular",Consolas,"Liberation Mono",monospace}
-main{width:min(100%,640px);margin:auto;padding:28px 20px max(24px,env(safe-area-inset-bottom))}
-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:22px;border-bottom:1px solid var(--line)}
-h1{font-size:26px;line-height:1.25;letter-spacing:.02em;color:var(--accent);margin:0;font-weight:500}
-button,select,textarea{font:inherit;border-radius:4px}
-button,select{min-height:46px;border:1px solid var(--line);background:transparent;color:var(--fg);padding:10px 14px}
+body{margin:0;min-height:100dvh;display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font:16px/1.5 ui-monospace,"SFMono-Regular",Consolas,"Liberation Mono",monospace}
+main,.dock-inner{width:min(100%,640px);margin:0 auto;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+main{flex:1;padding-top:20px;padding-bottom:16px;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{font-size:22px;line-height:1.25;color:var(--accent);margin:0;font-weight:500}
+button,select,textarea{font:inherit;border-radius:6px;color:var(--fg)}
+button,select{min-height:44px;border:1px solid var(--line);background:transparent;padding:8px 14px}
 button{cursor:pointer;touch-action:manipulation}
 button:disabled{opacity:.35;cursor:default}
-button:not(:disabled):hover{border-color:var(--accent)}
-:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-select{max-width:100%;min-width:0;background:var(--panel)}
-#ui-language{width:120px;font-size:14px}
-.speech-language{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:22px 0 14px}
-label,.editor-label{font-size:13px;color:var(--muted)}
-#language{flex:1;max-width:260px}
-.record-controls{display:grid;grid-template-columns:2fr 1fr;gap:10px}
-.primary{border-color:var(--accent);background:var(--accent);color:var(--bg);font-weight:600}
-#start{display:flex;align-items:center;justify-content:center;gap:10px}
-.mic{width:16px;height:20px;flex:none}
-.status-line{display:flex;align-items:baseline;gap:9px;margin:14px 0 24px;min-height:24px}
-.status-dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex:none;align-self:flex-start;margin-top:9px}
-body[data-listening="true"] .status-dot{background:var(--accent);box-shadow:0 0 0 4px #78ffa215}
-#status{font-size:13px;color:var(--muted);margin:0;overflow-wrap:anywhere}
-body[data-listening="true"] #status{color:var(--accent)}
-.editor-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
-.editor-actions{display:flex;gap:16px}
-.editor-actions button{min-height:40px;padding:5px 0;font-size:13px;border:0;color:var(--muted);border-radius:0}
-.editor-actions button:not(:disabled):hover{color:var(--accent)}
-textarea{display:block;resize:vertical;width:100%;height:clamp(210px,34dvh,360px);min-height:160px;padding:16px;border:1px solid var(--line);background:var(--panel);color:var(--fg);line-height:1.7;caret-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+select{max-width:100%;min-width:0;background:var(--panel);font-size:14px}
+.quiet{border:0;min-height:40px;padding:6px 4px;font-size:14px;color:var(--muted)}
+.quiet:not(:disabled):hover{color:var(--accent)}
+.editor-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+header select{min-height:40px;padding:4px 8px;max-width:58%}
+.agent{width:100%;margin-top:12px;min-height:48px;display:flex;align-items:center;justify-content:center;gap:8px;border-color:var(--accent);color:var(--accent);background:#78ffa212;font-weight:600}
+.agent svg{width:18px;height:18px;flex:none}
+.agent:not(:disabled):hover{background:#78ffa222}
+.editor-actions{display:flex;gap:12px;flex:none}
+textarea{display:block;resize:none;width:100%;height:clamp(180px,38dvh,420px);padding:14px;border:1px solid var(--line);background:var(--panel);line-height:1.7;caret-color:var(--accent)}
 textarea::placeholder{color:#737b97}
 #alternatives:empty{display:none}
-#alternatives{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
-#alternatives small{flex-basis:100%;color:var(--muted)}
-#alternatives button{font-size:13px;text-align:left;overflow-wrap:anywhere;max-width:100%}
-#save{width:100%;margin-top:16px}
-.refine-action{width:100%;margin-top:16px}
-#refine-state{font-size:13px;color:var(--muted);min-height:22px;margin:8px 0}
-#refined-panel[hidden]{display:none}
-#refined-panel{margin-top:16px;padding:16px;border:1px solid var(--accent);background:var(--panel)}
-#refined-panel h2{font-size:15px;color:var(--accent);margin:0 0 10px}
-#refined-text{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;line-height:1.7}
-.send-choices{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
-.target-picker{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px}
-#target-select{flex:1;max-width:260px}
-@media(max-width:360px){.send-choices{grid-template-columns:1fr}}
-.send-note{font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center}
-.send-note[data-phase="failed"]{color:#ff8484}
-.action-feedback{min-height:20px;margin:6px 0 0;font-size:13px;color:var(--muted);overflow-wrap:anywhere}
-.action-feedback[data-phase="success"]{color:var(--accent)}
-.action-feedback[data-phase="failed"]{color:#ff8484}
-details{border-top:1px solid var(--line);margin-top:24px;padding-top:14px;color:var(--muted);font-size:12px}
-summary{cursor:pointer;width:fit-content}details p{line-height:1.7;margin:10px 0 0}
+#alternatives{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+#alternatives small{flex-basis:100%;color:var(--muted);font-size:12px}
+#alternatives button{min-height:36px;font-size:13px;text-align:left;overflow-wrap:anywhere;max-width:100%}
+.card{border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--panel);padding:12px 14px;border-radius:6px}
+.card[hidden]{display:none}
+#queue-panel{border-left-color:var(--warn)}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.card h2{font-size:14px;margin:0;font-weight:600;color:var(--accent)}
+#queue-panel h2{color:var(--warn)}
+.card p{margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6}
+.card .hint{font-size:12px;color:var(--muted);white-space:normal}
+#queue-text{max-height:6.4em;overflow:auto;font-size:14px}
+.card-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.card-actions button,.card-head button{min-height:38px;padding:4px 14px;font-size:14px}
+.accent-outline{border-color:var(--accent);color:var(--accent)}
+details{color:var(--muted);font-size:12px;margin-top:auto}
+summary{cursor:pointer;width:fit-content;padding:6px 0}details p{line-height:1.7;margin:6px 0 0}
+.dock{position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding-bottom:max(12px,env(safe-area-inset-bottom))}
+.dock-inner{padding-top:10px}
+.dock-info{display:flex;align-items:center;gap:10px;min-height:38px}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+body[data-listening="true"] .status-dot{background:var(--accent);box-shadow:0 0 0 4px #78ffa225}
+#status{flex:1;min-width:0;font-size:13px;color:var(--muted);margin:0;overflow-wrap:anywhere;line-height:1.4}
+#status[data-tone="ok"],body[data-listening="true"] #status{color:var(--accent)}
+#status[data-tone="bad"]{color:var(--bad)}
+.target{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);flex:none}
+.target select{min-height:34px;padding:2px 6px;font-size:13px;max-width:150px}
+.dock-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.dock-actions button{min-height:52px;white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600}
+#mic svg,#send svg{width:18px;height:18px;flex:none}
+body[data-listening="true"] #mic{border-color:var(--accent);color:var(--accent)}
+#send{border-color:var(--accent);background:var(--accent);color:var(--bg)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-@media(max-width:360px){main{padding:20px 16px}h1{font-size:23px}#ui-language{width:104px}.speech-language{gap:10px}#language{max-width:210px}}
+@media(max-width:360px){.target>span{display:none}.editor-actions{gap:8px}}
 @media(prefers-reduced-motion:no-preference){button{transition:background .15s,border-color .15s,color .15s}}
 </style>
 </head>
@@ -69,33 +71,39 @@ summary{cursor:pointer;width:fit-content}details p{line-height:1.7;margin:10px 0
 <main>
 <header>
 <h1>語音輸入</h1>
-<label for="ui-language" class="sr-only">介面語言</label>
-<select id="ui-language"><option value="en">English</option><option value="zh">中文</option><option value="es">Español</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="ja">日本語</option><option value="ko">한국어</option></select>
-</header>
-<div class="speech-language">
-<label for="language">辨識語言</label>
+<label for="language" class="sr-only">語言</label>
 <select id="language"><option value="zh-TW">中文（台灣）</option><option value="zh-CN">中文（普通話）</option><option value="en-US">English</option><option value="es-ES">Español</option><option value="de-DE">Deutsch</option><option value="fr-FR">Français</option><option value="ja-JP">日本語</option><option value="ko-KR">한국어</option><option value="th-TH">ไทย</option></select>
+</header>
+<section>
+<div class="editor-bar">
+<span></span><div class="editor-actions"><button id="copy" class="quiet">複製</button><button id="clear" class="quiet">清空</button></div>
 </div>
-<div class="record-controls">
-<button id="start" class="primary"><svg class="mic" viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="5" y="1" width="6" height="11" rx="3"/><path d="M2 8v2a6 6 0 0 0 12 0V8M8 16v3M5 19h6"/></svg><span>開始聽寫</span></button>
-<button id="stop" disabled>停止</button>
-</div>
-<div class="status-line"><span class="status-dot" aria-hidden="true"></span><p id="status" role="status" aria-live="polite">準備就緒</p></div>
-<div class="editor-bar"><label for="text">文字</label><div class="editor-actions"><button id="copy">複製</button><button id="clear">清空</button></div></div>
+<label for="text" class="sr-only">文字</label>
 <textarea id="text" maxlength="16000" placeholder="說話或在這裡輸入…" spellcheck="true"></textarea>
 <div id="alternatives"></div>
-<button id="refine" class="refine-action">一鍵 Agent 整理</button>
-<p id="refine-state" role="status" aria-live="polite"></p>
-<section id="refined-panel" hidden><h2>整理稿</h2><p id="refined-text"></p></section>
-<div class="target-picker"><label for="target-select">送出目標</label><select id="target-select"><option value="codex">Codex 會話</option><option value="terminal">終端 / Claude</option></select></div>
-<p id="target-label" class="send-note"></p>
-<div class="send-choices"><button id="send-original">送出原文</button><button id="send-refined" disabled>送出整理稿</button></div>
-<p id="send-feedback" class="action-feedback" role="status" aria-live="polite"></p>
-<button id="save" class="primary">保存到首頁</button>
-<p id="save-feedback" class="action-feedback" role="status" aria-live="polite"></p>
-<p class="send-note">可先檢查整理稿，再選擇送出原文或整理稿。</p>
-<details><summary>關於語音辨識</summary><p>辨識使用瀏覽器的語音服務，可能將音訊傳給服務供應商。文字不會自動送到目前目標。</p><p>整理會把文字傳給 Codex。內容不會自動送到目前目標。</p></details>
+<button id="refine" class="agent"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 1l1.8 5.2L17 8l-5.2 1.8L10 15l-1.8-5.2L3 8l5.2-1.8zM16 13l.8 2.2L19 16l-2.2.8L16 19l-.8-2.2L13 16l2.2-.8z"/></svg><span id="refine-label">Agent 整理</span></button>
+</section>
+<section id="refined-panel" class="card" hidden>
+<h2>整理稿</h2>
+<p id="refined-text"></p>
+<div class="card-actions"><button id="refine-discard">捨棄</button><button id="refine-apply" class="accent-outline">採用</button></div>
+</section>
+<section id="queue-panel" class="card" hidden>
+<div class="card-head"><h2>排隊中</h2><button id="unqueue">取消</button></div>
+<p id="queue-text"></p>
+<p class="hint">Codex 回覆完成後送出這一則；再次送出會取代它。</p>
+</section>
+<details><summary>關於語音辨識</summary><p>辨識使用瀏覽器的語音服務，可能將音訊傳給服務供應商。文字會自動保存到首頁，按「送出」才會傳給目標。</p><p>整理用目前來源的便宜模型（Claude Haiku／Codex 最便宜模型），不會送到目標。</p></details>
 </main>
+<footer class="dock">
+<div class="dock-inner">
+<div class="dock-info"><span class="status-dot" aria-hidden="true"></span><p id="status" role="status" aria-live="polite">準備就緒</p><label class="target"><span>送到</span><select id="target-select"><option value="codex">Codex 會話</option><option value="claude">Claude 會話</option><option value="terminal">tmux 終端</option></select></label></div>
+<div class="dock-actions">
+<button id="mic"><svg viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="5" y="1" width="6" height="11" rx="3"/><path d="M2 8v2a6 6 0 0 0 12 0V8M8 16v3M5 19h6"/></svg><span id="mic-label">聽寫</span></button>
+<button id="send"><span id="send-label">送出</span><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 10h13M11 4l6 6-6 6"/></svg></button>
+</div>
+</div>
+</footer>
 <script>
 const $=id=>document.getElementById(id),status=$('status'),text=$('text');
 const launchToken=location.hash.slice(1);
@@ -104,35 +112,47 @@ try{if(launchToken)sessionStorage.setItem('oma-speak-token',launchToken);else to
 history.replaceState(null,'',location.pathname);
 
 // Chinese is what the page is written in; the other interface languages are looked up here.
-const UI_STRINGS = {"語音輸入": {"en": "Dictation", "es": "Dictado", "de": "Diktat", "fr": "Dictée", "ja": "音声入力", "ko": "받아쓰기"}, "停止": {"en": "Stop", "es": "Parar", "de": "Stopp", "fr": "Arrêter", "ja": "停止", "ko": "정지"}, "保存到首頁": {"en": "Save to home", "es": "Guardar en inicio", "de": "Auf Start speichern", "fr": "Enregistrer sur l’accueil", "ja": "ホームに保存", "ko": "홈에 저장"}, "清空": {"en": "Clear", "es": "Borrar", "de": "Leeren", "fr": "Effacer", "ja": "クリア", "ko": "지우기"}, "辨識使用瀏覽器的語音服務，可能將音訊傳給服務供應商。文字不會自動送到目前目標。": {"en": "Browser speech recognition may send audio to its provider. Saving does not automatically send text to the selected target.", "es": "El reconocimiento de voz del navegador puede enviar audio al proveedor del servicio. Guardar no envía el texto al destino.", "de": "Die Spracherkennung des Browsers kann Audio an ihren Anbieter senden. Speichern sendet den Text nicht an das Ziel.", "fr": "La reconnaissance vocale du navigateur peut envoyer l’audio à son fournisseur. Enregistrer n’envoie pas le texte à la cible.", "ja": "ブラウザの音声認識は音声を提供元に送ることがあります。保存しただけでは送信先に送られません。", "ko": "브라우저 음성 인식은 오디오를 제공업체로 보낼 수 있습니다. 저장만으로는 대상에 전송되지 않습니다."}, "已停止，可保存文字。": {"en": "Stopped. You can save the text.", "es": "Detenido. Puedes guardar el texto.", "de": "Gestoppt. Der Text kann gespeichert werden.", "fr": "Arrêté. Vous pouvez enregistrer le texte.", "ja": "停止しました。テキストを保存できます。", "ko": "정지됨. 텍스트를 저장할 수 있습니다."}, "已清空。": {"en": "Cleared.", "es": "Borrado.", "de": "Geleert.", "fr": "Effacé.", "ja": "クリアしました。", "ko": "지웠습니다."}, "正在停止…": {"en": "Stopping…", "es": "Parando…", "de": "Stoppe…", "fr": "Arrêt…", "ja": "停止中…", "ko": "정지하는 중…"}, "保存失敗：": {"en": "Save failed: ", "es": "Error al guardar: ", "de": "Speichern fehlgeschlagen: ", "fr": "Échec de l’enregistrement : ", "ja": "保存に失敗：", "ko": "저장 실패: "}, "已複製。": {"en": "Copied.", "es": "Copiado.", "de": "Kopiert.", "fr": "Copié.", "ja": "コピーしました。", "ko": "복사했습니다."}, "請長按選取的文字並複製。": {"en": "Long-press the selected text to copy it.", "es": "Mantén pulsado el texto seleccionado para copiarlo.", "de": "Markierten Text lange drücken, um ihn zu kopieren.", "fr": "Appuyez longuement sur le texte sélectionné pour le copier.", "ja": "選択したテキストを長押ししてコピーしてください。", "ko": "선택한 텍스트를 길게 눌러 복사하세요."}, "此瀏覽器不支援語音辨識，請使用 Chrome 開啟。": {"en": "This browser does not support speech recognition. Open in Chrome.", "es": "Este navegador no admite el reconocimiento de voz. Ábrelo en Chrome.", "de": "Dieser Browser unterstützt keine Spracherkennung. In Chrome öffnen.", "fr": "Ce navigateur ne prend pas en charge la reconnaissance vocale. Ouvrez dans Chrome.", "ja": "このブラウザは音声認識に対応していません。Chrome で開いてください。", "ko": "이 브라우저는 음성 인식을 지원하지 않습니다. Chrome 에서 여세요."}, "麥克風權限被拒絕。請到 Android 設定 → 應用程式 → 目前瀏覽器 → 權限 → 麥克風，並在瀏覽器的本站設定允許麥克風。給 omalauncher 權限不會同時授權瀏覽器。": {"en": "Microphone denied. Allow the browser microphone permission in Android settings and browser site settings.", "es": "Micrófono denegado. Permite el micrófono al navegador en los ajustes de Android y en los ajustes del sitio.", "de": "Mikrofon verweigert. Dem Browser das Mikrofon in den Android-Einstellungen und den Website-Einstellungen erlauben.", "fr": "Micro refusé. Autorisez le micro pour le navigateur dans les réglages Android et les réglages du site.", "ja": "マイクが拒否されました。Android の設定とブラウザのサイト設定でマイクを許可してください。", "ko": "마이크가 거부되었습니다. Android 설정과 브라우저 사이트 설정에서 마이크를 허용하세요."}, "瀏覽器不允許此語音服務，請用 Chrome 開啟。": {"en": "Speech service blocked. Try Chrome.", "es": "Servicio de voz bloqueado. Prueba con Chrome.", "de": "Sprachdienst blockiert. Chrome versuchen.", "fr": "Service vocal bloqué. Essayez Chrome.", "ja": "音声サービスがブロックされました。Chrome をお試しください。", "ko": "음성 서비스가 차단되었습니다. Chrome 을 써 보세요."}, "無法取得麥克風。請確認瀏覽器權限，並關閉其他正在錄音的程式。": {"en": "Microphone unavailable. Check browser permissions and close other recording apps.", "es": "Micrófono no disponible. Revisa los permisos del navegador y cierra otras apps que graben.", "de": "Mikrofon nicht verfügbar. Browser-Berechtigungen prüfen und andere Aufnahme-Apps schließen.", "fr": "Micro indisponible. Vérifiez les autorisations du navigateur et fermez les autres applis qui enregistrent.", "ja": "マイクを使用できません。ブラウザの権限を確認し、録音中の他のアプリを閉じてください。", "ko": "마이크를 쓸 수 없습니다. 브라우저 권한을 확인하고 녹음 중인 다른 앱을 닫으세요."}, "語音服務連線失敗，請檢查網路後重試。": {"en": "Speech service network error. Check connection and retry.", "es": "Error de red del servicio de voz. Revisa la conexión y reintenta.", "de": "Netzwerkfehler beim Sprachdienst. Verbindung prüfen und erneut versuchen.", "fr": "Erreur réseau du service vocal. Vérifiez la connexion et réessayez.", "ja": "音声サービスのネットワークエラー。接続を確認して再試行してください。", "ko": "음성 서비스 네트워크 오류. 연결을 확인하고 다시 시도하세요."}, "沒聽到聲音，請按開始重試。": {"en": "No speech heard. Tap Start to retry.", "es": "No se oyó nada. Toca Iniciar para reintentar.", "de": "Nichts gehört. Starten antippen, um es erneut zu versuchen.", "fr": "Rien entendu. Touchez Démarrer pour réessayer.", "ja": "音声が聞こえませんでした。開始をタップして再試行してください。", "ko": "소리가 들리지 않았습니다. 시작을 눌러 다시 시도하세요."}, "此語音服務不支援所選語言，請切換語言。": {"en": "This speech service does not support the selected language.", "es": "Este servicio de voz no admite el idioma elegido.", "de": "Dieser Sprachdienst unterstützt die gewählte Sprache nicht.", "fr": "Ce service vocal ne prend pas en charge la langue choisie.", "ja": "この音声サービスは選択した言語に対応していません。", "ko": "이 음성 서비스는 선택한 언어를 지원하지 않습니다."}, "語音已停止。": {"en": "Speech stopped.", "es": "Voz detenida.", "de": "Sprache gestoppt.", "fr": "Voix arrêtée.", "ja": "音声を停止しました。", "ko": "음성이 멈췄습니다."}, "先按停止，再選候選文字。": {"en": "Tap Stop before choosing another transcript.", "es": "Toca Parar antes de elegir otra transcripción.", "de": "Vor der Wahl einer anderen Fassung Stopp antippen.", "fr": "Touchez Arrêter avant de choisir une autre transcription.", "ja": "別の候補を選ぶ前に停止をタップしてください。", "ko": "다른 후보를 고르기 전에 정지를 누르세요."}, "這句已修改，請直接編輯文字。": {"en": "This sentence was edited; change it directly.", "es": "Esta frase fue editada; cámbiala directamente.", "de": "Dieser Satz wurde bearbeitet; bitte direkt ändern.", "fr": "Cette phrase a été modifiée ; changez-la directement.", "ja": "この文は編集済みです。直接修正してください。", "ko": "이 문장은 수정되었습니다. 직접 고치세요."}, "請從首頁「語音輸入」重新開啟。": {"en": "Reopen from the Dictation widget.", "es": "Vuelve a abrir desde el widget Dictado.", "de": "Über das Diktat-Widget erneut öffnen.", "fr": "Rouvrez depuis le widget Dictée.", "ja": "音声入力ウィジェットから開き直してください。", "ko": "받아쓰기 위젯에서 다시 여세요."}, "辨識錯誤：": {"en": "Recognition error: ", "es": "Error de reconocimiento: ", "de": "Erkennungsfehler: ", "fr": "Erreur de reconnaissance : ", "ja": "認識エラー：", "ko": "인식 오류: "}, "無法開始：": {"en": "Could not start: ", "es": "No se pudo iniciar: ", "de": "Start nicht möglich: ", "fr": "Impossible de démarrer : ", "ja": "開始できません：", "ko": "시작할 수 없음: "}, "開始聽寫": {"en": "Start dictation", "es": "Iniciar dictado", "de": "Diktat starten", "fr": "Dicter", "ja": "音声入力を開始", "ko": "받아쓰기 시작"}, "準備就緒": {"en": "Ready", "es": "Listo", "de": "Bereit", "fr": "Prêt", "ja": "準備完了", "ko": "준비됨"}, "說話或在這裡輸入…": {"en": "Speak or type here…", "es": "Habla o escribe aquí…", "de": "Hier sprechen oder tippen…", "fr": "Parlez ou écrivez ici…", "ja": "話すか、ここに入力…", "ko": "말하거나 여기에 입력하세요…"}, "複製": {"en": "Copy", "es": "Copiar", "de": "Kopieren", "fr": "Copier", "ja": "コピー", "ko": "복사"}, "正在聽…": {"en": "Listening…", "es": "Escuchando…", "de": "Höre zu…", "fr": "Écoute…", "ja": "聞き取り中…", "ko": "듣는 중…"}, "已停止，可編輯文字。": {"en": "Stopped. Edit your text.", "es": "Detenido. Edita el texto.", "de": "Gestoppt. Text bearbeiten.", "fr": "Arrêté. Modifiez le texte.", "ja": "停止しました。編集できます。", "ko": "정지됨. 텍스트를 수정하세요."}, "已暫停，可編輯文字。": {"en": "Paused for editing.", "es": "En pausa para editar.", "de": "Zum Bearbeiten pausiert.", "fr": "En pause pour modifier.", "ja": "編集のため一時停止中。", "ko": "수정을 위해 일시정지됨."}, "已保存至首頁": {"en": "Saved to home", "es": "Guardado en inicio", "de": "Auf Start gespeichert", "fr": "Enregistré sur l’accueil", "ja": "ホームに保存しました", "ko": "홈에 저장됨"}, "其他辨識結果": {"en": "Alternatives", "es": "Alternativas", "de": "Alternativen", "fr": "Autres résultats", "ja": "他の候補", "ko": "다른 인식 결과"}, "介面語言": {"en": "Interface language", "es": "Idioma de interfaz", "de": "Anzeigesprache", "fr": "Langue de l’interface", "ja": "表示言語", "ko": "인터페이스 언어"}, "辨識語言": {"en": "Speech language", "es": "Idioma de voz", "de": "Gesprochene Sprache", "fr": "Langue parlée", "ja": "認識言語", "ko": "음성 언어"}, "文字": {"en": "Text", "es": "Texto", "de": "Text", "fr": "Texte", "ja": "テキスト", "ko": "텍스트"}, "保存後，回首頁工具送出。": {"en": "Save, then send from the home widget.", "es": "Guarda y envía desde el widget.", "de": "Speichern, dann im Widget senden.", "fr": "Enregistrez, puis envoyez depuis le widget.", "ja": "保存後、ホームのウィジェットから送信。", "ko": "저장 후 홈 위젯에서 보내세요."}, "關於語音辨識": {"en": "About speech recognition", "es": "Sobre el reconocimiento de voz", "de": "Über Spracherkennung", "fr": "À propos de la reconnaissance vocale", "ja": "音声認識について", "ko": "음성 인식 안내"}, "保存中…": {"en": "Saving…", "es": "Guardando…", "de": "Speichern…", "fr": "Enregistrement…", "ja": "保存中…", "ko": "저장 중…"}};
+const UI_STRINGS = {"語音輸入":{"en":"Dictation","es":"Dictado","de":"Diktat","fr":"Dictée","ja":"音声入力","ko":"받아쓰기"},"停止":{"en":"Stop","es":"Parar","de":"Stopp","fr":"Arrêter","ja":"停止","ko":"정지"},"保存到首頁":{"en":"Save to home","es":"Guardar en inicio","de":"Auf Start speichern","fr":"Enregistrer sur l’accueil","ja":"ホームに保存","ko":"홈에 저장"},"清空":{"en":"Clear","es":"Borrar","de":"Leeren","fr":"Effacer","ja":"クリア","ko":"지우기"},"已清空。":{"en":"Cleared.","es":"Borrado.","de":"Geleert.","fr":"Effacé.","ja":"クリアしました。","ko":"지웠습니다."},"正在停止…":{"en":"Stopping…","es":"Parando…","de":"Stoppe…","fr":"Arrêt…","ja":"停止中…","ko":"정지하는 중…"},"保存失敗：":{"en":"Save failed: ","es":"Error al guardar: ","de":"Speichern fehlgeschlagen: ","fr":"Échec de l’enregistrement : ","ja":"保存に失敗：","ko":"저장 실패: "},"已複製。":{"en":"Copied.","es":"Copiado.","de":"Kopiert.","fr":"Copié.","ja":"コピーしました。","ko":"복사했습니다."},"請長按選取的文字並複製。":{"en":"Long-press the selected text to copy it.","es":"Mantén pulsado el texto seleccionado para copiarlo.","de":"Markierten Text lange drücken, um ihn zu kopieren.","fr":"Appuyez longuement sur le texte sélectionné pour le copier.","ja":"選択したテキストを長押ししてコピーしてください。","ko":"선택한 텍스트를 길게 눌러 복사하세요."},"此瀏覽器不支援語音辨識，請使用 Chrome 開啟。":{"en":"This browser does not support speech recognition. Open in Chrome.","es":"Este navegador no admite el reconocimiento de voz. Ábrelo en Chrome.","de":"Dieser Browser unterstützt keine Spracherkennung. In Chrome öffnen.","fr":"Ce navigateur ne prend pas en charge la reconnaissance vocale. Ouvrez dans Chrome.","ja":"このブラウザは音声認識に対応していません。Chrome で開いてください。","ko":"이 브라우저는 음성 인식을 지원하지 않습니다. Chrome 에서 여세요."},"麥克風權限被拒絕。請到 Android 設定 → 應用程式 → 目前瀏覽器 → 權限 → 麥克風，並在瀏覽器的本站設定允許麥克風。給 omalauncher 權限不會同時授權瀏覽器。":{"en":"Microphone denied. Allow the browser microphone permission in Android settings and browser site settings.","es":"Micrófono denegado. Permite el micrófono al navegador en los ajustes de Android y en los ajustes del sitio.","de":"Mikrofon verweigert. Dem Browser das Mikrofon in den Android-Einstellungen und den Website-Einstellungen erlauben.","fr":"Micro refusé. Autorisez le micro pour le navigateur dans les réglages Android et les réglages du site.","ja":"マイクが拒否されました。Android の設定とブラウザのサイト設定でマイクを許可してください。","ko":"마이크가 거부되었습니다. Android 설정과 브라우저 사이트 설정에서 마이크를 허용하세요."},"瀏覽器不允許此語音服務，請用 Chrome 開啟。":{"en":"Speech service blocked. Try Chrome.","es":"Servicio de voz bloqueado. Prueba con Chrome.","de":"Sprachdienst blockiert. Chrome versuchen.","fr":"Service vocal bloqué. Essayez Chrome.","ja":"音声サービスがブロックされました。Chrome をお試しください。","ko":"음성 서비스가 차단되었습니다. Chrome 을 써 보세요."},"無法取得麥克風。請確認瀏覽器權限，並關閉其他正在錄音的程式。":{"en":"Microphone unavailable. Check browser permissions and close other recording apps.","es":"Micrófono no disponible. Revisa los permisos del navegador y cierra otras apps que graben.","de":"Mikrofon nicht verfügbar. Browser-Berechtigungen prüfen und andere Aufnahme-Apps schließen.","fr":"Micro indisponible. Vérifiez les autorisations du navigateur et fermez les autres applis qui enregistrent.","ja":"マイクを使用できません。ブラウザの権限を確認し、録音中の他のアプリを閉じてください。","ko":"마이크를 쓸 수 없습니다. 브라우저 권한을 확인하고 녹음 중인 다른 앱을 닫으세요."},"語音服務連線失敗，請檢查網路後重試。":{"en":"Speech service network error. Check connection and retry.","es":"Error de red del servicio de voz. Revisa la conexión y reintenta.","de":"Netzwerkfehler beim Sprachdienst. Verbindung prüfen und erneut versuchen.","fr":"Erreur réseau du service vocal. Vérifiez la connexion et réessayez.","ja":"音声サービスのネットワークエラー。接続を確認して再試行してください。","ko":"음성 서비스 네트워크 오류. 연결을 확인하고 다시 시도하세요."},"沒聽到聲音，請按開始重試。":{"en":"No speech heard. Tap Start to retry.","es":"No se oyó nada. Toca Iniciar para reintentar.","de":"Nichts gehört. Starten antippen, um es erneut zu versuchen.","fr":"Rien entendu. Touchez Démarrer pour réessayer.","ja":"音声が聞こえませんでした。開始をタップして再試行してください。","ko":"소리가 들리지 않았습니다. 시작을 눌러 다시 시도하세요."},"此語音服務不支援所選語言，請切換語言。":{"en":"This speech service does not support the selected language.","es":"Este servicio de voz no admite el idioma elegido.","de":"Dieser Sprachdienst unterstützt die gewählte Sprache nicht.","fr":"Ce service vocal ne prend pas en charge la langue choisie.","ja":"この音声サービスは選択した言語に対応していません。","ko":"이 음성 서비스는 선택한 언어를 지원하지 않습니다."},"語音已停止。":{"en":"Speech stopped.","es":"Voz detenida.","de":"Sprache gestoppt.","fr":"Voix arrêtée.","ja":"音声を停止しました。","ko":"음성이 멈췄습니다."},"先按停止，再選候選文字。":{"en":"Tap Stop before choosing another transcript.","es":"Toca Parar antes de elegir otra transcripción.","de":"Vor der Wahl einer anderen Fassung Stopp antippen.","fr":"Touchez Arrêter avant de choisir une autre transcription.","ja":"別の候補を選ぶ前に停止をタップしてください。","ko":"다른 후보를 고르기 전에 정지를 누르세요."},"這句已修改，請直接編輯文字。":{"en":"This sentence was edited; change it directly.","es":"Esta frase fue editada; cámbiala directamente.","de":"Dieser Satz wurde bearbeitet; bitte direkt ändern.","fr":"Cette phrase a été modifiée ; changez-la directement.","ja":"この文は編集済みです。直接修正してください。","ko":"이 문장은 수정되었습니다. 직접 고치세요."},"請從首頁「語音輸入」重新開啟。":{"en":"Reopen from the Dictation widget.","es":"Vuelve a abrir desde el widget Dictado.","de":"Über das Diktat-Widget erneut öffnen.","fr":"Rouvrez depuis le widget Dictée.","ja":"音声入力ウィジェットから開き直してください。","ko":"받아쓰기 위젯에서 다시 여세요."},"辨識錯誤：":{"en":"Recognition error: ","es":"Error de reconocimiento: ","de":"Erkennungsfehler: ","fr":"Erreur de reconnaissance : ","ja":"認識エラー：","ko":"인식 오류: "},"無法開始：":{"en":"Could not start: ","es":"No se pudo iniciar: ","de":"Start nicht möglich: ","fr":"Impossible de démarrer : ","ja":"開始できません：","ko":"시작할 수 없음: "},"準備就緒":{"en":"Ready","es":"Listo","de":"Bereit","fr":"Prêt","ja":"準備完了","ko":"준비됨"},"說話或在這裡輸入…":{"en":"Speak or type here…","es":"Habla o escribe aquí…","de":"Hier sprechen oder tippen…","fr":"Parlez ou écrivez ici…","ja":"話すか、ここに入力…","ko":"말하거나 여기에 입력하세요…"},"複製":{"en":"Copy","es":"Copiar","de":"Kopieren","fr":"Copier","ja":"コピー","ko":"복사"},"正在聽…":{"en":"Listening…","es":"Escuchando…","de":"Höre zu…","fr":"Écoute…","ja":"聞き取り中…","ko":"듣는 중…"},"已停止，可編輯文字。":{"en":"Stopped. Edit your text.","es":"Detenido. Edita el texto.","de":"Gestoppt. Text bearbeiten.","fr":"Arrêté. Modifiez le texte.","ja":"停止しました。編集できます。","ko":"정지됨. 텍스트를 수정하세요."},"已暫停，可編輯文字。":{"en":"Paused for editing.","es":"En pausa para editar.","de":"Zum Bearbeiten pausiert.","fr":"En pause pour modifier.","ja":"編集のため一時停止中。","ko":"수정을 위해 일시정지됨."},"其他辨識結果":{"en":"Alternatives","es":"Alternativas","de":"Alternativen","fr":"Autres résultats","ja":"他の候補","ko":"다른 인식 결과"},"文字":{"en":"Text","es":"Texto","de":"Text","fr":"Texte","ja":"テキスト","ko":"텍스트"},"關於語音辨識":{"en":"About speech recognition","es":"Sobre el reconocimiento de voz","de":"Über Spracherkennung","fr":"À propos de la reconnaissance vocale","ja":"音声認識について","ko":"음성 인식 안내"}};
 Object.assign(UI_STRINGS, {
- '一鍵 Agent 整理': {en:'Refine with Agent',es:'Organizar con Agent',de:'Mit Agent ordnen',fr:'Organiser avec Agent',ja:'Agent で整理',ko:'Agent로 정리'},
+ '複製給 Claude': {en:'Copy for Claude',es:'Copiar para Claude',de:'Für Claude kopieren',fr:'Copier pour Claude',ja:'Claude 用にコピー',ko:'Claude용 복사'},
+ '已複製，請到 Claude 貼上送出。': {en:'Copied. Paste it into Claude and send.',es:'Copiado. Pégalo en Claude y envíalo.',de:'Kopiert. In Claude einfügen und senden.',fr:'Copié. Collez-le dans Claude et envoyez.',ja:'コピーしました。Claude に貼り付けて送信してください。',ko:'복사했습니다. Claude에 붙여 넣고 보내세요.'},
+ '已找到 Claude。它不在 tmux 裡：按「複製給 Claude」後到 Claude 貼上送出。': {en:'Claude found. It is not in tmux: tap Copy for Claude, then paste it into Claude.',es:'Claude encontrado. No está en tmux: toca Copiar para Claude y pégalo allí.',de:'Claude gefunden. Nicht in tmux: „Für Claude kopieren“ antippen und dort einfügen.',fr:'Claude trouvé. Il n’est pas dans tmux : touchez Copier pour Claude, puis collez-le dans Claude.',ja:'Claude を検出。tmux 外のため「Claude 用にコピー」して Claude に貼り付けてください。',ko:'Claude를 찾았습니다. tmux 밖이므로 “Claude용 복사” 후 Claude에 붙여 넣으세요.'},
+ '沒有找到執行中的 Claude。': {en:'No running Claude found.',es:'No hay ningún Claude en ejecución.',de:'Kein laufendes Claude gefunden.',fr:'Aucun Claude en cours trouvé.',ja:'実行中の Claude が見つかりません。',ko:'실행 중인 Claude가 없습니다.'},
+ '聽寫': {en:'Dictate',es:'Dictar',de:'Diktieren',fr:'Dicter',ja:'音声入力',ko:'받아쓰기'},
+ 'Agent 整理': {en:'Refine with Agent',es:'Organizar con Agent',de:'Mit Agent ordnen',fr:'Réviser avec Agent',ja:'Agent で整理',ko:'Agent로 정리'},
+ '語言': {en:'Language',es:'Idioma',de:'Sprache',fr:'Langue',ja:'言語',ko:'언어'},
+ 'Claude 會話': {en:'Claude chat',es:'chat de Claude',de:'Claude-Chat',fr:'chat Claude',ja:'Claude チャット',ko:'Claude 채팅'},
+ 'tmux 終端': {en:'tmux terminal',es:'terminal tmux',de:'tmux-Terminal',fr:'terminal tmux',ja:'tmux ターミナル',ko:'tmux 터미널'},
+ '整理': {en:'Refine',es:'Organizar',de:'Ordnen',fr:'Réviser',ja:'整理',ko:'정리'},
+ '整理中…': {en:'Refining…',es:'Organizando…',de:'Ordne…',fr:'Révision…',ja:'整理中…',ko:'정리 중…'},
  '整理稿': {en:'Refined draft',es:'Versión revisada',de:'Überarbeitete Fassung',fr:'Version révisée',ja:'整理した文章',ko:'정리한 글'},
- '送出原文': {en:'Send original',es:'Enviar original',de:'Original senden',fr:'Envoyer l’original',ja:'原文を送信',ko:'원문 보내기'},
- '送出整理稿': {en:'Send refined draft',es:'Enviar versión revisada',de:'Überarbeitung senden',fr:'Envoyer la version révisée',ja:'整理稿を送信',ko:'정리한 글 보내기'},
- '可先檢查整理稿，再選擇送出原文或整理稿。': {en:'Review the draft, then choose which version to send.',es:'Revisa el borrador y elige qué versión enviar.',de:'Fassung prüfen und die gewünschte Version senden.',fr:'Relisez le brouillon, puis choisissez la version à envoyer.',ja:'整理稿を確認して送信する版を選んでください。',ko:'정리한 글을 확인한 뒤 보낼 버전을 선택하세요.'},
+ '採用': {en:'Use it',es:'Usar',de:'Übernehmen',fr:'Utiliser',ja:'採用',ko:'사용'},
+ '捨棄': {en:'Discard',es:'Descartar',de:'Verwerfen',fr:'Ignorer',ja:'破棄',ko:'버리기'},
+ '已採用整理稿，可再編輯後送出。': {en:'Draft applied. Edit or send it.',es:'Versión aplicada. Edítala o envíala.',de:'Fassung übernommen. Bearbeiten oder senden.',fr:'Version appliquée. Modifiez-la ou envoyez-la.',ja:'整理稿を反映しました。編集または送信できます。',ko:'정리한 글을 적용했습니다. 고치거나 보내세요.'},
  '正在整理…': {en:'Refining…',es:'Organizando…',de:'Wird überarbeitet…',fr:'Révision en cours…',ja:'整理中…',ko:'정리 중…'},
  '整理完成，請檢查內容。': {en:'Draft ready. Review it before sending.',es:'Versión lista. Revísala antes de enviar.',de:'Fassung fertig. Vor dem Senden prüfen.',fr:'Version prête. Relisez-la avant l’envoi.',ja:'整理完了。送信前に確認してください。',ko:'정리 완료. 보내기 전에 확인하세요.'},
  '整理失敗，原文仍可送出。': {en:'Refining failed. You can still send the original.',es:'Error al organizar. Aún puedes enviar el original.',de:'Überarbeitung fehlgeschlagen. Das Original kann gesendet werden.',fr:'Échec de la révision. Vous pouvez envoyer l’original.',ja:'整理に失敗しました。原文は送信できます。',ko:'정리 실패. 원문은 보낼 수 있습니다.'},
  '請先輸入文字。': {en:'Enter some text first.',es:'Escribe texto primero.',de:'Zuerst Text eingeben.',fr:'Saisissez d’abord du texte.',ja:'先に文字を入力してください。',ko:'먼저 내용을 입력하세요.'},
- '原文已變更，請重新整理。': {en:'Original changed. Refine it again.',es:'El original cambió. Organízalo de nuevo.',de:'Original geändert. Bitte erneut überarbeiten.',fr:'Le texte original a changé. Relancez la révision.',ja:'原文が変更されました。再度整理してください。',ko:'원문이 바뀌었습니다. 다시 정리하세요.'},
- '正在送出…': {en:'Sending…',es:'Enviando…',de:'Sende…',fr:'Envoi…',ja:'送信中…',ko:'전송 중…'},
- '已送到目前目標。': {en:'Sent to the current target.',es:'Enviado al destino actual.',de:'An das aktuelle Ziel gesendet.',fr:'Envoyé à la cible actuelle.',ja:'現在の送信先に送信しました。',ko:'현재 대상으로 보냈습니다.'},
- '送出失敗，請查看首頁狀態。': {en:'Send failed. Check the home widget status.',es:'Error al enviar. Revisa el widget.',de:'Senden fehlgeschlagen. Widget-Status prüfen.',fr:'Échec de l’envoi. Vérifiez le widget.',ja:'送信に失敗しました。ホームの状態を確認してください。',ko:'전송 실패. 홈 위젯 상태를 확인하세요.'},
- '整理會把文字傳給 Codex。內容不會自動送到目前目標。': {en:'Refining sends text to Codex. It does not send it to the selected target.',es:'Organizar envía texto a Codex. No lo envía automáticamente al destino.',de:'Überarbeiten sendet Text an Codex. Er wird nicht automatisch an das Ziel gesendet.',fr:'La révision envoie le texte à Codex. Elle ne l’envoie pas automatiquement à la cible.',ja:'整理には Codex に文字を送ります。送信先には自動送信されません。',ko:'정리는 글을 Codex로 보냅니다. 대상으로 자동 전송되지 않습니다.'},
- '目前送出目標：': {en:'Current target: ',es:'Destino actual: ',de:'Aktuelles Ziel: ',fr:'Cible actuelle : ',ja:'現在の送信先：',ko:'현재 대상: '},
+ '原文已變更，請重新整理。': {en:'Text changed. Refine it again.',es:'El texto cambió. Organízalo de nuevo.',de:'Text geändert. Bitte erneut ordnen.',fr:'Le texte a changé. Relancez la révision.',ja:'文字が変更されました。再度整理してください。',ko:'글이 바뀌었습니다. 다시 정리하세요.'},
+ '送出': {en:'Send',es:'Enviar',de:'Senden',fr:'Envoyer',ja:'送信',ko:'보내기'},
+ '送出中…': {en:'Sending…',es:'Enviando…',de:'Sende…',fr:'Envoi…',ja:'送信中…',ko:'전송 중…'},
+ '送到': {en:'To',es:'A',de:'An',fr:'Vers',ja:'送信先',ko:'대상'},
+ '已送出。': {en:'Sent.',es:'Enviado.',de:'Gesendet.',fr:'Envoyé.',ja:'送信しました。',ko:'보냈습니다.'},
+ '送出失敗：': {en:'Send failed: ',es:'Error al enviar: ',de:'Senden fehlgeschlagen: ',fr:'Échec de l’envoi : ',ja:'送信失敗：',ko:'전송 실패: '},
+ '排隊中': {en:'Waiting',es:'En espera',de:'Wartet',fr:'En attente',ja:'待機中',ko:'대기 중'},
+ '取消': {en:'Cancel',es:'Cancelar',de:'Abbrechen',fr:'Annuler',ja:'取り消す',ko:'취소'},
+ 'Codex 回覆完成後送出這一則；再次送出會取代它。': {en:'Sent when Codex finishes its reply. Sending again replaces it.',es:'Se envía cuando Codex termine. Enviar de nuevo lo sustituye.',de:'Wird gesendet, sobald Codex fertig ist. Erneutes Senden ersetzt sie.',fr:'Envoyé quand Codex aura fini. Un nouvel envoi le remplace.',ja:'Codex の返信後に送信します。もう一度送ると置き換わります。',ko:'Codex 응답이 끝나면 보냅니다. 다시 보내면 교체됩니다.'},
+ 'Codex 已收到排隊的訊息。': {en:'Codex picked up the waiting message.',es:'Codex recibió el mensaje en espera.',de:'Codex hat die wartende Nachricht übernommen.',fr:'Codex a pris le message en attente.',ja:'Codex が待機中のメッセージを受け取りました。',ko:'Codex가 대기 중인 메시지를 받았습니다.'},
+ '已取消，文字已放回編輯區。': {en:'Cancelled. The text is back in the editor.',es:'Cancelado. El texto volvió al editor.',de:'Abgebrochen. Der Text ist wieder im Editor.',fr:'Annulé. Le texte est revenu dans l’éditeur.',ja:'取り消しました。文字を編集欄に戻しました。',ko:'취소했습니다. 글을 편집기로 되돌렸습니다.'},
+ '取消失敗：': {en:'Cancel failed: ',es:'Error al cancelar: ',de:'Abbrechen fehlgeschlagen: ',fr:'Échec de l’annulation : ',ja:'取り消し失敗：',ko:'취소 실패: '},
+ '保存失敗：': {en:'Save failed: ',es:'Error al guardar: ',de:'Speichern fehlgeschlagen: ',fr:'Échec de l’enregistrement : ',ja:'保存に失敗：',ko:'저장 실패: '},
  'Codex 會話': {en:'Codex chat',es:'chat de Codex',de:'Codex-Chat',fr:'chat Codex',ja:'Codex チャット',ko:'Codex 채팅'},
- '終端 / Claude': {en:'Terminal / Claude',es:'Terminal / Claude',de:'Terminal / Claude',fr:'Terminal / Claude',ja:'ターミナル / Claude',ko:'터미널 / Claude'},
- '送出目標': {en:'Send to',es:'Enviar a',de:'Senden an',fr:'Envoyer vers',ja:'送信先',ko:'보낼 곳'},
  '正在切換送出目標…': {en:'Switching target…',es:'Cambiando destino…',de:'Ziel wird gewechselt…',fr:'Changement de cible…',ja:'送信先を切り替え中…',ko:'대상 변경 중…'},
  '送出目標已切換。': {en:'Target changed.',es:'Destino cambiado.',de:'Ziel gewechselt.',fr:'Cible modifiée.',ja:'送信先を切り替えました。',ko:'대상을 변경했습니다.'},
- '切換目標失敗。': {en:'Could not change target.',es:'No se pudo cambiar el destino.',de:'Zielwechsel fehlgeschlagen.',fr:'Impossible de changer de cible.',ja:'送信先を変更できませんでした。',ko:'대상을 변경하지 못했습니다.'},
- '已送出原文': {en:'Original sent',es:'Original enviado',de:'Original gesendet',fr:'Original envoyé',ja:'原文を送信しました',ko:'원문 전송 완료'},
- '已送出整理稿': {en:'Draft sent',es:'Versión revisada enviada',de:'Überarbeitung gesendet',fr:'Version révisée envoyée',ja:'整理稿を送信しました',ko:'정리한 글 전송 완료'},
- '送出失敗，重試': {en:'Send failed — retry',es:'Error al enviar — reintentar',de:'Senden fehlgeschlagen — erneut versuchen',fr:'Échec de l’envoi — réessayer',ja:'送信失敗・再試行',ko:'전송 실패 · 다시 시도'},
- '保存失敗，重試': {en:'Save failed — retry',es:'Error al guardar — reintentar',de:'Speichern fehlgeschlagen — erneut versuchen',fr:'Échec de l’enregistrement — réessayer',ja:'保存失敗・再試行',ko:'저장 실패 · 다시 시도'},
- '送出失敗：': {en:'Send failed: ',es:'Error al enviar: ',de:'Senden fehlgeschlagen: ',fr:'Échec de l’envoi : ',ja:'送信失敗：',ko:'전송 실패: '},
- '終端尚未連接；請先執行 tmux new -A -s oma-voice。': {en:'Terminal disconnected. Run tmux new -A -s oma-voice first.',es:'Terminal desconectado. Ejecuta tmux new -A -s oma-voice primero.',de:'Terminal nicht verbunden. Zuerst tmux new -A -s oma-voice ausführen.',fr:'Terminal déconnecté. Exécutez d’abord tmux new -A -s oma-voice.',ja:'ターミナル未接続。先に tmux new -A -s oma-voice を実行してください。',ko:'터미널이 연결되지 않았습니다. 먼저 tmux new -A -s oma-voice를 실행하세요.'}
+ '切換目標失敗：': {en:'Could not change target: ',es:'No se pudo cambiar el destino: ',de:'Zielwechsel fehlgeschlagen: ',fr:'Impossible de changer de cible : ',ja:'送信先を変更できません：',ko:'대상을 변경하지 못함: '},
+ '終端尚未連接；請先執行 tmux new -A -s oma-voice。': {en:'Terminal disconnected. Run tmux new -A -s oma-voice first.',es:'Terminal desconectado. Ejecuta tmux new -A -s oma-voice primero.',de:'Terminal nicht verbunden. Zuerst tmux new -A -s oma-voice ausführen.',fr:'Terminal déconnecté. Exécutez d’abord tmux new -A -s oma-voice.',ja:'ターミナル未接続。先に tmux new -A -s oma-voice を実行してください。',ko:'터미널이 연결되지 않았습니다. 먼저 tmux new -A -s oma-voice를 실행하세요.'},
+ '辨識使用瀏覽器的語音服務，可能將音訊傳給服務供應商。文字會自動保存到首頁，按「送出」才會傳給目標。': {en:'Browser speech recognition may send audio to its provider. Text is saved to the home widget automatically and only goes to the target when you tap Send.',es:'El reconocimiento de voz del navegador puede enviar audio al proveedor del servicio. El texto se guarda en el widget y solo va al destino al tocar Enviar.',de:'Die Spracherkennung des Browsers kann Audio an ihren Anbieter senden. Der Text wird im Widget gespeichert und erst mit Senden an das Ziel geschickt.',fr:'La reconnaissance vocale du navigateur peut envoyer l’audio à son fournisseur. Le texte est enregistré sur le widget et n’est envoyé qu’en touchant Envoyer.',ja:'ブラウザの音声認識は音声を提供元に送ることがあります。文字はホームに自動保存され、送信をタップした時だけ送信先に送られます。',ko:'브라우저 음성 인식은 오디오를 제공업체로 보낼 수 있습니다. 글은 홈 위젯에 자동 저장되며 보내기를 눌러야 대상에 전송됩니다.'},
+ '整理用目前來源的便宜模型（Claude Haiku／Codex 最便宜模型），不會送到目標。': {en:'Refining uses a cheap model of the current source (Claude Haiku / the cheapest Codex model) and does not send to the target.',es:'Organizar usa un modelo barato de la fuente actual (Claude Haiku / el más barato de Codex) y no envía al destino.',de:'Ordnen nutzt ein günstiges Modell der aktuellen Quelle (Claude Haiku / das günstigste Codex-Modell) und sendet nicht an das Ziel.',fr:'La révision utilise un modèle bon marché de la source (Claude Haiku / le moins cher de Codex) et n’envoie rien à la cible.',ja:'整理は現在のソースの安価なモデル（Claude Haiku／Codex 最安モデル）を使い、送信先には送りません。',ko:'정리는 현재 소스의 저렴한 모델(Claude Haiku / Codex 최저가 모델)을 쓰며 대상에 보내지 않습니다.'},
 });
 let uiLanguage='zh';
 // The language spoken by default for each interface language.
@@ -140,71 +160,102 @@ const SPEECH={en:'en-US',zh:'zh-TW',es:'es-ES',de:'de-DE',fr:'fr-FR',ja:'ja-JP',
 const originalNodes=[];
 const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
 while(walker.nextNode()){const node=walker.currentNode;if(UI_STRINGS[node.textContent.trim()])originalNodes.push([node,node.textContent.trim()]);}
-const originalPlaceholder=$('text').getAttribute('placeholder');
-let updatingStatus=false;
-function localize(value){if(uiLanguage==='zh')return value;for(const [zh,texts] of Object.entries(UI_STRINGS)){const text=texts[uiLanguage]||texts.en;if(value===zh)return text;if(value.startsWith(zh) && zh.endsWith('：'))return text+value.slice(zh.length);}return value;}
+const originalPlaceholder=text.getAttribute('placeholder');
+function localize(value){if(uiLanguage==='zh')return value;for(const [zh,texts] of Object.entries(UI_STRINGS)){const t=texts[uiLanguage]||texts.en;if(value===zh)return t;if(value.startsWith(zh)&&zh.endsWith('：'))return t+value.slice(zh.length);}return value;}
+// One status line for every action; tone: ok, bad or plain.
+function say(message,tone=''){status.dataset.original=message;status.dataset.tone=tone;status.textContent=localize(message);}
 function applyLanguage(){
  document.documentElement.lang=uiLanguage==='zh'?'zh-Hant':uiLanguage;
  for(const [node,zh] of originalNodes)node.textContent=localize(zh);
- $('text').placeholder=localize(originalPlaceholder);
- $('ui-language').value=uiLanguage;
+ text.placeholder=localize(originalPlaceholder);
  document.title=localize('語音輸入');
- const raw=status.dataset.original || status.textContent;status.textContent=localize(raw);
- $('refine-state').textContent=localize($('refine-state').dataset.original||'');
- renderTarget();
- renderActionFeedback();
+ status.textContent=localize(status.dataset.original||status.textContent);
+ controls();
 }
-const statusObserver=new MutationObserver(()=>{if(updatingStatus)return;updatingStatus=true;let v=status.textContent;const old=status.dataset.original;if(v!==localize(old||'')){status.dataset.original=v;const translated=localize(v);if(translated!==v)status.textContent=translated;}updatingStatus=false;});
-statusObserver.observe(status,{childList:true,characterData:true,subtree:true});
-$('ui-language').onchange=async()=>{
- const value=$('ui-language').value;
- try{const response=await fetch('/language',{method:'POST',headers:{'Content-Type':'application/json','X-Speak-Token':token},body:JSON.stringify({language:value})});if(!response.ok)throw Error(await response.text());uiLanguage=value;applyLanguage();}
- catch(error){$('ui-language').value=uiLanguage;status.textContent='Language change failed: '+error.message;}
+// One picker: the spoken language, which also sets the interface language when there is one for it.
+const uiFor=speech=>Object.keys(SPEECH).find(ui=>speech.startsWith(ui==='zh'?'zh-':SPEECH[ui]))||'';
+$('language').onchange=async()=>{
+ const speech=$('language').value,ui=uiFor(speech);
+ localStorage.setItem('oma-speak-language',speech);
+ if(!ui||ui===uiLanguage)return;
+ try{const response=await fetch('/language',{method:'POST',headers:{'Content-Type':'application/json','X-Speak-Token':token},body:JSON.stringify({language:ui})});if(!response.ok)throw Error(await response.text());uiLanguage=ui;applyLanguage();}
+ catch(error){say('Language change failed: '+error.message,'bad');}
 };
-fetch('/language').then(r=>r.text()).then(value=>{uiLanguage=SPEECH[value.trim()]?value.trim():'en';applyLanguage();if(!localStorage.getItem('oma-speak-language'))$('language').value=SPEECH[uiLanguage];}).catch(()=>{});
-let currentTarget={source:'codex',source_name:'Terminal',connected:false},switchingTarget=false;
-function renderTarget(){
- const name=currentTarget.source==='terminal'?(currentTarget.source_name||'Terminal'):localize('Codex 會話');
- $('target-select').value=currentTarget.source==='terminal'?'terminal':'codex';
- $('target-label').dataset.phase=currentTarget.source==='terminal'&&!currentTarget.connected?'failed':'idle';
- $('target-label').textContent=currentTarget.source==='terminal'&&!currentTarget.connected?localize('終端尚未連接；請先執行 tmux new -A -s oma-voice。'):localize('目前送出目標：')+name;
+fetch('/language').then(r=>r.text()).then(value=>{uiLanguage=SPEECH[value.trim()]?value.trim():'en';applyLanguage();
+ // A language chosen on a widget since last time wins over the remembered speech language.
+ const saved=localStorage.getItem('oma-speak-language');if(!saved||(uiFor(saved)&&uiFor(saved)!==uiLanguage))$('language').value=SPEECH[uiLanguage];}).catch(()=>{});
+
+async function postAction(path,body,timeout=10000){
+ if(!token)throw Error(localize('請從首頁「語音輸入」重新開啟。'));
+ const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Speak-Token':token},body:JSON.stringify(body),signal:AbortSignal.timeout(timeout)});
+ const raw=await response.text();let value;
+ try{value=JSON.parse(raw);}catch(e){value={error:raw};}
+ if(response.status===403)throw Error(localize('請從首頁「語音輸入」重新開啟。'));
+ if(!response.ok||value.ok===false)throw Error(value.error_ui||value.error||'Action failed');return value;
 }
-async function refreshTarget(){const r=await fetch('/target',{headers:{'X-Speak-Token':token},cache:'no-store',signal:AbortSignal.timeout(5000)});if(r.status===403)throw Error(localize('請從首頁「語音輸入」重新開啟。'));if(!r.ok)throw Error('Target unavailable');currentTarget=await r.json();renderTarget();}
-refreshTarget().catch(e=>{$('target-label').dataset.phase='failed';$('target-label').textContent=e.message;});
+async function getJson(path){
+ const r=await fetch(path,{headers:{'X-Speak-Token':token},cache:'no-store',signal:AbortSignal.timeout(5000)});
+ if(r.status===403)throw Error(localize('請從首頁「語音輸入」重新開啟。'));if(!r.ok)throw Error(path+' unavailable');return r.json();
+}
+
+// Target
+let currentTarget={source:'codex',source_name:'Terminal',connected:false},switchingTarget=false;
+const DISCONNECTED='終端尚未連接；請先執行 tmux new -A -s oma-voice。';
+const unreachable=()=>!currentTarget.connected&&currentTarget.source==='terminal'?DISCONNECTED:'';
+// Claude outside tmux cannot be typed into: Send copies the text for pasting there instead.
+const copyMode=()=>currentTarget.source==='claude'&&!currentTarget.connected;
+function claudeNote(){if(copyMode())say(currentTarget.claude_running?'已找到 Claude。它不在 tmux 裡：按「複製給 Claude」後到 Claude 貼上送出。':'沒有找到執行中的 Claude。');}
+function renderTarget(){$('target-select').value=['claude','terminal'].includes(currentTarget.source)?currentTarget.source:'codex';controls();}
+async function refreshTarget(){currentTarget=await getJson('/target');renderTarget();}
+refreshTarget().then(()=>{if(unreachable())say(unreachable(),'bad');else claudeNote();}).catch(e=>say(e.message,'bad'));
 $('target-select').onchange=async()=>{
- const source=$('target-select').value;switchingTarget=true;controls();status.textContent='正在切換送出目標…';
- try{currentTarget=await postAction('/target',{source},15000);renderTarget();$('target-label').dataset.phase='success';status.textContent=currentTarget.source==='terminal'&&!currentTarget.connected?'終端尚未連接；請先執行 tmux new -A -s oma-voice。':'送出目標已切換。';}
- catch(e){renderTarget();$('target-label').dataset.phase='failed';$('target-label').textContent=localize('切換目標失敗。')+' '+e.message;status.textContent='切換目標失敗。';}
- finally{sendPhase='idle';renderActionFeedback();switchingTarget=false;controls();}
+ const source=$('target-select').value;switchingTarget=true;controls();say('正在切換送出目標…');
+ try{currentTarget=await postAction('/target',{source},15000);renderTarget();unreachable()?say(unreachable(),'bad'):copyMode()?claudeNote():say('送出目標已切換。','ok');checkQueue();}
+ catch(e){renderTarget();say('切換目標失敗：'+e.message,'bad');}
+ finally{switchingTarget=false;controls();}
 };
 
+// Recognition
 const Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
-let recognition=null,wanted=false,timer=null,failures=0,committed='',interim='',afterStop=null;
+let recognition=null,wanted=false,afterStop=null;
 text.value=localStorage.getItem('oma-speak-draft')||'';
 $('language').value=localStorage.getItem('oma-speak-language')||'zh-TW';
-function persist(){localStorage.setItem('oma-speak-draft',text.value);}
-let refineSource='',refineTimer=null,sending=false,saving=false;
-let savePhase='idle',sendPhase='idle',sendChoice='original',saveDetail='',sendDetail='';
-function renderActionFeedback(){
- $('save').textContent=localize(savePhase==='saving'?'保存中…':savePhase==='saved'?'已保存至首頁':savePhase==='failed'?'保存失敗，重試':'保存到首頁');
- $('save-feedback').dataset.phase=savePhase==='saved'?'success':savePhase;
- $('save-feedback').textContent=savePhase==='saving'?localize('保存中…'):savePhase==='saved'?localize('已保存至首頁'):savePhase==='failed'?localize('保存失敗：')+saveDetail:'';
- $('send-original').textContent=localize(sendPhase==='sending'&&sendChoice==='original'?'正在送出…':sendPhase==='sent'&&sendChoice==='original'?'已送出原文':sendPhase==='failed'&&sendChoice==='original'?'送出失敗，重試':'送出原文');
- $('send-refined').textContent=localize(sendPhase==='sending'&&sendChoice==='refined'?'正在送出…':sendPhase==='sent'&&sendChoice==='refined'?'已送出整理稿':sendPhase==='failed'&&sendChoice==='refined'?'送出失敗，重試':'送出整理稿');
- $('send-feedback').dataset.phase=sendPhase==='sent'?'success':sendPhase;
- $('send-feedback').textContent=sendPhase==='sending'?localize('正在送出…'):sendPhase==='sent'?(sendDetail||localize('已送到目前目標。')):sendPhase==='failed'?localize('送出失敗：')+sendDetail:'';
+let sending=false,refining=false,refineSource='',refineTimer=null,saveTimer=null,lastSaved=null;
+const listening=()=>wanted||!!recognition;
+function controls(){
+ const busy=listening();
+ document.body.dataset.listening=String(busy);
+ $('mic-label').textContent=localize(busy?'停止':'聽寫');
+ $('mic').disabled=!Speech&&!busy;
+ $('language').disabled=busy;
+ $('send-label').textContent=localize(sending?'送出中…':copyMode()?'複製給 Claude':'送出');
+ $('send').disabled=sending||switchingTarget||!text.value.trim();
+ $('target-select').disabled=sending||switchingTarget;
+ $('refine-label').textContent=localize(refining?'整理中…':'Agent 整理');
+ $('refine').disabled=busy||sending||refining||!text.value.trim();
+ $('clear').disabled=sending||!text.value;
+ $('copy').disabled=!text.value;
+ text.readOnly=sending;
 }
-function setSavePhase(phase,detail=''){savePhase=phase;saveDetail=detail;renderActionFeedback();controls();}
-function setSendPhase(phase,detail=''){sendPhase=phase;sendDetail=detail;renderActionFeedback();controls();}
-function refineMessage(value){$('refine-state').dataset.original=value;$('refine-state').textContent=localize(value);}
-function clearRefined(){refineSource='';$('refined-panel').hidden=true;$('refined-text').textContent='';$('send-refined').disabled=true;}
-function controls(){ document.body.dataset.listening=String(wanted||!!recognition); $('start').disabled=wanted||!!recognition||!Speech;$('stop').disabled=!wanted&&!recognition;$('language').disabled=wanted||!!recognition;$('save').disabled=saving||sending;$('target-select').disabled=sending||saving||switchingTarget;$('refine').disabled=wanted||!!recognition||sending||saving||!text.value.trim();$('send-original').disabled=wanted||!!recognition||sending||saving||switchingTarget||!text.value.trim();$('send-refined').disabled=wanted||!!recognition||sending||saving||switchingTarget||!refineSource||$('refined-panel').hidden||text.value!==refineSource;text.readOnly=sending||saving; }
-function halt(message){wanted=false;clearTimeout(timer);status.textContent=message;controls();}
+// The home widget sends what was saved last, so keep it current without a Save button.
+function persist(){localStorage.setItem('oma-speak-draft',text.value);clearTimeout(saveTimer);saveTimer=setTimeout(save,900);}
+async function save(){
+ clearTimeout(saveTimer);
+ const value=text.value;if(!value.trim()||value===lastSaved||!token)return true;
+ try{const r=await fetch('/text',{method:'POST',headers:{'Content-Type':'application/json','X-Speak-Token':token},body:JSON.stringify({text:value}),signal:AbortSignal.timeout(10000)});
+  if(r.status===403)throw Error(localize('請從首頁「語音輸入」重新開啟。'));if(!r.ok)throw Error(await r.text());lastSaved=value;return true;}
+ catch(e){say('保存失敗：'+e.message,'bad');return false;}
+}
+function edited(){
+ persist();
+ if(!$('refined-panel').hidden&&text.value!==refineSource){hideRefined();say('原文已變更，請重新整理。');}
+ controls();
+}
 function startSession(){
  if(!wanted||recognition)return;
- const r=new Speech();recognition=r;const base=text.value;committed=base;interim='';
+ const r=new Speech();recognition=r;const base=text.value;
  r.lang=$('language').value;r.interimResults=true;r.continuous=false;r.maxAlternatives=3;let endedByError=false;
- r.onstart=()=>{status.textContent='正在聽…';controls();};
+ r.onstart=()=>{say('正在聽…');controls();};
  r.onresult=e=>{
   if(recognition!==r)return;
   // Results are a session snapshot, not new append-only sentences.
@@ -215,95 +266,105 @@ function startSession(){
    if(result.isFinal)showAlternatives(result,prefix);
    rendered=prefix+words;
   }
-  text.value=rendered;persist();savePhase='idle';sendPhase='idle';renderActionFeedback();
-  if(refineSource&&text.value!==refineSource){clearRefined();refineMessage('原文已變更，請重新整理。');}controls();
+  text.value=rendered;edited();
  };
- r.onerror=e=>{if(recognition!==r)return;endedByError=true;failures++;const errors={'not-allowed':'麥克風權限被拒絕。請到 Android 設定 → 應用程式 → 目前瀏覽器 → 權限 → 麥克風，並在瀏覽器的本站設定允許麥克風。給 omalauncher 權限不會同時授權瀏覽器。','service-not-allowed':'瀏覽器不允許此語音服務，請用 Chrome 開啟。','audio-capture':'無法取得麥克風。請確認瀏覽器權限，並關閉其他正在錄音的程式。','network':'語音服務連線失敗，請檢查網路後重試。','no-speech':'沒聽到聲音，請按開始重試。','language-not-supported':'此語音服務不支援所選語言，請切換語言。','aborted':'語音已停止。'};
- status.textContent=errors[e.error]||'辨識錯誤：'+e.error;
- halt(status.textContent);};
+ r.onerror=e=>{if(recognition!==r)return;endedByError=true;const errors={'not-allowed':'麥克風權限被拒絕。請到 Android 設定 → 應用程式 → 目前瀏覽器 → 權限 → 麥克風，並在瀏覽器的本站設定允許麥克風。給 omalauncher 權限不會同時授權瀏覽器。','service-not-allowed':'瀏覽器不允許此語音服務，請用 Chrome 開啟。','audio-capture':'無法取得麥克風。請確認瀏覽器權限，並關閉其他正在錄音的程式。','network':'語音服務連線失敗，請檢查網路後重試。','no-speech':'沒聽到聲音，請按開始重試。','language-not-supported':'此語音服務不支援所選語言，請切換語言。','aborted':'語音已停止。'};
+  wanted=false;say(errors[e.error]||'辨識錯誤：'+e.error,e.error==='aborted'?'':'bad');controls();};
  r.onend=()=>{
   if(recognition!==r)return;
-  recognition=null;wanted=false;persist();controls();
+  recognition=null;wanted=false;save();controls();
   if(afterStop){const f=afterStop;afterStop=null;f();}
-  else if(!endedByError)status.textContent='已停止，可編輯文字。';
+  else if(!endedByError)say('已停止，可編輯文字。');
  };
- try{r.start();controls();}catch(e){recognition=null;halt('無法開始：'+e.message);}
+ try{r.start();controls();}catch(e){recognition=null;wanted=false;say('無法開始：'+e.message,'bad');controls();}
 }
-function stopForEditing(){
- const r=recognition;recognition=null;wanted=false;clearTimeout(timer);afterStop=null;
- if(r)r.abort();controls();persist();
+function stopListening(then=null){
+ wanted=false;afterStop=then;
+ if(recognition){say('正在停止…');recognition.stop();}else if(then){afterStop=null;then();}
+ controls();
 }
-text.onfocus=()=>{if(recognition){stopForEditing();status.textContent='已暫停，可編輯文字。';}};
-text.oninput=()=>{if(recognition)stopForEditing();persist();savePhase='idle';sendPhase='idle';renderActionFeedback();if(refineSource&&text.value!==refineSource){clearRefined();refineMessage('原文已變更，請重新整理。');}controls();};
-$('language').onchange=()=>localStorage.setItem('oma-speak-language',$('language').value);
+text.onfocus=()=>{if(recognition){const r=recognition;recognition=null;wanted=false;afterStop=null;r.abort();save();say('已暫停，可編輯文字。');controls();}};
+text.oninput=edited;
 function showAlternatives(result,prefix){
  const box=$('alternatives');box.replaceChildren();
  if(result.length<2)return;
- const label=document.createElement('small');label.textContent='其他辨識結果';box.append(label);
+ const label=document.createElement('small');label.textContent=localize('其他辨識結果');box.append(label);
  for(let j=0;j<result.length;j++){
   const b=document.createElement('button');b.textContent=result[j].transcript;
   const original=prefix+result[0].transcript,candidate=prefix+result[j].transcript;
-  b.onclick=()=>{if(recognition||wanted){status.textContent='先按停止，再選候選文字。';return;}if(!text.value.startsWith(original)){status.textContent='這句已修改，請直接編輯文字。';return;}text.value=candidate+text.value.slice(original.length);persist();savePhase='idle';sendPhase='idle';renderActionFeedback();box.replaceChildren();};box.append(b);
+  b.onclick=()=>{if(listening()){say('先按停止，再選候選文字。');return;}if(!text.value.startsWith(original)){say('這句已修改，請直接編輯文字。');return;}text.value=candidate+text.value.slice(original.length);box.replaceChildren();edited();};box.append(b);
  }
 }
+$('mic').onclick=()=>{if(listening())stopListening();else{wanted=true;hideRefined();startSession();}};
 
-$('start').onclick=()=>{failures=0;wanted=true;clearRefined();startSession();};
-$('stop').onclick=()=>{halt('正在停止…');if(recognition)recognition.stop();else status.textContent='已停止，可保存文字。';};
-async function save(){
- saving=true;setSavePhase('saving');
- try{
-  if(!token)throw Error('請從首頁「語音輸入」重新開啟。');
-  if(!text.value.trim())throw Error(localize('請先輸入文字。'));
-  const r=await fetch('/text',{method:'POST',headers:{'Content-Type':'application/json','X-Speak-Token':token},body:JSON.stringify({text:text.value}),signal:AbortSignal.timeout(10000)});
-  const msg=await r.text();if(r.status===403)throw Error(localize('請從首頁「語音輸入」重新開啟。'));if(!r.ok)throw Error(msg);
-  status.textContent='已保存至首頁';if(refineSource&&text.value!==refineSource)clearRefined();setSavePhase('saved');return true;
- }catch(e){status.textContent='保存失敗：'+e.message;setSavePhase('failed',e.message);return false;}
- finally{saving=false;controls();}
-}
-$('save').onclick=()=>{wanted=false;clearTimeout(timer);setSavePhase('saving');if(recognition){afterStop=save;recognition.stop();}else save();controls();};
-async function postAction(path,body,timeout=10000){
- if(!token)throw Error('請從首頁「語音輸入」重新開啟。');
- const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Speak-Token':token},body:JSON.stringify(body),signal:AbortSignal.timeout(timeout)});
- const raw=await response.text();let value;
- try{value=JSON.parse(raw);}catch(e){value={error:raw};}
- if(response.status===403)throw Error(localize('請從首頁「語音輸入」重新開啟。'));
- if(!response.ok||value.ok===false)throw Error(value.error_ui||value.error||'Action failed');return value;
-}
+// Refine: a reviewable suggestion that replaces the text only when chosen.
+function hideRefined(){clearTimeout(refineTimer);refining=false;refineSource='';$('refined-panel').hidden=true;$('refined-text').textContent='';controls();}
 async function pollRefine(source,deadline){
  try{
-  const response=await fetch('/refine-status',{headers:{'X-Speak-Token':token},cache:'no-store'});
-  if(!response.ok)throw Error('status');
-  const value=await response.json();
+  const value=await getJson('/refine-status');
   if(source!==refineSource||text.value!==source)return;
-  if(value.phase==='ready'&&value.text){$('refined-text').textContent=value.text;$('refined-panel').hidden=false;refineMessage('整理完成，請檢查內容。');controls();return;}
-  if(value.phase==='failed'||Date.now()>deadline){refineMessage('整理失敗，原文仍可送出。');controls();return;}
+  if(value.phase==='ready'&&value.text){refining=false;$('refined-text').textContent=value.text;$('refined-panel').hidden=false;say('整理完成，請檢查內容。','ok');controls();return;}
+  if(value.phase==='failed'||Date.now()>deadline)throw Error('failed');
   refineTimer=setTimeout(()=>pollRefine(source,deadline),1500);
- }catch(e){refineMessage('整理失敗，原文仍可送出。');controls();}
+ }catch(e){refining=false;say('整理失敗，原文仍可送出。','bad');controls();}
 }
 $('refine').onclick=async()=>{
- const source=text.value.trim();if(!source){refineMessage('請先輸入文字。');return;}
- clearTimeout(refineTimer);clearRefined();refineSource=text.value;sendPhase='idle';renderActionFeedback();refineMessage('正在整理…');controls();
- try{await postAction('/refine',{text:source});pollRefine(refineSource,Date.now()+130000);}
- catch(e){clearRefined();refineMessage('整理失敗，原文仍可送出。');controls();}
+ const source=text.value;if(!source.trim()){say('請先輸入文字。');return;}
+ hideRefined();refining=true;refineSource=source;say('正在整理…');controls();
+ try{await postAction('/refine',{text:source.trim()});lastSaved=source.trim();pollRefine(source,Date.now()+130000);}
+ catch(e){refining=false;refineSource='';say('整理失敗，原文仍可送出。','bad');controls();}
 };
-async function sendVersion(version){
- if(version==='refined'&&(!refineSource||text.value!==refineSource||$('refined-panel').hidden)){refineMessage('原文已變更，請重新整理。');return;}
- if(sending||saving)return;
- sendChoice=version;sending=true;setSendPhase('sending');status.textContent='正在送出…';
+$('refine-apply').onclick=()=>{text.value=$('refined-text').textContent;hideRefined();persist();say('已採用整理稿，可再編輯後送出。','ok');controls();};
+$('refine-discard').onclick=()=>{hideRefined();say('準備就緒');};
+
+// Codex keeps at most one waiting dictation; show it with a way to cancel it.
+let queueTimer=null;
+function showQueue(value){
+ $('queue-panel').hidden=!value;$('queue-text').textContent=value||'';
+ clearTimeout(queueTimer);if(value)queueTimer=setTimeout(()=>checkQueue(true),2500);
+}
+async function checkQueue(watching=false){
+ try{const value=await getJson('/queue');
+  if(watching&&!value.pending&&!$('queue-panel').hidden)say('Codex 已收到排隊的訊息。','ok');
+  showQueue(value.pending?value.text:'');}
+ catch(e){if(watching)queueTimer=setTimeout(()=>checkQueue(true),5000);}
+}
+$('unqueue').onclick=async()=>{
+ $('unqueue').disabled=true;
+ try{const result=await postAction('/unqueue',{},15000);showQueue('');
+  if(result.text&&!text.value.trim()){text.value=result.text;persist();}
+  say(result.text?'已取消，文字已放回編輯區。':(result.status_ui||result.status),'ok');}
+ catch(e){say('取消失敗：'+e.message,'bad');}
+ finally{$('unqueue').disabled=false;controls();}
+};
+
+// Send: one tap sends the current text and clears the editor, so it cannot be sent twice by accident.
+async function send(){
+ if(sending)return;
+ const value=text.value.trim();if(!value){say('請先輸入文字。');return;}
+ sending=true;say('送出中…');controls();
  try{
   await refreshTarget();
-  if(currentTarget.source==='terminal'&&!currentTarget.connected)throw Error(localize('終端尚未連接；請先執行 tmux new -A -s oma-voice。'));
-  if(version==='original'&&!await save()){setSendPhase('failed',saveDetail);return;}
-  const result=await postAction('/send',{version},30000);status.textContent='已送到目前目標。';setSendPhase('sent',result.status_ui||localize('已送到目前目標。'));
- }catch(e){status.textContent='送出失敗：'+e.message;setSendPhase('failed',e.message);}
+  if(unreachable())throw Error(localize(unreachable()));
+  if(copyMode()){
+   try{await navigator.clipboard.writeText(value);say('已複製，請到 Claude 貼上送出。','ok');}
+   catch(e){text.focus();text.select();say('請長按選取的文字並複製。');}
+   return;
+  }
+  if(!await save())throw Error(status.textContent);
+  const result=await postAction('/send',{version:'original'},30000);
+  text.value='';localStorage.setItem('oma-speak-draft','');$('alternatives').replaceChildren();hideRefined();
+  showQueue(result.queued?value:'');
+  say(result.status_ui||'已送出。',result.queued?'':'ok');
+ }catch(e){say('送出失敗：'+e.message,'bad');}
  finally{sending=false;controls();}
 }
-$('send-original').onclick=()=>sendVersion('original');
-$('send-refined').onclick=()=>sendVersion('refined');
-$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(text.value);status.textContent='已複製。';}catch(e){text.focus();text.select();status.textContent='請長按選取的文字並複製。';}};
-$('clear').onclick=()=>{halt('已清空。');afterStop=null;if(recognition){recognition.onresult=null;recognition.abort();}text.value='';committed='';interim='';$('alternatives').replaceChildren();clearRefined();refineMessage('');savePhase='idle';sendPhase='idle';renderActionFeedback();persist();controls();};
-document.addEventListener('visibilitychange',()=>{if(document.hidden){wanted=false;clearTimeout(timer);if(recognition)recognition.stop();persist();}});
-if(!Speech)status.textContent='此瀏覽器不支援語音辨識，請使用 Chrome 開啟。';renderActionFeedback();controls();
+$('send').onclick=()=>{if(listening())stopListening(send);else send();};
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(text.value);say('已複製。','ok');}catch(e){text.focus();text.select();say('請長按選取的文字並複製。');}};
+$('clear').onclick=()=>{afterStop=null;wanted=false;if(recognition){const r=recognition;recognition=null;r.onresult=null;r.abort();}text.value='';localStorage.setItem('oma-speak-draft','');$('alternatives').replaceChildren();hideRefined();say('已清空。');controls();};
+document.addEventListener('visibilitychange',()=>{if(document.hidden){wanted=false;if(recognition)recognition.stop();save();}else checkQueue();});
+if(!Speech)say('此瀏覽器不支援語音辨識，請使用 Chrome 開啟。','bad');
+controls();checkQueue();
 </script>
 </body>
 </html>

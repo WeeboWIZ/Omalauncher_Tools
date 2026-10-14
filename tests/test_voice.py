@@ -2,6 +2,7 @@ import importlib.util
 import fcntl
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -20,7 +21,49 @@ spec = importlib.util.spec_from_file_location('voice', ROOT/'voice/oma_voice.py'
 voice = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(voice)
 
+def chinese(text):
+    return any('㐀' <= c <= '鿿' for c in text)
+
+
 class VoiceTests(unittest.TestCase):
+    def test_claude_transcript_gives_only_final_replies(self):
+        sys.path.insert(0, str(ROOT/'voice'))
+        import oma_voice
+        prompt = {'type': 'user', 'message': {'role': 'user', 'content': 'Fix it'}}
+        tool_result = {'type': 'user', 'message': {'role': 'user', 'content': [{'type': 'tool_result', 'content': 'ok'}]}}
+        working = {'type': 'assistant', 'requestId': 'r1', 'message': {'stop_reason': 'tool_use', 'content': [{'type': 'text', 'text': 'Looking'}]}}
+        thinking = {'type': 'assistant', 'requestId': 'r2', 'message': {'stop_reason': 'end_turn', 'content': [{'type': 'thinking', 'thinking': 'x'}]}}
+        final = {'type': 'assistant', 'requestId': 'r2', 'message': {'stop_reason': 'end_turn', 'content': [{'type': 'text', 'text': 'Done.'}]}}
+        subagent = dict(final, isSidechain=True)
+        self.assertEqual(oma_voice.claude_event(prompt), ('start', None))
+        for event in (tool_result, working, thinking, subagent):
+            self.assertIsNone(oma_voice.claude_event(event))
+        self.assertEqual(oma_voice.claude_event(final), ('reply', ('r2', 'Done.')))
+
+    def test_refine_uses_the_agent_of_the_current_source(self):
+        from importlib.machinery import SourceFileLoader
+        refine = SourceFileLoader('refine_under_test', str(ROOT/'bin/oma-refine-dictation')).load_module()
+        with tempfile.TemporaryDirectory() as directory:
+            refine.VOICE_STATE = Path(directory)/'state.json'
+            with mock.patch.object(refine.shutil, 'which', lambda name: '/usr/bin/'+name):
+                for state, first in (({'source': 'claude'}, 'claude'), ({'source': 'codex'}, 'codex'),
+                                     ({'source': 'terminal', 'source_name': 'Claude'}, 'claude'), ({}, 'codex')):
+                    refine.VOICE_STATE.write_text(json.dumps(state))
+                    self.assertEqual([name for name, _ in refine.agents()], [first, {'claude': 'codex', 'codex': 'claude'}[first]])
+            with mock.patch.object(refine.shutil, 'which', lambda name: '/usr/bin/claude' if name == 'claude' else None):
+                refine.VOICE_STATE.write_text(json.dumps({'source': 'codex'}))
+                self.assertEqual([name for name, _ in refine.agents()], ['claude'])
+        command = refine.claude_command()
+        self.assertIn('haiku', command)
+        self.assertIn('--no-session-persistence', command)
+
+    def test_leftover_audio_is_removed_by_the_next_reading(self):
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(voice, 'CACHE', Path(directory)):
+            for name in ('speech-old.wav', 'speech-old.wav.backend', 'speech-old.mp3', 'speech-new.wav', 'state.json'):
+                (Path(directory)/name).write_text('x')
+            voice.sweep(keep='speech-new')
+            self.assertEqual(sorted(p.name for p in Path(directory).iterdir()), ['speech-new.wav', 'state.json'])
+
     def test_dictation_open_button_reports_success_and_failure(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
@@ -356,8 +399,10 @@ class VoiceTests(unittest.TestCase):
         table = json.loads(next(line for line in page.split('\n') if line.startswith('const UI_STRINGS = '))[len('const UI_STRINGS = '):].rstrip(';'))
         for chinese,texts in table.items():
             self.assertEqual(set(texts),set(language.LANGUAGES)-{'zh'},chinese)
+        # The one language picker lists spoken languages; each interface language has one.
+        speech = json.loads(re.sub(r'(\w+):', r'"\1":', next(line for line in page.split('\n') if line.startswith('const SPEECH='))[len('const SPEECH='):].rstrip(';')).replace("'", '"'))
         for code in language.LANGUAGES:
-            self.assertIn('<option value="%s">'%code,page)
+            self.assertIn('<option value="%s">'%speech[code],page)
             self.assertIn("'%s'"%code,(ROOT/'dictation/server.py').read_text())
 
     def test_replies_are_read_in_their_own_language(self):
@@ -386,8 +431,8 @@ class VoiceTests(unittest.TestCase):
         self.assertEqual(set(synthesize.SPEAKERS),set(language.LANGUAGES))
 
     def test_ignores_nonfinal_events(self):
-        self.assertIsNone(voice.completed_reply({'type':'event_msg','payload':{'type':'agent_message','message':'interim'}}))
-        self.assertIsNone(voice.completed_reply({'type':'event_msg','payload':{'type':'turn_aborted'}}))
+        self.assertIsNone(voice.codex_event({'type':'event_msg','payload':{'type':'agent_message','message':'interim'}}))
+        self.assertEqual(voice.codex_event({'type':'event_msg','payload':{'type':'turn_aborted'}}),('end',None))
 
     def test_install_and_update_preserve_user_data(self):
         with tempfile.TemporaryDirectory(prefix='voice test ') as directory:
@@ -426,11 +471,11 @@ class VoiceTests(unittest.TestCase):
         # Notes added to English text are English, so the English voice is the one chosen for it.
         english = voice.summarize('This sentence is part of a long reply. '*30+'See https://example.com and\n```\ncode\n```')
         self.assertTrue(english.startswith('Excerpt. '))
-        self.assertFalse(voice.chinese(english))
-        self.assertFalse(voice.chinese(voice.clean_text('See https://example.com and\n```\ncode\n```')))
+        self.assertFalse(chinese(english))
+        self.assertFalse(chinese(voice.clean_text('See https://example.com and\n```\ncode\n```')))
         self.assertTrue(voice.summarize('這是一句很長的回覆。'*80).startswith('回覆節錄。'))
-        self.assertEqual(voice.english('正在播放 · 自然語音（線上）'),'Playing · online natural')
-        self.assertEqual(voice.english('播放完成 · 離線基本語音（'+synthesize.UNREACHABLE+'）'),'Finished · offline basic (online voice unreachable)')
+        self.assertEqual(voice.local('正在播放 · 自然語音（線上）','en'),'Playing · online natural')
+        self.assertEqual(voice.local('播放完成 · 離線基本語音（'+synthesize.UNREACHABLE+'）','en'),'Finished · offline basic (online voice unreachable)')
         for reason in (synthesize.NOT_INSTALLED,synthesize.NO_MPG123,synthesize.UNREACHABLE):
             self.assertIn(reason,sys.modules['language'].REASONS)
 
@@ -448,7 +493,7 @@ class VoiceTests(unittest.TestCase):
                 self.assertIn('version: "%s"'%build_store.VERSION,text)
                 # The store shows the name, the description and the preview as they are: English.
                 head = text.split('requires')[0]
-                self.assertFalse(voice.chinese(head.split('source uiLanguage')[0]),head)
+                self.assertFalse(chinese(head.split('source uiLanguage')[0]),head)
                 self.assertEqual(text.count('"""')%2,0)
                 # The store's reviewer reads these as a request for root; a translation must not look like one.
                 import re

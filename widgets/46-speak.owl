@@ -31,7 +31,7 @@ widget "Terminal Voice" {
       Button { fill: width; height: 40; text: _("Details"); onTap: screen() }
     } else {
     Text { text: _("TERMINAL VOICE"); style: label; color: accent }
-    Text { text: voice.source == "terminal" ? _("Source: ${voice.source_name ?? 'Terminal'}") : _("Source: Codex chat"); style: small; color: accent }
+    Text { text: voice.source == "terminal" ? _("Source: ${voice.source_name ?? 'Terminal'}") : voice.source == "claude" ? _("Source: Claude chat") : _("Source: Codex chat"); style: small; color: accent }
     Text { text: statusText; style: small; maxLines: 2; color: offline ? yellow : muted }
     Text { text: replyTime; style: small; color: muted }
     Text { text: voice.summary == "" || voice.summary == null ? _("Choose a Codex chat or connect a tmux terminal.") : voice.summary; style: small; maxLines: 4; weight: 1 }
@@ -76,12 +76,18 @@ widget "Terminal Voice" {
         Text { text: voice.error_ui ?? ""; style: small; color: red; maxLines: 5 }
         if detailTab == "read" {
         Text { text: replyTime; style: small; color: muted }
-        Text { text: voice.source == "terminal" ? _("Reading: ${voice.source_name ?? 'Terminal'} · tmux session oma-voice") : _("Reading: Codex chat"); bold: true; color: accent; maxLines: 3 }
+        Text { text: voice.source == "terminal" ? _("Reading: ${voice.source_name ?? 'Terminal'} · tmux session oma-voice") : voice.source == "claude" ? _("Reading: Claude chat") : _("Reading: Codex chat"); bold: true; color: accent; maxLines: 3 }
         Row {
-          Button { weight: 1; height: 44; text: voice.source == "codex" ? _("Codex chat selected") : _("Codex chat"); onTap: { actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source codex --json") } }
-          Button { weight: 1; height: 44; text: voice.source == "terminal" ? _("Terminal / Claude selected") : _("Terminal / Claude"); onTap: { actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source terminal --json") } }
+          gap: 6
+          Button { weight: 1; height: 44; text: voice.source == "codex" ? "✓ Codex" : "Codex"; onTap: { actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source codex --json") } }
+          Button { weight: 1; height: 44; text: voice.source == "claude" ? "✓ Claude" : "Claude"; onTap: { actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source claude --json") } }
+          Button { weight: 1; height: 44; text: voice.source == "terminal" ? "✓ tmux" : "tmux"; onTap: { actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source terminal --json") } }
         }
-        if voice.source == "terminal" {
+        if voice.source == "claude" {
+          Text { text: _("Reads Claude's finished replies from its chat log, in any terminal. Dictation can be sent only when Claude runs in the oma-voice tmux session."); style: small; color: muted; maxLines: 7 }
+          Text { text: voice.term_pane != "" && voice.term_pane != null ? _("Dictation: can send to Claude") : _("Dictation: copied for pasting; open Claude in tmux to send directly"); style: small; color: voice.term_pane != "" && voice.term_pane != null ? accent : yellow; maxLines: 3 }
+          Button { fill: width; height: 44; text: _("Open Claude in tmux"); onTap: terminal("tmux new -A -s oma-voice 'claude; exec bash'", "Claude") }
+        } else if voice.source == "terminal" {
           Text { text: _("Run this in your existing terminal, then start Codex, Claude or another program there. Play reads the current screen; dictation sends to that pane."); style: small; color: muted; maxLines: 7 }
           Button { fill: width; height: 44; text: _("Copy terminal setup command"); onTap: copy("tmux new -A -s oma-voice") }
         } else {
@@ -99,7 +105,7 @@ widget "Terminal Voice" {
         }
         if detailTab == "settings" {
         Text { text: _("Voice settings"); bold: true; color: accent }
-        if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.follow_latest ? _("Chat: follow latest") : _("Chat: pinned"); onTap: { actionPending = "follow"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py follow --json") } } }
+        if voice.source == "codex" { Button { fill: width; height: 44; text: voice.follow_latest ? _("Chat: follow latest") : _("Chat: pinned"); onTap: { actionPending = "follow"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py follow --json") } } }
         if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.auto ? _("Auto-read: on") : _("Auto-read: off"); onTap: { actionPending = "auto"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py auto toggle --json") } } }
         Row {
           gap: 8

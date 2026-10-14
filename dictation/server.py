@@ -15,7 +15,30 @@ PORT = 18763
 ORIGIN = f'http://127.0.0.1:{PORT}'
 PAGE_PATH = Path(__file__).with_name('index.html')
 LANG_PATH = Path.home() / '.config/omalauncher/voice-ui-language'
+VOICE = Path.home() / '.local/share/oma-voice'
 LANGUAGES = ('en', 'zh', 'es', 'de', 'fr', 'ja', 'ko')
+
+def claude_sessions():
+    '''Interactive Claude Code sessions still running, from its own registry: whether one is busy.'''
+    found = []
+    for entry in (Path.home()/'.claude/sessions').glob('*.json'):
+        try:
+            value = json.loads(entry.read_text())
+            if value.get('kind') == 'interactive' and Path('/proc/%d' % int(value['pid'])).exists():
+                found.append(value.get('status') == 'busy')
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+    return {'claude_running': bool(found), 'claude_busy': any(found)}
+
+
+def target(current, source='codex'):
+    value = {'source': current.get('source', source),
+             'source_name': str(current.get('source_name', 'Terminal'))[:80],
+             'connected': bool(current.get('term_pane'))}
+    if value['source'] == 'claude':
+        value.update(claude_sessions())
+    return value
+
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
@@ -46,10 +69,18 @@ class Handler(BaseHTTPRequestHandler):
                 current = json.loads((Path.home()/'.cache/oma-voice/state.json').read_text())
             except (OSError, ValueError):
                 current = {}
-            target = {'source': current.get('source', 'codex'),
-                      'source_name': str(current.get('source_name', 'Terminal'))[:80],
-                      'connected': bool(current.get('term_pane'))}
-            return self.reply(200, json.dumps(target, ensure_ascii=False), 'application/json; charset=utf-8')
+            return self.reply(200, json.dumps(target(current), ensure_ascii=False), 'application/json; charset=utf-8')
+        if self.path == '/queue':
+            if not hmac.compare_digest(self.headers.get('X-Speak-Token', ''), TOKEN):
+                return self.reply(403, 'Forbidden')
+            try:
+                sys.path.insert(0, str(VOICE))
+                import codex_queue
+                waiting = codex_queue.pending()
+            except Exception:
+                waiting = None
+            value = {'pending': bool(waiting), 'text': (waiting or {}).get('text', '')}
+            return self.reply(200, json.dumps(value, ensure_ascii=False), 'application/json; charset=utf-8')
         if self.path == '/refine-status':
             if not hmac.compare_digest(self.headers.get('X-Speak-Token', ''), TOKEN):
                 return self.reply(403, 'Forbidden')
@@ -72,7 +103,7 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(200, PAGE_PATH.read_text(), 'text/html; charset=utf-8')
 
     def do_POST(self):
-        if (self.path not in ('/text', '/language', '/refine', '/send', '/target') or self.headers.get('Origin') != ORIGIN
+        if (self.path not in ('/text', '/language', '/refine', '/send', '/target', '/unqueue') or self.headers.get('Origin') != ORIGIN
                 or not hmac.compare_digest(self.headers.get('X-Speak-Token', ''), TOKEN)):
             return self.reply(403, 'Forbidden')
         try:
@@ -92,7 +123,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(200, 'Language saved')
             if self.path == '/target':
                 source = body.get('source')
-                if source not in ('codex', 'terminal'):
+                if source not in ('codex', 'claude', 'terminal'):
                     raise ValueError()
                 result = subprocess.run([sys.executable, str(Path.home()/'.local/share/oma-voice/oma_voice.py'),
                                          'source', source, '--json'],
@@ -104,10 +135,14 @@ class Handler(BaseHTTPRequestHandler):
                     current = json.loads((Path.home()/'.cache/oma-voice/state.json').read_text())
                 except (OSError, ValueError):
                     current = {}
-                target = {'ok': True, 'source': current.get('source', source),
-                          'source_name': str(current.get('source_name', 'Terminal'))[:80],
-                          'connected': bool(current.get('term_pane'))}
-                return self.reply(200, json.dumps(target, ensure_ascii=False), 'application/json; charset=utf-8')
+                return self.reply(200, json.dumps({'ok': True} | target(current, source), ensure_ascii=False),
+                                  'application/json; charset=utf-8')
+            if self.path == '/unqueue':
+                result = subprocess.run([sys.executable, str(VOICE/'oma_voice.py'), 'unqueue', '--json'],
+                                        capture_output=True, text=True, timeout=12)
+                output = json.loads(result.stdout.splitlines()[-1])
+                code = 200 if output.get('ok') is True else 400
+                return self.reply(code, json.dumps(output, ensure_ascii=False), 'application/json; charset=utf-8')
             if self.path == '/send':
                 version = body.get('version')
                 if version not in ('original', 'refined'):
@@ -134,11 +169,13 @@ class Handler(BaseHTTPRequestHandler):
             tmp.write_text(text)
             os.chmod(tmp, 0o600)
             tmp.replace(CACHE / 'latest.txt')
-            status = CACHE / 'send-status.json'
-            status_tmp = CACHE / 'send-status.tmp'
-            status_tmp.write_text(json.dumps({'phase': 'saved'}))
-            os.chmod(status_tmp, 0o600)
-            status_tmp.replace(status)
+            if previous != text:
+                # The page saves as you type; the same text keeps its last send result.
+                status = CACHE / 'send-status.json'
+                status_tmp = CACHE / 'send-status.tmp'
+                status_tmp.write_text(json.dumps({'phase': 'saved'}))
+                os.chmod(status_tmp, 0o600)
+                status_tmp.replace(status)
             if self.path == '/refine' or previous != text:
                 (CACHE/'refined.txt').unlink(missing_ok=True)
                 (CACHE/'refine-status.json').unlink(missing_ok=True)

@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ui_strings
 
 ROOT = Path(__file__).resolve().parent.parent
-VERSION = '3.5.3'
+VERSION = '3.5.4'
 AUTHOR = 'weebowiz'
 # template -> store folder. Each folder's preview.png and README.md are kept by hand.
 WIDGETS = {'46-speak.owl': 'terminal-voice', '47-voice-input.owl': 'dictation'}
@@ -19,6 +19,8 @@ MARKER = '.local/share/oma-voice/store-version'
 WIDGET_MARKERS = {'terminal-voice': '.local/share/oma-voice/terminal-voice-version',
                   'dictation': '.local/share/oma-voice/dictation-version'}
 MAX_BYTES = 256 * 1024
+# MAX_ARG_STRLEN is 128 KB; keep room for the shell's own words around the script.
+ARGUMENT_LIMIT = 128 * 1024 - 1024
 # Whole command lines of the running voice service and dictation page, as pkill -f patterns.
 SERVICES = [r'^[^ ]*python[0-9.]* .*/oma_voice\.py daemon$', r'^[^ ]*python[0-9.]* .*/oma-speak/server\.py$']
 
@@ -94,6 +96,9 @@ def setup_script(widget='terminal-voice'):
         'say done',
     ]
     script = '\n'.join(lines)
+    # The launcher hands this to a shell as one argument, and Linux refuses one over 128 KB.
+    if len(script.encode()) > ARGUMENT_LIMIT:
+        sys.exit('the setup script is %d bytes; one command argument holds at most %d' % (len(script.encode()), ARGUMENT_LIMIT))
     # pkill -f must not match the shell running this script, whose command line holds all of the above.
     if any(re.search(pattern, wrapper+script) for pattern in SERVICES for wrapper in ('bash -c ', 'sh -c ', '')):
         sys.exit('the setup script would stop itself')
