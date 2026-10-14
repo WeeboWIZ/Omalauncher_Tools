@@ -49,6 +49,8 @@ MESSAGES = {
     '請先輸入內容（最多 16000 字）': ('Enter text first (maximum 16000 characters)', 'Escribe primero un texto (máximo 16000 caracteres)', 'Zuerst Text eingeben (höchstens 16000 Zeichen)', 'Saisissez d’abord un texte (16000 caractères au plus)', '先にテキストを入力してください（最大 16000 文字）', '먼저 텍스트를 입력하세요(최대 16000자)'),
     '文字含有控制字元': ('Text contains control characters', 'El texto contiene caracteres de control', 'Der Text enthält Steuerzeichen', 'Le texte contient des caractères de contrôle', 'テキストに制御文字が含まれています', '텍스트에 제어 문자가 있습니다'),
     '送出失敗': ('Could not send text', 'No se pudo enviar el texto', 'Text konnte nicht gesendet werden', 'Impossible d’envoyer le texte', 'テキストを送信できませんでした', '텍스트를 보내지 못했습니다'),
+    '送出進行中': ('A send is already in progress', 'Ya se está enviando', 'Eine Sendung läuft bereits', 'Un envoi est déjà en cours', '送信中です', '이미 전송 중입니다'),
+    '請先整理目前文字': ('Refine the current text first', 'Organiza primero el texto actual', 'Aktuellen Text zuerst überarbeiten', 'Révisez d’abord le texte actuel', '現在の文章を先に整理してください', '현재 글을 먼저 정리하세요'),
     '未知命令': ('Unknown command', 'Comando desconocido', 'Unbekannter Befehl', 'Commande inconnue', '不明なコマンド', '알 수 없는 명령'),
     '請選 online 或 offline': ('Choose online or offline', 'Elige online u offline', 'online oder offline wählen', 'Choisissez online ou offline', 'online か offline を選んでください', 'online 또는 offline 을 고르세요'),
     '請選 Codex 或 Terminal': ('Choose codex or terminal', 'Elige codex o terminal', 'codex oder terminal wählen', 'Choisissez codex ou terminal', 'codex か terminal を選んでください', 'codex 또는 terminal 을 고르세요'),

@@ -1,6 +1,6 @@
 # Dictation (語音輸入)
 
-Dictate in the browser, optionally refine the text with the locally authenticated Codex CLI, then review the draft, select Codex chat or Terminal / Claude on the same page, and send the original or refined draft. The widget details also offer target selection and both send actions.
+Dictate in the browser, optionally refine the text with the locally authenticated Codex CLI, then review the draft, select Codex chat or Terminal / Claude on the same page, and send the original or refined draft. Save and Send show progress, success, or failure next to their buttons; the widget details also show command results. Reopen an old browser page from the widget after an update so it receives the new access token.
 Interface in English (default), 中文, Español, Deutsch, Français, 日本語 and 한국어; the page has a list for the language you
 speak. Chrome is recommended; the browser asks for the microphone.
 

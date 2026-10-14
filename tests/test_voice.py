@@ -1,4 +1,5 @@
 import importlib.util
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -20,6 +21,25 @@ voice = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(voice)
 
 class VoiceTests(unittest.TestCase):
+    def test_dictation_open_button_reports_success_and_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            cache = home/'.cache/oma-speak'
+            bin_dir = home/'bin'
+            cache.mkdir(parents=True)
+            bin_dir.mkdir()
+            (cache/'token').write_text('test-token')
+            for name, body in [('curl', 'printf "oma-speak-v1\\n"'), ('xdg-open', 'exit 0')]:
+                command = bin_dir/name
+                command.write_text('#!/bin/sh\n'+body+'\n')
+                command.chmod(0o700)
+            env = dict(os.environ, HOME=directory, PATH=str(bin_dir)+os.pathsep+os.environ.get('PATH',''))
+            run = lambda: subprocess.run(['bash',str(ROOT/'bin/speak'),'--json'],env=env,
+                                         capture_output=True,text=True,timeout=5)
+            self.assertTrue(json.loads(run().stdout)['ok'])
+            (bin_dir/'xdg-open').write_text('#!/bin/sh\nexit 1\n')
+            self.assertFalse(json.loads(run().stdout)['ok'])
+
     def test_dictation_send_reports_progress_and_failure_without_live_queue(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
@@ -41,10 +61,23 @@ class VoiceTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0)
             self.assertEqual(json.loads((cache/'send-status.json').read_text())['phase'], 'sent')
             self.assertEqual(json.loads(result.stdout.splitlines()[-1])['status'], 'queued')
+            one_line = subprocess.run([sys.executable, str(ROOT/'bin/oma-send-dictation'), '--json'],
+                                      env=env, capture_output=True, text=True, timeout=10)
+            self.assertEqual(len(one_line.stdout.splitlines()), 1)
+            self.assertEqual(json.loads(one_line.stdout)['phase'], 'sent')
+            with (cache/'send.lock').open('w') as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                busy = subprocess.run([sys.executable, str(ROOT/'bin/oma-send-dictation'), '--json'],
+                                      env=env, capture_output=True, text=True, timeout=10)
+            self.assertEqual(json.loads(busy.stdout)['phase'], 'busy')
             target.write_text('#!/usr/bin/python\nimport json, sys\nprint(json.dumps({"ok": False, "error": "rejected"}))\nsys.exit(1)\n')
             result = run()
             self.assertEqual(json.loads((cache/'send-status.json').read_text())['phase'], 'failed')
             self.assertIn('rejected', result.stdout)
+            failed = subprocess.run([sys.executable, str(ROOT/'bin/oma-send-dictation'), '--json'],
+                                    env=env, capture_output=True, text=True, timeout=10)
+            self.assertEqual(len(failed.stdout.splitlines()), 1)
+            self.assertFalse(json.loads(failed.stdout)['ok'])
 
     def test_refined_dictation_is_reviewable_and_cannot_send_stale_text(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -64,7 +97,10 @@ class VoiceTests(unittest.TestCase):
             target.write_text('#!/usr/bin/python\nimport json, sys\nprint(json.dumps({"ok": True, "status": sys.argv[-1]}))\n')
             target.chmod(0o700)
             env = dict(os.environ, HOME=str(home), PATH=str(bin_dir)+os.pathsep+os.environ.get('PATH',''))
-            subprocess.run([sys.executable,str(ROOT/'bin/oma-refine-dictation')],env=env,check=True)
+            started = subprocess.run([sys.executable,str(ROOT/'bin/oma-refine-dictation'),'--start','--json'],
+                                     env=env,check=True,capture_output=True,text=True)
+            self.assertEqual(len(started.stdout.splitlines()), 1)
+            self.assertTrue(json.loads(started.stdout)['ok'])
             deadline = time.monotonic()+5
             while time.monotonic()<deadline:
                 state = json.loads((cache/'refine-status.json').read_text())

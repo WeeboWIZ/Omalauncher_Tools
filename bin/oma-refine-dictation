@@ -100,7 +100,15 @@ def start():
 if __name__ == '__main__':
     if len(sys.argv) == 4 and sys.argv[1] == '--worker':
         worker(sys.argv[2], sys.argv[3])
-    elif len(sys.argv) == 1 or sys.argv[1:] == ['--start']:
+    elif len(sys.argv) == 1 or sys.argv[1:] in (['--start'], ['--start', '--json']):
         start()
+        if sys.argv[1:] == ['--start', '--json']:
+            try:
+                result = json.loads(STATUS.read_text())
+            except (OSError, ValueError):
+                result = {'phase': 'failed', 'error': 'Could not read refinement status'}
+            result['ok'] = result.get('phase') != 'failed'
+            result['command_id'] = uuid.uuid4().hex
+            print(json.dumps(result, ensure_ascii=False), flush=True)
     else:
-        sys.exit('Usage: oma-refine-dictation [--start]')
+        sys.exit('Usage: oma-refine-dictation [--start] [--json]')

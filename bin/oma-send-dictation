@@ -16,6 +16,7 @@ cache = home / '.cache/oma-speak'
 status_file = cache / 'send-status.json'
 NO_TEXT = '請先開始語音輸入，停止後保存。'
 FAILED = '送出失敗'
+JSON_ONLY = '--json' in sys.argv[1:]
 
 
 def publish(value):
@@ -24,7 +25,8 @@ def publish(value):
     temporary.write_text(json.dumps(value, ensure_ascii=False))
     temporary.chmod(0o600)
     temporary.replace(status_file)
-    print(json.dumps(value, ensure_ascii=False), flush=True)
+    if not JSON_ONLY or value.get('phase') != 'sending':
+        print(json.dumps(value, ensure_ascii=False), flush=True)
 
 
 def failure(message, detail=''):
@@ -33,9 +35,10 @@ def failure(message, detail=''):
 
 
 def main():
-    refined = sys.argv[1:] == ['--refined']
-    if sys.argv[1:] and not refined:
-        sys.exit('Usage: oma-send-dictation [--refined]')
+    flags = sys.argv[1:]
+    if any(flag not in ('--refined', '--json') for flag in flags) or len(flags) != len(set(flags)):
+        sys.exit('Usage: oma-send-dictation [--refined] [--json]')
+    refined = '--refined' in flags
     try:
         cache.mkdir(parents=True, exist_ok=True, mode=0o700)
         with (cache / 'send.lock').open('w') as lock:
@@ -43,6 +46,8 @@ def main():
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
                 # The first click is still running. Keep its progress visible.
+                print(json.dumps({'ok': False, 'phase': 'busy', 'error_ui': local('送出進行中'),
+                                  'request_id': uuid.uuid4().hex}, ensure_ascii=False), flush=True)
                 return
             try:
                 original = (cache / 'latest.txt').read_text().strip()
@@ -69,7 +74,8 @@ def main():
                 if not isinstance(response, dict):
                     response = failure(FAILED, 'Invalid JSON response')
                 if result.returncode or response.get('ok') is not True:
-                    response = failure(FAILED, response.get('error', '') or result.stderr[-300:])
+                    response = failure(FAILED, response.get('error', '') or result.stderr[-300:]) | {
+                        'error_ui': response.get('error_ui') or local(FAILED)}
                 else:
                     response['phase'] = 'sent'
                     response['request_id'] = request_id

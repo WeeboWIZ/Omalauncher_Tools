@@ -1,11 +1,13 @@
 #!/bin/bash
 set -eu
 cache="$HOME/.cache/oma-speak"
+json=no
 case "${1:-}" in
   --text) cat "$cache/latest.txt" 2>/dev/null || true; exit ;;
   --help) echo 'speak: open voice input; speak --text: print latest dictation. Bash Ctrl+G inserts it.'; exit ;;
+  --json) json=yes ;;
   '') ;;
-  *) echo 'Usage: speak [--text|--help]' >&2; exit 2 ;;
+  *) echo 'Usage: speak [--text|--json|--help]' >&2; exit 2 ;;
 esac
 mkdir -p "$cache"
 exec 9>"$cache/start.lock"
@@ -18,8 +20,18 @@ if ! curl --noproxy '*' -fsS --max-time 2 http://127.0.0.1:18763/health 2>/dev/n
   done
 fi
 if ! curl --noproxy '*' -fsS --max-time 2 http://127.0.0.1:18763/health 2>/dev/null | grep -qx oma-speak-v1; then
-  echo "Could not start voice input. See $cache/server.log" >&2; exit 1
+  if [ "$json" = yes ]; then printf '{"ok":false}\n'; else echo "Could not start voice input. See $cache/server.log" >&2; fi
+  exit 1
 fi
 token=$(cat "$cache/token")
 flock -u 9
-xdg-open "http://127.0.0.1:18763/#$token"
+if [ "$json" = yes ]; then
+  if xdg-open "http://127.0.0.1:18763/#$token" >/dev/null 2>&1; then
+    printf '{"ok":true}\n'
+  else
+    printf '{"ok":false}\n'
+    exit 1
+  fi
+else
+  xdg-open "http://127.0.0.1:18763/#$token"
+fi
