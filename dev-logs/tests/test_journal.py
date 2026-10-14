@@ -4,6 +4,8 @@ import importlib.machinery
 import importlib.util
 import io
 import json
+import os
+import subprocess
 from pathlib import Path
 import tempfile
 import unittest
@@ -26,10 +28,10 @@ class MonthlyJournalTests(unittest.TestCase):
             self.addCleanup(p.stop)
         desk.ensure_dirs()
 
-    def history(self, day='', offset=0):
+    def history(self, day='', offset=0, project=''):
         output = io.StringIO()
         with redirect_stdout(output):
-            desk.history(day, offset)
+            desk.history(day, offset, project)
         return json.loads(output.getvalue())
 
     def test_daily_views_and_pagination_from_monthly_file(self):
@@ -104,6 +106,41 @@ class MonthlyJournalTests(unittest.TestCase):
         path.write_text('# daily\n- 23:00 · Old\n')
         desk.edit_log(self.history('2026-09-30')['entries'][0]['id'], 'New')
         self.assertEqual(path.read_text(), '# daily\n- 23:00 · New\n')
+
+    def test_projects_are_tagged_detected_and_filtered(self):
+        (desk.JOURNAL / '2026-10.md').write_text('# Dev log\n\n- 2026-10-13 09:00 · Untagged\n'
+                                                 '- 2026-10-13 10:00 · [Alpha] Older alpha\n- 2026-10-14 11:00 · [Beta] Beta work\n')
+        everything = self.history()
+        self.assertEqual(everything['projects'], [{'name': 'Beta', 'count': 1}, {'name': 'Alpha', 'count': 1}])
+        self.assertEqual(everything['unassigned'], 1)
+        self.assertEqual(everything['entries'], [{'id': everything['entries'][0]['id'], 'text': '11:00 · Beta work', 'project': 'Beta'}])
+        alpha = self.history('', 0, 'Alpha')
+        self.assertEqual((alpha['days'], alpha['day'], alpha['matching']), (['2026-10-13'], '2026-10-13', 1))
+        self.assertEqual([e['text'] for e in alpha['entries']], ['10:00 · Older alpha'])
+        self.assertEqual([e['text'] for e in self.history('', 0, '-')['entries']], ['09:00 · Untagged'])
+        # Editing keeps the tag.
+        desk.edit_log(alpha['entries'][0]['id'], 'Renamed')
+        self.assertIn('- 2026-10-13 10:00 · [Alpha] Renamed\n', (desk.JOURNAL / '2026-10.md').read_text())
+
+    def test_log_project_from_flag_git_or_projects_folder(self):
+        home = Path(self.temp.name) / 'home'
+        repo = home / 'code' / 'my-app'
+        (repo / 'src').mkdir(parents=True)
+        (home / 'projects' / 'plain' / 'docs').mkdir(parents=True)
+        subprocess.run(['git', 'init', '-q', str(repo)], check=True)
+        cwd = os.getcwd()
+        self.addCleanup(os.chdir, cwd)
+        with patch.object(Path, 'home', return_value=home), patch.object(desk, 'refresh_widget'), redirect_stdout(io.StringIO()):
+            os.chdir(repo / 'src')
+            desk.log_entry('From git')
+            desk.log_entry('Flag wins', ' [Other] ')
+            os.chdir(home / 'projects' / 'plain' / 'docs')
+            desk.log_entry('From folder')
+            os.chdir(home)
+            desk.log_entry('No project')
+        content = next(desk.JOURNAL.glob('*.md')).read_text()
+        for line in ('· [my-app] From git', '· [Other] Flag wins', '· [plain] From folder', ' · No project'):
+            self.assertIn(line, content)
 
     def test_invalid_dates_and_empty_days(self):
         self.assertEqual(self.history('2026-10-12')['entries'], [])

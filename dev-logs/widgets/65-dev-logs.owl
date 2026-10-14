@@ -19,6 +19,8 @@ widget "DEV LOGS" {
     }
   }
   state datesOpen = false
+  state projectsOpen = false
+  state project = ""
   state pathsOpen = false
   state tab = "logs"
   state folder = "~"
@@ -31,16 +33,16 @@ widget "DEV LOGS" {
 請使用 DEV LOGS 記錄本專案的重要開發進展，並把以下規則保存到適用的專案指示檔（Codex：AGENTS.md；Claude：CLAUDE.md），保留既有內容。
 
 1. 只記錄重要功能、實際完成的變更／修復、重要驗證結果，以及需要追蹤的問題；同一項工作合併一筆，不要每次回覆都記錄。
-2. 每筆以繁體中文簡潔寫 1–3 句，包含專案名稱、變更重點、實際驗證結果；有未解問題才補充。未驗證要明說，不把計畫或推測寫成已完成。
+2. 每筆以繁體中文簡潔寫 1–3 句：變更重點、實際驗證結果；有未解問題才補充。未驗證要明說，不把計畫或推測寫成已完成。
 3. 略過一般問答、研究建議、瑣碎修改、例行檢查、重複內容與日誌維護；不記錄密鑰或個資。
-4. 執行 ~/.local/bin/oma-devlogs log '摘要' 寫入，正確引用參數；命令成功後才算已記錄。先確認指令可用，無法寫入時告知我。設定規則本身不需要新增日誌，也不要建立示範紀錄。
+4. 在專案目錄中執行 ~/.local/bin/oma-devlogs log --project '專案名稱' '摘要' 寫入，專案名稱用倉庫或資料夾名稱並固定不變，摘要不必重複專案名；正確引用參數；命令成功後才算已記錄。先確認指令可用，無法寫入時告知我。設定規則本身不需要新增日誌，也不要建立示範紀錄。
 """ : """
 Use DEV LOGS to log important development progress for this project. Save these rules in the applicable project instructions (AGENTS.md for Codex; CLAUDE.md for Claude), preserving existing content.
 
 1. Log important features, implemented changes or fixes, meaningful verification results, and issues that need follow-up. Combine related work into one entry; do not log every reply.
-2. Keep each entry to 1–3 concise sentences: project name, key changes, actual verification results, and unresolved issues only when relevant. Say when something is unverified; never present plans or assumptions as completed work.
+2. Keep each entry to 1–3 concise sentences: key changes, actual verification results, and unresolved issues only when relevant. Say when something is unverified; never present plans or assumptions as completed work.
 3. Skip general Q&A, research, suggestions, trivial edits, routine checks, duplicates, and log maintenance. Exclude secrets and personal data.
-4. Write using ~/.local/bin/oma-devlogs log 'summary', with correct shell quoting. Only claim it was recorded after the command succeeds. Check that the command is available and tell me if writing fails. Do not log this setup or create sample entries.
+4. From the project directory, write using ~/.local/bin/oma-devlogs log --project 'project name' 'summary', with correct shell quoting. Use the repository or folder name and keep it the same every time; do not repeat it in the summary. Only claim it was recorded after the command succeeds. Check that the command is available and tell me if writing fails. Do not log this setup or create sample entries.
 """
   state errorOffset = 0
   state errorLevel = "error" persist
@@ -72,6 +74,7 @@ Use DEV LOGS to log important development progress for this project. Save these 
   on tab { agentPromptCopied = false; expandedLog = ""; editingLog = ""; deleteLog = ""; selected = "" }
   on expandedLog { copiedLog = ""; deleteLog = "" }
   on day { expandedLog = ""; editingLog = "" }
+  on project { day = ""; logOffset = 0; datesOpen = false }
   on language { agentPromptCopied = false; result = ""; fileResult = ""; agentMsg = "" }
   source systemErrors = cmd("if [ -f ~/.local/share/oma-devlogs/system_errors.py ]; then python ~/.local/share/oma-devlogs/system_errors.py ${int(errorOffset)} ${sh(errorLevel)} ${sh(language)}; else printf '{}'; fi") every 60s json status
   let errors = systemErrors.out
@@ -82,7 +85,7 @@ Use DEV LOGS to log important development progress for this project. Save these 
   source snapshot = cmd("if [ -f ~/.local/bin/oma-devlogs ]; then python ~/.local/bin/oma-devlogs status; else printf '{}'; fi") every 60s json status
   source directory = cmd("if [ -f ~/.local/bin/oma-devlogs ]; then python ~/.local/bin/oma-devlogs --lang ${sh(language)} browse ${sh(folder)} ${int(offset)} ${int(pageSize)}; else printf '{}'; fi") every 5m json status
   source found = cmd("if [ -n ${sh(query)} ] && [ -f ~/.local/bin/oma-devlogs ]; then python ~/.local/bin/oma-devlogs --lang ${sh(language)} search ${sh(folder)} ${sh(query)} ${sh(searchContent ? "content" : "name")}; else printf '{}'; fi") every 5m json status timeout 15s
-  source archive = cmd("if [ -f ~/.local/bin/oma-devlogs ]; then python ~/.local/bin/oma-devlogs --lang ${sh(language)} history ${sh(day)} ${int(logOffset)}; else printf '{}'; fi") every 5m json status
+  source archive = cmd("if [ -f ~/.local/bin/oma-devlogs ]; then python ~/.local/bin/oma-devlogs --lang ${sh(language)} history ${sh(day)} ${int(logOffset)} ${sh(project)}; else printf '{}'; fi") every 5m json status
   let desk = snapshot.out
   let listing = directory.out
   let hits = found.out
@@ -187,19 +190,29 @@ Use DEV LOGS to log important development progress for this project. Save these 
         }
       } else if tab == "logs" {
         Input {
-          placeholder: zh ? "寫一條日誌，按送出儲存" : "Write a log, press Enter to save"
+          placeholder: project != "" && project != "-" ? (zh ? "寫一條「${project}」的日誌" : "Write a log for ${project}") : (zh ? "寫一條日誌，按送出儲存" : "Write a log, press Enter to save")
           clear: true
-          onSubmit: { result = zh ? "儲存中…" : "Saving…"; result = run("python ~/.local/bin/oma-devlogs --lang ${sh(language)} log ${sh(value)} 2>&1") }
+          onSubmit: { result = zh ? "儲存中…" : "Saving…"; result = run("python ~/.local/bin/oma-devlogs --lang ${sh(language)} log --project ${sh(project == "-" ? "" : project)} ${sh(value)} 2>&1") }
         }
         Text { text: result; style: small; color: accent; maxLines: 2 }
         Row {
-          Button { text: (logs.day ?? "—") + (datesOpen ? " ▴" : " ▾"); weight: 1; onTap: datesOpen = !datesOpen }
-          Button { text: zh ? "最新" : "Latest"; weight: 1; onTap: { day = ""; logOffset = 0; refresh() } }
+          Button { text: (project == "" ? (zh ? "全部專案" : "All projects") : project == "-" ? (zh ? "未分類" : "No project") : project) + (projectsOpen ? " ▴" : " ▾"); weight: 1; color: project == "" ? muted : accent; onTap: { projectsOpen = !projectsOpen; datesOpen = false } }
+          Button { text: (logs.day ?? "—") + (datesOpen ? " ▴" : " ▾"); weight: 1; onTap: { datesOpen = !datesOpen; projectsOpen = false } }
+          Button { text: zh ? "最新" : "Latest"; width: 72; onTap: { day = ""; logOffset = 0; refresh() } }
         }
         Column {
           scroll: true
           weight: 1
           gap: 10
+          if projectsOpen {
+          Flow {
+            Button { text: (zh ? "全部" : "All") + " · ${logs.all ?? 0}"; color: project == "" ? accent : muted; onTap: { project = ""; projectsOpen = false; refresh() } }
+            for item in (logs.projects ?? []) {
+              Button { text: "${item.name} · ${item.count}"; color: project == item.name ? accent : muted; onTap: { project = item.name; projectsOpen = false; refresh() } }
+            }
+            if (logs.unassigned ?? 0) > 0 { Button { text: (zh ? "未分類" : "No project") + " · ${logs.unassigned}"; color: project == "-" ? accent : muted; onTap: { project = "-"; projectsOpen = false; refresh() } } }
+          }
+          }
           if datesOpen {
           Flow {
             for date in (logs.days ?? []) {
@@ -227,7 +240,12 @@ Use DEV LOGS to log important development progress for this project. Save these 
                   Button { text: zh ? "取消" : "Cancel"; weight: 1; color: muted; onTap: editingLog = "" }
                 }
               } else {
-                Text { text: entry.text; style: body; onTap: expandedLog = expandedLog == entry.id ? "" : entry.id }
+                Column {
+                  gap: 4
+                  onTap: expandedLog = expandedLog == entry.id ? "" : entry.id
+                  if project == "" && entry.project != "" { Text { text: entry.project; style: small; color: accent; maxLines: 1 } }
+                  Text { text: entry.text; style: body }
+                }
                 if expandedLog == entry.id {
                   if deleteLog == entry.id {
                     Text { text: zh ? "刪除這條日誌？原文會移至回收區。" : "Delete this log? The text moves to trash."; style: small; color: yellow }
@@ -239,7 +257,7 @@ Use DEV LOGS to log important development progress for this project. Save these 
                   } else {
                     Row {
                       gap: 8
-                      Button { text: copiedLog == entry.id ? (zh ? "已複製" : "Copied") : (zh ? "複製" : "Copy"); weight: 1; onTap: { copy("${logs.day} ${entry.text}"); copiedLog = entry.id } }
+                      Button { text: copiedLog == entry.id ? (zh ? "已複製" : "Copied") : (zh ? "複製" : "Copy"); weight: 1; onTap: { copy("${logs.day} ${entry.text}" + (entry.project != "" ? " [${entry.project}]" : "")); copiedLog = entry.id } }
                       Button { text: zh ? "編輯" : "Edit"; weight: 1; onTap: { logDraft = join(drop(split(entry.text, " · "), 1), " · "); editingLog = entry.id } }
                       Button { text: zh ? "刪除" : "Delete"; weight: 1; color: red; onTap: deleteLog = entry.id }
                     }

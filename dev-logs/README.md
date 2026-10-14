@@ -16,7 +16,7 @@ Screenshots use fixed English examples rendered by the launcher. No personal log
 
 ## What it does
 
-- **Logs:** write concise development milestones. Browse and switch by day, with 40 entries per page. Tap an entry to copy, edit (the time stays) or delete it; deleted lines are kept in local trash. Storage uses one Markdown file per month, with a full date and time on each entry.
+- **Logs:** write concise development milestones. Browse and switch by day, with 40 entries per page. Tap an entry to copy, edit (the time stays) or delete it; deleted lines are kept in local trash. Each entry can name its project; filter by project next to the date, and a log written while a project is selected joins it. Storage uses one Markdown file per month, with a full date and time on each entry.
 - **Files:** browse inside your home directory as a list or as a grid of pixel folder and file icons, with a tappable path; search names (and optionally Markdown text) below the current folder; create, view and edit Markdown; confirm deletion before moving a file into recoverable local trash. Hidden files are omitted; file browsing uses 40 items per page.
 - **System:** collect local widget, style, guest-shell and selected service diagnostics. Filter **Errors / Warnings / All**; Errors is the default. Expand a record and copy only that report. The collector keeps the newest 500 records. **Analyze with agent** asks the launcher's default coding agent to explain the problem, list likely causes and suggest a fix; **Fix in terminal** lets the agent carry out the fix where you can watch it; **Report to the Omalauncher author** opens a prefilled GitHub issue after hiding your home path, user name, e-mail addresses and keys.
 - **Settings** (the fourth tab; **Refresh** is at the top right): choose English on the left or 繁體中文 on the right; messages, copied reports and the heading of a new log file follow it. Copy project instructions for Codex or Claude to record important development changes, verification results and unresolved problems in 1–3 sentences.
@@ -53,13 +53,13 @@ After importing `widget.owl`, tap **Set up**. The widget contains the helper pro
 The same command can be used manually:
 
 ```sh
-~/.local/bin/oma-devlogs log 'Sample App: implemented daily filtering. Pagination checks passed; device review remains pending.'
+~/.local/bin/oma-devlogs log --project 'Sample App' 'Implemented daily filtering. Pagination checks passed; device review remains pending.'
 ~/.local/bin/oma-devlogs history
 ~/.local/bin/oma-devlogs history 2026-10-01
 ~/.local/bin/oma-devlogs browse ~/projects
 ```
 
-Dates above are examples. Agent instructions should require real results, state when verification is pending, and avoid secrets or duplicate entries.
+Without `--project`, the project is the git repository the command runs in, or the folder directly under `~/projects`; otherwise the entry has no project. The file stores it as `- 2026-10-14 10:00 · [Sample App] …`. Dates above are examples. Agent instructions should require real results, state when verification is pending, and avoid secrets or duplicate entries.
 
 ## Agent analysis
 
@@ -119,7 +119,7 @@ DEV LOGS 提供開發日誌、專案 Markdown 與本機系統錯誤紀錄。畫�
 
 「更新」在右上角；「設定」是第四個分頁，可切換語言，左邊 English、右邊繁體中文。「Agent 記錄設定」可複製提示詞給 Codex／Claude，請 agent 保存規則後，以 `~/.local/bin/oma-devlogs log '內容'` 記錄重要功能、變更、驗證結果與待追蹤問題。同一工作合併一筆、簡潔 1–3 句，一般回覆不記錄。工具沒有自動讀取全部回覆或額外呼叫 AI API；「自動更新」只代表畫面資料刷新。
 
-「日誌」點一條即可複製、編輯（保留時間）或刪除（原文移至回收區）。「專案」可切換列表或像素資料夾圖示，並可搜尋目前目錄下的檔名與 Markdown 內容。
+「日誌」點一條即可複製、編輯（保留時間與專案）或刪除（原文移至回收區）。每筆可標記專案（`log --project '名稱'`，未指定時取 git 倉庫名稱或 `~/projects` 下的資料夾名），日期旁可依專案篩選；選定專案時手動寫的日誌也歸入該專案。「專案」可切換列表或像素資料夾圖示，並可搜尋目前目錄下的檔名與 Markdown 內容。
 
 「系統」紀錄由工具讀取本機診斷檔，預設只看錯誤，可切換警告／全部；展開後只複製該筆報告。「Agent 分析」請啟動器的預設 agent 以只讀方式說明問題、原因與修復建議；「在終端修復」在終端中由 agent 執行；「匯報給 Omalauncher 作者」脫敏後開啟預填的 GitHub Issue，由你確認送出。一般終端不會自動被錄製，需用 `~/.local/bin/oma-devlogs-terminal` 開啟有 stderr 診斷的終端。收集時間不等於發生時間，紀錄也不保證能判斷閃退原因。
 
