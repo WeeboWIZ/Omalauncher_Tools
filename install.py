@@ -56,9 +56,14 @@ def main():
             if file.is_file():
                 write(destination+'/'+file.name, file.read_bytes(), folder=='bin')
     for file in sorted((ROOT/'widgets').glob('*.owl')):
-        write('.config/omalauncher/widgets/'+file.name, build_store.render(file.read_text()).encode())
+        target = file.name
+        if file.name == '47-voice-input.owl' and (home/'.config/omalauncher/widgets/market-weebowiz-dictation.owl').exists():
+            target = 'market-weebowiz-dictation.owl'
+        write('.config/omalauncher/widgets/'+target, build_store.render(file.read_text()).encode())
     # The widgets show their own setup button until this names the programs they were built with.
     write(build_store.MARKER, build_store.payload_id().encode())
+    for widget_marker in build_store.WIDGET_MARKERS.values():
+        write(widget_marker, build_store.payload_id().encode())
     print('Installed Terminal Voice and Dictation. Personal settings and conversation data were preserved.')
     print('Updated files backed up at:', backup)
     print('After updating an already-running version, restart Linux once to reload its voice service.')

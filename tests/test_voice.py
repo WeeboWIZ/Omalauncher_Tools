@@ -270,6 +270,8 @@ class VoiceTests(unittest.TestCase):
             self.assertNotIn('__',tile.split('"""')[0])
             self.assertNotIn(directory,tile)
             self.assertEqual((home/build_store.MARKER).read_text(),build_store.payload_id())
+            for marker in build_store.WIDGET_MARKERS.values():
+                self.assertEqual((home/marker).read_text(),build_store.payload_id())
             self.assertTrue(os.access(home/'.local/bin/oma-voice',os.X_OK))
             self.assertTrue(list((home/'.local/share/oma-voice/install-backups').rglob('oma_voice.py')))
 
@@ -323,6 +325,7 @@ class VoiceTests(unittest.TestCase):
                 self.assertEqual((home/target).read_text(),file.read_text())
                 self.assertEqual(os.access(home/target,os.X_OK),executable)
             self.assertEqual((home/build_store.MARKER).read_text(),build_store.payload_id())
+            self.assertEqual((home/build_store.WIDGET_MARKERS['terminal-voice']).read_text(),build_store.payload_id())
             self.assertEqual((home/'.cache/oma-voice/setup-state').read_text(),'done')
             language = home/'.config/omalauncher/voice-ui-language'
             subprocess.run(['bash','-c',script],env=dict(os.environ,HOME=directory),check=True)
@@ -334,6 +337,26 @@ class VoiceTests(unittest.TestCase):
             (home/build_store.MARKER).write_text('3.1-00000000')
             subprocess.run(['bash','-c',script],env=dict(os.environ,HOME=directory),check=True)
             self.assertEqual(language.read_text(),'en')
+            # Installing an older store tile must not overwrite newer shared programs.
+            newer = '99.0-aabbccdd'
+            (home/build_store.MARKER).write_text(newer)
+            program = home/'.local/share/oma-voice/oma_voice.py'
+            program.write_text('newer program')
+            subprocess.run(['bash','-c',script],env=dict(os.environ,HOME=directory),check=True)
+            self.assertEqual((home/build_store.MARKER).read_text(),newer)
+            self.assertEqual(program.read_text(),'newer program')
+            self.assertEqual((home/build_store.WIDGET_MARKERS['terminal-voice']).read_text(),build_store.payload_id())
+
+    def test_installer_updates_the_active_store_dictation_tile(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            tile = home/'.config/omalauncher/widgets/market-weebowiz-dictation.owl'
+            tile.parent.mkdir(parents=True)
+            tile.write_text('old store tile')
+            subprocess.run([sys.executable,str(ROOT/'install.py'),'--skip-deps'],
+                           env=dict(os.environ,HOME=directory),check=True,stdout=subprocess.DEVNULL)
+            self.assertEqual(tile.read_text(),build_store.render((ROOT/'widgets/47-voice-input.owl').read_text()))
+            self.assertFalse((tile.parent/'47-voice-input.owl').exists())
 
 if __name__ == '__main__':
     unittest.main()

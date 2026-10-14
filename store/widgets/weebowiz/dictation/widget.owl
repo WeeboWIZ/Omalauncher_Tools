@@ -3,12 +3,13 @@ widget "Dictation" {
  order: 7
  size: 3x4
  minSize: 3x3
- meta { owl: 6; description: "Dictate by voice and send the text to a Codex chat or a tmux terminal running Claude or any CLI. English, Chinese, Spanish, German, French, Japanese, Korean."; version: "3.4.2"; license: "MIT"; category: "productivity" }
+ meta { owl: 6; description: "Dictate by voice and send the text to a Codex chat or a tmux terminal running Claude or any CLI. English, Chinese, Spanish, German, French, Japanese, Korean."; version: "3.4.3"; license: "MIT"; category: "productivity" }
  requires { pacman: ["python", "espeak-ng", "libpulse", "mpg123", "tmux", "curl", "util-linux"] }
  source uiLanguage = file("~/.config/omalauncher/voice-ui-language")
- source installed = file("~/.local/share/oma-voice/store-version")
+ source installed = file("~/.local/share/oma-voice/dictation-version")
+ source payloadVersion = file("~/.local/share/oma-voice/store-version")
  source setupState = file("~/.cache/oma-voice/setup-state")
- let ready = installed == "3.4.2-db2bfdfb"
+ let ready = installed == "3.4.3-db2bfdfb" || (installed == "" && payloadVersion == "3.4.3-db2bfdfb")
  let setupText = setupState == "installing" && !ready ? (uiLanguage == "zh" ? "安裝中，約需一分鐘…" : uiLanguage == "es" ? "Instalando, cerca de un minuto…" : uiLanguage == "de" ? "Installation läuft, etwa eine Minute…" : uiLanguage == "fr" ? "Installation, environ une minute…" : uiLanguage == "ja" ? "インストール中、約1分…" : uiLanguage == "ko" ? "설치 중, 약 1분…" : "Installing, about a minute…") : setupState == "failed" ? (uiLanguage == "zh" ? "安裝失敗，請查看 ~/.cache/oma-voice/setup.log" : uiLanguage == "es" ? "La instalación falló: consulta ~/.cache/oma-voice/setup.log" : uiLanguage == "de" ? "Installation fehlgeschlagen: siehe ~/.cache/oma-voice/setup.log" : uiLanguage == "fr" ? "Échec de l’installation : voir ~/.cache/oma-voice/setup.log" : uiLanguage == "ja" ? "インストール失敗：~/.cache/oma-voice/setup.log を確認" : uiLanguage == "ko" ? "설치 실패: ~/.cache/oma-voice/setup.log 확인" : "Setup failed: see ~/.cache/oma-voice/setup.log") : installed == "" ? (uiLanguage == "zh" ? "首次使用：把播報與聽寫程式寫入 ~/.local，並下載 edge-tts 線上語音。" : uiLanguage == "es" ? "Primer uso: escribe los programas de voz y dictado en ~/.local y descarga edge-tts para la voz en línea." : uiLanguage == "de" ? "Erste Nutzung: schreibt die Programme für Sprachausgabe und Diktat nach ~/.local und lädt edge-tts für die Online-Stimme." : uiLanguage == "fr" ? "Première utilisation : écrit les programmes de voix et de dictée dans ~/.local et télécharge edge-tts pour la voix en ligne." : uiLanguage == "ja" ? "初回：読み上げと音声入力のプログラムを ~/.local に書き込み、オンライン音声用の edge-tts をダウンロードします。" : uiLanguage == "ko" ? "처음 사용: 음성 읽기와 받아쓰기 프로그램을 ~/.local 에 쓰고 온라인 음성용 edge-tts 를 내려받습니다." : "First use: writes the voice and dictation programs to ~/.local and downloads edge-tts for online speech.") : (uiLanguage == "zh" ? "程式有新版，更新後才能使用。" : uiLanguage == "es" ? "Hay una actualización de los programas; instálala para continuar." : uiLanguage == "de" ? "Für die Programme gibt es ein Update; zum Fortfahren installieren." : uiLanguage == "fr" ? "Les programmes ont une mise à jour ; installez-la pour continuer." : uiLanguage == "ja" ? "プログラムの更新があります。続けるには更新してください。" : uiLanguage == "ko" ? "프로그램 업데이트가 있습니다. 계속하려면 설치하세요." : "The programs have an update; install it to continue.")
  source voice = file("~/.cache/oma-voice/state.json") json
  source latest = file("~/.cache/oma-speak/latest.txt")
@@ -42,6 +43,12 @@ case "$(cut -d- -f1 "$HOME/.local/share/oma-voice/store-version" 2>/dev/null)" i
   "") [ -f "$share/oma-voice/oma_voice.py" ] && earlier=yes ;;
 esac
 [ "$earlier" = yes ] && [ ! -f "$language" ] && mkdir -p "$HOME/.config/omalauncher" && printf zh > "$language"
+# A previously installed newer widget must keep its newer shared programs.
+current_version="$(cut -d- -f1 "$HOME/.local/share/oma-voice/store-version" 2>/dev/null || true)"
+payload_newer=no
+if [ -n "$current_version" ] && [ "$current_version" != "3.4.3" ] &&
+   [ "$(printf '%s\n%s\n' "3.4.3" "$current_version" | sort -V | tail -n 1)" = "$current_version" ]; then payload_newer=yes; fi
+if [ "$payload_newer" = no ]; then
 put "$HOME/.local/share/oma-voice/language.py" <<'OMA_VOICE_FILE_0_END'
 '''Interface languages, the text shown in them, and which language a text should be spoken in.'''
 from pathlib import Path
@@ -1316,7 +1323,9 @@ venv="$share/oma-voice/venv"
 # Stop the old voice service and dictation page; the widget starts the new ones.
 pkill -f '^[^ ]*python[0-9.]* .*/oma_voice\.py daemon$' || true
 pkill -f '^[^ ]*python[0-9.]* .*/oma-speak/server\.py$' || true
-printf '%s' '3.4.2-db2bfdfb' > "$HOME/.local/share/oma-voice/store-version"
+printf '%s' '3.4.3-db2bfdfb' > "$HOME/.local/share/oma-voice/store-version"
+fi
+printf '%s' '3.4.3-db2bfdfb' > "$HOME/.local/share/oma-voice/dictation-version"
 say done
 """) }
    Button { fill: width; height: 36; text: (uiLanguage == "zh" ? "詳情" : uiLanguage == "es" ? "Detalles" : uiLanguage == "de" ? "Details" : uiLanguage == "fr" ? "Détails" : uiLanguage == "ja" ? "詳細" : uiLanguage == "ko" ? "상세" : "Details"); onTap: screen() }

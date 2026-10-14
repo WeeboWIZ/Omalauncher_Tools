@@ -9,13 +9,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ui_strings
 
 ROOT = Path(__file__).resolve().parent.parent
-VERSION = '3.4.2'
+VERSION = '3.4.3'
 AUTHOR = 'weebowiz'
 # template -> store folder. Each folder's preview.png and README.md are kept by hand.
 WIDGETS = {'46-speak.owl': 'terminal-voice', '47-voice-input.owl': 'dictation'}
 # repo folder -> (folder under $HOME, executable)
 PAYLOAD = [('voice', '.local/share/oma-voice', False), ('dictation', '.local/share/oma-speak', False), ('bin', '.local/bin', True)]
 MARKER = '.local/share/oma-voice/store-version'
+WIDGET_MARKERS = {'terminal-voice': '.local/share/oma-voice/terminal-voice-version',
+                  'dictation': '.local/share/oma-voice/dictation-version'}
 MAX_BYTES = 256 * 1024
 # Whole command lines of the running voice service and dictation page, as pkill -f patterns.
 SERVICES = [r'^[^ ]*python[0-9.]* .*/oma_voice\.py daemon$', r'^[^ ]*python[0-9.]* .*/oma-speak/server\.py$']
@@ -39,7 +41,7 @@ def payload_id():
     return VERSION+'-'+digest.hexdigest()[:8]
 
 
-def setup_script():
+def setup_script(widget='terminal-voice'):
     lines = [
         '# Writes the voice and dictation programs kept in this widget into ~/.local, then',
         '# makes a Python environment for edge-tts (online speech). Log: ~/.cache/oma-voice/setup.log',
@@ -61,6 +63,12 @@ def setup_script():
         '  "") [ -f "$share/oma-voice/oma_voice.py" ] && earlier=yes ;;',
         'esac',
         '[ "$earlier" = yes ] && [ ! -f "$language" ] && mkdir -p "$HOME/.config/omalauncher" && printf zh > "$language"',
+        '# A previously installed newer widget must keep its newer shared programs.',
+        'current_version="$(cut -d- -f1 "$HOME/%s" 2>/dev/null || true)"' % MARKER,
+        'payload_newer=no',
+        'if [ -n "$current_version" ] && [ "$current_version" != "%s" ] &&' % VERSION,
+        '   [ "$(printf \'%%s\\n%%s\\n\' "%s" "$current_version" | sort -V | tail -n 1)" = "$current_version" ]; then payload_newer=yes; fi' % VERSION,
+        'if [ "$payload_newer" = no ]; then',
     ]
     executables = []
     for number, (file, target, executable) in enumerate(payload_files()):
@@ -81,6 +89,8 @@ def setup_script():
         # No -u: under proot id says 0 while the processes keep the app's real user, so it matched nothing.
         *('pkill -f \'%s\' || true' % pattern for pattern in SERVICES),
         'printf \'%%s\' \'%s\' > "$HOME/%s"' % (payload_id(), MARKER),
+        'fi',
+        'printf \'%%s\' \'%s\' > "$HOME/%s"' % (payload_id(), WIDGET_MARKERS[widget]),
         'say done',
     ]
     script = '\n'.join(lines)
@@ -107,7 +117,8 @@ def render(template):
     text = re.sub(r'_\("((?:[^"\\]|\\.)*)"\)', lambda found: by_language(dict(zip(codes, (found.group(1),)+ui_strings.STRINGS[found.group(1)]))), text)
     text = text.replace('__LANGUAGE_NEXT__', by_language(dict(zip(codes, codes[1:]+codes[:1]))))
     text = text.replace('__LANGUAGE_NAME__', by_language(ui_strings.NAMES)).replace('__LANGUAGE_SHORT__', by_language(ui_strings.SHORT))
-    text = text.replace('__SETUP_COMMAND__', '\n'+setup_script()+'\n')
+    widget = 'terminal-voice' if template.startswith('widget "Terminal Voice"') else 'dictation'
+    text = text.replace('__SETUP_COMMAND__', '\n'+setup_script(widget)+'\n')
     if '__' in re.sub(r'__(file|name|doc|main)__', '', text.split('"""')[0]):
         sys.exit('a placeholder was left in the widget')
     return text
