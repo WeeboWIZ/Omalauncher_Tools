@@ -151,6 +151,9 @@ def terminal_send(pane_id, text):
         raise ValueError('無效的終端窗格')
     text = ' '.join(text.splitlines()).strip()
     for keys in (['-l', text], ['Enter']):
+        if keys == ['Enter']:
+            # Codex and Claude read an Enter right after fast typing as part of a paste: a newline, not submit.
+            time.sleep(0.5)
         result = subprocess.run(['tmux', 'send-keys', '-t', pane_id, *keys],
                                 capture_output=True, text=True, timeout=5)
         if result.returncode:
