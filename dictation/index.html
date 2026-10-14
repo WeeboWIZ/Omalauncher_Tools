@@ -50,6 +50,8 @@ textarea::placeholder{color:#737b97}
 #refined-panel h2{font-size:15px;color:var(--accent);margin:0 0 10px}
 #refined-text{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;line-height:1.7}
 .send-choices{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.target-picker{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px}
+#target-select{flex:1;max-width:260px}
 @media(max-width:360px){.send-choices{grid-template-columns:1fr}}
 .send-note{font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center}
 details{border-top:1px solid var(--line);margin-top:24px;padding-top:14px;color:var(--muted);font-size:12px}
@@ -81,6 +83,7 @@ summary{cursor:pointer;width:fit-content}details p{line-height:1.7;margin:10px 0
 <button id="refine" class="refine-action">一鍵 Agent 整理</button>
 <p id="refine-state" role="status" aria-live="polite"></p>
 <section id="refined-panel" hidden><h2>整理稿</h2><p id="refined-text"></p></section>
+<div class="target-picker"><label for="target-select">送出目標</label><select id="target-select"><option value="codex">Codex 會話</option><option value="terminal">終端 / Claude</option></select></div>
 <p id="target-label" class="send-note"></p>
 <div class="send-choices"><button id="send-original">送出原文</button><button id="send-refined" disabled>送出整理稿</button></div>
 <button id="save" class="primary">保存到首頁</button>
@@ -109,7 +112,13 @@ Object.assign(UI_STRINGS, {
  '送出失敗，請查看首頁狀態。': {en:'Send failed. Check the home widget status.',es:'Error al enviar. Revisa el widget.',de:'Senden fehlgeschlagen. Widget-Status prüfen.',fr:'Échec de l’envoi. Vérifiez le widget.',ja:'送信に失敗しました。ホームの状態を確認してください。',ko:'전송 실패. 홈 위젯 상태를 확인하세요.'},
  '整理會把文字傳給 Codex。內容不會自動送到目前目標。': {en:'Refining sends text to Codex. It does not send it to the selected target.',es:'Organizar envía texto a Codex. No lo envía automáticamente al destino.',de:'Überarbeiten sendet Text an Codex. Er wird nicht automatisch an das Ziel gesendet.',fr:'La révision envoie le texte à Codex. Elle ne l’envoie pas automatiquement à la cible.',ja:'整理には Codex に文字を送ります。送信先には自動送信されません。',ko:'정리는 글을 Codex로 보냅니다. 대상으로 자동 전송되지 않습니다.'},
  '目前送出目標：': {en:'Current target: ',es:'Destino actual: ',de:'Aktuelles Ziel: ',fr:'Cible actuelle : ',ja:'現在の送信先：',ko:'현재 대상: '},
- 'Codex 會話': {en:'Codex chat',es:'chat de Codex',de:'Codex-Chat',fr:'chat Codex',ja:'Codex チャット',ko:'Codex 채팅'}
+ 'Codex 會話': {en:'Codex chat',es:'chat de Codex',de:'Codex-Chat',fr:'chat Codex',ja:'Codex チャット',ko:'Codex 채팅'},
+ '終端 / Claude': {en:'Terminal / Claude',es:'Terminal / Claude',de:'Terminal / Claude',fr:'Terminal / Claude',ja:'ターミナル / Claude',ko:'터미널 / Claude'},
+ '送出目標': {en:'Send to',es:'Enviar a',de:'Senden an',fr:'Envoyer vers',ja:'送信先',ko:'보낼 곳'},
+ '正在切換送出目標…': {en:'Switching target…',es:'Cambiando destino…',de:'Ziel wird gewechselt…',fr:'Changement de cible…',ja:'送信先を切り替え中…',ko:'대상 변경 중…'},
+ '送出目標已切換。': {en:'Target changed.',es:'Destino cambiado.',de:'Ziel gewechselt.',fr:'Cible modifiée.',ja:'送信先を切り替えました。',ko:'대상을 변경했습니다.'},
+ '切換目標失敗。': {en:'Could not change target.',es:'No se pudo cambiar el destino.',de:'Zielwechsel fehlgeschlagen.',fr:'Impossible de changer de cible.',ja:'送信先を変更できませんでした。',ko:'대상을 변경하지 못했습니다.'},
+ '終端尚未連接；請先執行 tmux new -A -s oma-voice。': {en:'Terminal disconnected. Run tmux new -A -s oma-voice first.',es:'Terminal desconectado. Ejecuta tmux new -A -s oma-voice primero.',de:'Terminal nicht verbunden. Zuerst tmux new -A -s oma-voice ausführen.',fr:'Terminal déconnecté. Exécutez d’abord tmux new -A -s oma-voice.',ja:'ターミナル未接続。先に tmux new -A -s oma-voice を実行してください。',ko:'터미널이 연결되지 않았습니다. 먼저 tmux new -A -s oma-voice를 실행하세요.'}
 });
 let uiLanguage='zh';
 // The language spoken by default for each interface language.
@@ -138,13 +147,20 @@ $('ui-language').onchange=async()=>{
  catch(error){$('ui-language').value=uiLanguage;status.textContent='Language change failed: '+error.message;}
 };
 fetch('/language').then(r=>r.text()).then(value=>{uiLanguage=SPEECH[value.trim()]?value.trim():'en';applyLanguage();if(!localStorage.getItem('oma-speak-language'))$('language').value=SPEECH[uiLanguage];}).catch(()=>{});
-let currentTarget={source:'codex',source_name:'Terminal'};
+let currentTarget={source:'codex',source_name:'Terminal',connected:false},switchingTarget=false;
 function renderTarget(){
  const name=currentTarget.source==='terminal'?(currentTarget.source_name||'Terminal'):localize('Codex 會話');
- $('target-label').textContent=localize('目前送出目標：')+name;
+ $('target-select').value=currentTarget.source==='terminal'?'terminal':'codex';
+ $('target-label').textContent=currentTarget.source==='terminal'&&!currentTarget.connected?localize('終端尚未連接；請先執行 tmux new -A -s oma-voice。'):localize('目前送出目標：')+name;
 }
-async function refreshTarget(){try{const r=await fetch('/target',{headers:{'X-Speak-Token':token},cache:'no-store'});if(r.ok){currentTarget=await r.json();renderTarget();}}catch(e){}}
-refreshTarget();
+async function refreshTarget(){const r=await fetch('/target',{headers:{'X-Speak-Token':token},cache:'no-store',signal:AbortSignal.timeout(5000)});if(!r.ok)throw Error('Target unavailable');currentTarget=await r.json();renderTarget();}
+refreshTarget().catch(()=>{});
+$('target-select').onchange=async()=>{
+ const source=$('target-select').value;switchingTarget=true;controls();status.textContent='正在切換送出目標…';
+ try{currentTarget=await postAction('/target',{source},15000);renderTarget();status.textContent=currentTarget.source==='terminal'&&!currentTarget.connected?'終端尚未連接；請先執行 tmux new -A -s oma-voice。':'送出目標已切換。';}
+ catch(e){renderTarget();status.textContent='切換目標失敗。';}
+ finally{switchingTarget=false;controls();}
+};
 
 const Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
 let recognition=null,wanted=false,timer=null,failures=0,committed='',interim='',afterStop=null;
@@ -154,7 +170,7 @@ function persist(){localStorage.setItem('oma-speak-draft',text.value);}
 let refineSource='',refineTimer=null,sending=false;
 function refineMessage(value){$('refine-state').dataset.original=value;$('refine-state').textContent=localize(value);}
 function clearRefined(){refineSource='';$('refined-panel').hidden=true;$('refined-text').textContent='';$('send-refined').disabled=true;}
-function controls(){ document.body.dataset.listening=String(wanted||!!recognition); $('start').disabled=wanted||!!recognition||!Speech;$('stop').disabled=!wanted&&!recognition;$('language').disabled=wanted||!!recognition;$('refine').disabled=wanted||!!recognition||sending||!text.value.trim();$('send-original').disabled=wanted||!!recognition||sending||!text.value.trim();$('send-refined').disabled=wanted||!!recognition||sending||!refineSource||$('refined-panel').hidden||text.value!==refineSource;text.readOnly=false; }
+function controls(){ document.body.dataset.listening=String(wanted||!!recognition); $('start').disabled=wanted||!!recognition||!Speech;$('stop').disabled=!wanted&&!recognition;$('language').disabled=wanted||!!recognition;$('target-select').disabled=sending||switchingTarget;$('refine').disabled=wanted||!!recognition||sending||!text.value.trim();$('send-original').disabled=wanted||!!recognition||sending||switchingTarget||!text.value.trim();$('send-refined').disabled=wanted||!!recognition||sending||switchingTarget||!refineSource||$('refined-panel').hidden||text.value!==refineSource;text.readOnly=false; }
 function halt(message){wanted=false;clearTimeout(timer);status.textContent=message;controls();}
 function startSession(){
  if(!wanted||recognition)return;
@@ -231,8 +247,10 @@ $('refine').onclick=async()=>{
 };
 async function sendVersion(version){
  if(version==='refined'&&(!refineSource||text.value!==refineSource||$('refined-panel').hidden)){refineMessage('原文已變更，請重新整理。');return;}
- sending=true;controls();status.textContent='正在送出…';await refreshTarget();
+ sending=true;controls();status.textContent='正在送出…';
  try{
+  await refreshTarget();
+  if(currentTarget.source==='terminal'&&!currentTarget.connected){status.textContent='終端尚未連接；請先執行 tmux new -A -s oma-voice。';return;}
   if(version==='original'&&!await save())return;
   await postAction('/send',{version},30000);status.textContent='已送到目前目標。';
  }catch(e){status.textContent='送出失敗，請查看首頁狀態。';}

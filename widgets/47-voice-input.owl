@@ -55,6 +55,11 @@ widget "Dictation" {
     if !ready { Text { text: _("Not set up yet: go back and tap Set up on the tile."); color: yellow; maxLines: 3 } }
     Button { fill: width; height: 44; text: _("Start dictation"); onTap: run("bash ~/.local/bin/speak") }
     Text { text: _("Send to: ${voice.source == 'terminal' ? (voice.source_name ?? 'Terminal') : 'Codex chat'}"); color: accent; maxLines: 2 }
+    Row {
+     gap: 8
+     Button { weight: 1; height: 44; text: voice.source == "terminal" ? _("Codex chat") : _("Codex chat selected"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py source codex --json") }
+     Button { weight: 1; height: 44; text: voice.source == "terminal" ? _("Terminal / Claude selected") : _("Terminal / Claude"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py source terminal --json") }
+    }
     Text { text: latest == "" || latest == null ? _("Start → speak → stop and save") : latest; maxLines: 160 }
     Button { fill: width; height: 44; text: _("Refine with Agent"); onTap: run("python ~/.local/bin/oma-refine-dictation --start") }
     Text { text: refineMessage; style: small; color: refineStatus.phase == "failed" ? red : muted; maxLines: 3 }

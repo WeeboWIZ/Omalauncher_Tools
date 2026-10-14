@@ -1,6 +1,6 @@
 # Dictation (語音輸入)
 
-Dictate in the browser, optionally refine the text with the locally authenticated Codex CLI, then review and send the original or refined draft to the Codex chat or tmux terminal that Terminal Voice is following.
+Dictate in the browser, optionally refine the text with the locally authenticated Codex CLI, then review the draft, select Codex chat or Terminal / Claude on the same page, and send the original or refined draft. The widget details also offer target selection and both send actions.
 Interface in English (default), 中文, Español, Deutsch, Français, 日本語 and 한국어; the page has a list for the language you
 speak. Chrome is recommended; the browser asks for the microphone.
 

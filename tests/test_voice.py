@@ -87,6 +87,13 @@ class VoiceTests(unittest.TestCase):
             share.mkdir(parents=True)
             bin_dir.mkdir(parents=True)
             (share/'language.py').write_text('def local(text): return text\n')
+            (share/'oma_voice.py').write_text(
+                'import json,sys\nfrom pathlib import Path\n'
+                'path=Path.home()/".cache/oma-voice/state.json"\n'
+                'source=sys.argv[2]\n'
+                'path.write_text(json.dumps({"source":source,"source_name":"tmux test" if source=="terminal" else "Codex",'
+                '"term_pane":"%1" if source=="terminal" else ""}))\n'
+                'print(json.dumps({"ok":True}))\n')
             for name in ('oma-refine-dictation','oma-send-dictation'):
                 (bin_dir/name).write_bytes((ROOT/'bin'/name).read_bytes())
             codex = bin_dir/'codex'
@@ -121,6 +128,10 @@ class VoiceTests(unittest.TestCase):
                     voice_state.parent.mkdir(parents=True)
                     voice_state.write_text(json.dumps({'source':'terminal','source_name':'tmux test'}))
                     self.assertEqual(request('/target')['source_name'],'tmux test')
+                    self.assertFalse(request('/target')['connected'])
+                    self.assertEqual(request('/target',{'source':'codex'})['source'],'codex')
+                    self.assertEqual(request('/target',{'source':'terminal'})['source'],'terminal')
+                    self.assertTrue(request('/target')['connected'])
                     self.assertEqual(request('/refine',{'text':'Please fix thing thing'})['phase'],'refining')
                     deadline=time.monotonic()+5
                     while time.monotonic()<deadline:

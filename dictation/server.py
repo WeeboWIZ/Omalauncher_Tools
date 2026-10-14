@@ -47,7 +47,8 @@ class Handler(BaseHTTPRequestHandler):
             except (OSError, ValueError):
                 current = {}
             target = {'source': current.get('source', 'codex'),
-                      'source_name': str(current.get('source_name', 'Terminal'))[:80]}
+                      'source_name': str(current.get('source_name', 'Terminal'))[:80],
+                      'connected': bool(current.get('term_pane'))}
             return self.reply(200, json.dumps(target, ensure_ascii=False), 'application/json; charset=utf-8')
         if self.path == '/refine-status':
             if not hmac.compare_digest(self.headers.get('X-Speak-Token', ''), TOKEN):
@@ -71,7 +72,7 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(200, PAGE_PATH.read_text(), 'text/html; charset=utf-8')
 
     def do_POST(self):
-        if (self.path not in ('/text', '/language', '/refine', '/send') or self.headers.get('Origin') != ORIGIN
+        if (self.path not in ('/text', '/language', '/refine', '/send', '/target') or self.headers.get('Origin') != ORIGIN
                 or not hmac.compare_digest(self.headers.get('X-Speak-Token', ''), TOKEN)):
             return self.reply(403, 'Forbidden')
         try:
@@ -89,6 +90,24 @@ class Handler(BaseHTTPRequestHandler):
                 os.chmod(temp, 0o600)
                 temp.replace(LANG_PATH)
                 return self.reply(200, 'Language saved')
+            if self.path == '/target':
+                source = body.get('source')
+                if source not in ('codex', 'terminal'):
+                    raise ValueError()
+                result = subprocess.run([sys.executable, str(Path.home()/'.local/share/oma-voice/oma_voice.py'),
+                                         'source', source, '--json'],
+                                        capture_output=True, text=True, timeout=12)
+                if result.returncode:
+                    return self.reply(503, json.dumps({'ok': False, 'error': result.stderr[-300:] or 'Target unavailable'}),
+                                      'application/json; charset=utf-8')
+                try:
+                    current = json.loads((Path.home()/'.cache/oma-voice/state.json').read_text())
+                except (OSError, ValueError):
+                    current = {}
+                target = {'ok': True, 'source': current.get('source', source),
+                          'source_name': str(current.get('source_name', 'Terminal'))[:80],
+                          'connected': bool(current.get('term_pane'))}
+                return self.reply(200, json.dumps(target, ensure_ascii=False), 'application/json; charset=utf-8')
             if self.path == '/send':
                 version = body.get('version')
                 if version not in ('original', 'refined'):
