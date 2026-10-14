@@ -482,6 +482,12 @@ class Reader:
                 raise ValueError('請先輸入內容（最多 16000 字）')
             if any(ord(c) < 32 and c not in '\n\t' for c in text):
                 raise ValueError('文字含有控制字元')
+            # A new chat may have appeared during the 15-second background backoff.
+            # An explicit Send must use the current target immediately.
+            if self.config['source'] == 'codex' and self.config['follow_latest']:
+                latest = latest_session()
+                if latest != self.config['thread']:
+                    self.bind(latest)
             self.stop()
             if self.config['source'] == 'terminal':
                 pane, label, _ = terminal_snapshot()

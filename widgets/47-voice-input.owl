@@ -12,9 +12,8 @@ widget "Dictation" {
  let setupText = setupState == "installing" && !ready ? _("Installing, about a minute…") : setupState == "failed" ? _("Setup failed: see ~/.cache/oma-voice/setup.log") : installed == "" ? _("First use: writes the voice and dictation programs to ~/.local and downloads edge-tts for online speech.") : _("The programs have an update; install it to continue.")
  source voice = file("~/.cache/oma-voice/state.json") json
  source latest = file("~/.cache/oma-speak/latest.txt")
- state result = ""
- state sending = false
- on result { sending = false }
+ source sendStatus = file("~/.cache/oma-speak/send-status.json") json
+ let sendMessage = sendStatus.phase == "sending" ? _("Sending…") : sendStatus.phase == "sent" ? _("Queued for current target") : sendStatus.phase == "failed" ? (sendStatus.error_ui ?? _("Send failed")) : _("Save, then send")
  onTap: screen()
  Column {
   fill: true
@@ -29,11 +28,10 @@ widget "Dictation" {
   Button { fill: width; height: 36; text: _("Start dictation"); onTap: run("bash ~/.local/bin/speak") }
   Text { text: _("Send to: ${voice.source == 'terminal' ? (voice.source_name ?? 'Terminal') : 'Codex chat'}"); style: small; color: accent; maxLines: 2 }
   Text { text: latest == "" || latest == null ? _("Start → speak → stop and save") : latest; style: small; maxLines: 3; weight: 1 }
-  Text { text: result == "" ? _("Save, then send") : parseJson(result).ok ? _("Sent to current target") : parseJson(result).error_ui ?? _("Request completed"); style: small; maxLines: 2 }
+  Text { text: sendMessage; style: small; color: sendStatus.phase == "failed" ? red : muted; maxLines: 2 }
   Row {
    gap: 4
-   if sending { Text { text: _("Sending…"); style: small; color: accent; weight: 1 } }
-   else { Button { height: 36; weight: 1; text: _("Send"); onTap: { sending = true; result = run("python ~/.local/bin/oma-send-dictation") } } }
+   Button { height: 36; weight: 1; text: sendStatus.phase == "sending" ? _("Sending…") : _("Send"); onTap: run("python ~/.local/bin/oma-send-dictation") }
    Button { height: 36; weight: 1; text: _("Details"); onTap: screen() }
   }
   }
@@ -54,24 +52,23 @@ widget "Dictation" {
     Button { fill: width; height: 44; text: _("Start dictation"); onTap: run("bash ~/.local/bin/speak") }
     Text { text: _("Send to: ${voice.source == 'terminal' ? (voice.source_name ?? 'Terminal') : 'Codex chat'}"); color: accent; maxLines: 2 }
     Text { text: latest == "" || latest == null ? _("Start → speak → stop and save") : latest; maxLines: 160 }
-    Text { text: result == "" ? _("Save, then send") : parseJson(result).ok ? _("Sent to current target") : parseJson(result).error_ui ?? _("Request completed"); style: small; maxLines: 3 }
+    Text { text: sendMessage; style: small; color: sendStatus.phase == "failed" ? red : muted; maxLines: 3 }
     Row {
      gap: 4
-     if sending { Text { text: _("Sending…"); color: accent; weight: 1 } }
-     else { Button { weight: 1; height: 44; text: _("Send to target"); onTap: { sending = true; result = run("python ~/.local/bin/oma-send-dictation") } } }
+     Button { weight: 1; height: 44; text: sendStatus.phase == "sending" ? _("Sending…") : _("Send to target"); onTap: run("python ~/.local/bin/oma-send-dictation") }
      Button { weight: 1; height: 44; text: _("Copy text"); onTap: copy(latest) }
     }
     Text { text: _("Interface language"); color: accent; bold: true }
     Grid {
      columns: 2
      gap: 8
-     Button { fill: width; height: 44; text: "English"; onTap: run("mkdir -p ~/.config/omalauncher && printf en > ~/.config/omalauncher/voice-ui-language") }
-     Button { fill: width; height: 44; text: "中文"; onTap: run("mkdir -p ~/.config/omalauncher && printf zh > ~/.config/omalauncher/voice-ui-language") }
-     Button { fill: width; height: 44; text: "Español"; onTap: run("mkdir -p ~/.config/omalauncher && printf es > ~/.config/omalauncher/voice-ui-language") }
-     Button { fill: width; height: 44; text: "Deutsch"; onTap: run("mkdir -p ~/.config/omalauncher && printf de > ~/.config/omalauncher/voice-ui-language") }
-     Button { fill: width; height: 44; text: "Français"; onTap: run("mkdir -p ~/.config/omalauncher && printf fr > ~/.config/omalauncher/voice-ui-language") }
-     Button { fill: width; height: 44; text: "日本語"; onTap: run("mkdir -p ~/.config/omalauncher && printf ja > ~/.config/omalauncher/voice-ui-language") }
-     Button { fill: width; height: 44; text: "한국어"; onTap: run("mkdir -p ~/.config/omalauncher && printf ko > ~/.config/omalauncher/voice-ui-language") }
+     Button { fill: width; height: 44; text: uiLanguage == "en" ? "✓ English" : "English"; onTap: run("mkdir -p ~/.config/omalauncher && printf en > ~/.config/omalauncher/voice-ui-language") }
+     Button { fill: width; height: 44; text: uiLanguage == "zh" ? "✓ 中文" : "中文"; onTap: run("mkdir -p ~/.config/omalauncher && printf zh > ~/.config/omalauncher/voice-ui-language") }
+     Button { fill: width; height: 44; text: uiLanguage == "es" ? "✓ Español" : "Español"; onTap: run("mkdir -p ~/.config/omalauncher && printf es > ~/.config/omalauncher/voice-ui-language") }
+     Button { fill: width; height: 44; text: uiLanguage == "de" ? "✓ Deutsch" : "Deutsch"; onTap: run("mkdir -p ~/.config/omalauncher && printf de > ~/.config/omalauncher/voice-ui-language") }
+     Button { fill: width; height: 44; text: uiLanguage == "fr" ? "✓ Français" : "Français"; onTap: run("mkdir -p ~/.config/omalauncher && printf fr > ~/.config/omalauncher/voice-ui-language") }
+     Button { fill: width; height: 44; text: uiLanguage == "ja" ? "✓ 日本語" : "日本語"; onTap: run("mkdir -p ~/.config/omalauncher && printf ja > ~/.config/omalauncher/voice-ui-language") }
+     Button { fill: width; height: 44; text: uiLanguage == "ko" ? "✓ 한국어" : "한국어"; onTap: run("mkdir -p ~/.config/omalauncher && printf ko > ~/.config/omalauncher/voice-ui-language") }
     }
    }
   }

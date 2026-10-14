@@ -15,6 +15,10 @@ widget "Terminal Voice" {
   let offline = service.ok == false
   let replyTime = voice.reply_at == null ? _("Nothing to read yet") : _("Reply ${fmtTime(voice.reply_at, 'MM-dd HH:mm')}")
   let statusText = offline ? _("Service offline · tap Sync") : voice.awaiting ? _("Working · previous reply below") : voice.status_ui ?? _("Connecting…")
+  state detailTab = "read"
+  state actionPending = ""
+  state actionResult = ""
+  on actionResult { actionPending = "" }
   onTap: screen()
   Column {
     fill: true
@@ -50,23 +54,31 @@ widget "Terminal Voice" {
       gap: 10
       Row {
         height: 44
-        Button { weight: 1; height: 44; text: _("Sync reply"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py refresh") }
-        Button { weight: 1; height: 44; text: _("Stop audio"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py stop") }
+        Button { weight: 1; height: 44; text: _("Sync reply"); onTap: { actionPending = "sync"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py refresh --json") } }
+        Button { weight: 1; height: 44; text: _("Stop audio"); onTap: { actionPending = "stop"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py stop --json") } }
         Button { weight: 1; height: 44; text: _("Back"); onTap: close() }
+      }
+      Row {
+        gap: 8
+        Button { weight: 1; height: 44; text: detailTab == "read" ? _("Playback selected") : _("Playback"); onTap: detailTab = "read" }
+        Button { weight: 1; height: 44; text: detailTab == "settings" ? _("Settings selected") : _("Settings"); onTap: detailTab = "settings" }
       }
       Column {
         scroll: true
         fill: width
-        height: max(1, screenHeight - 54)
+        height: max(1, screenHeight - 108)
         gap: 12
         if !ready { Text { text: _("Not set up yet: go back and tap Set up on the tile."); color: yellow; maxLines: 3 } }
         Text { text: statusText; color: offline ? yellow : accent; maxLines: 3 }
-        Text { text: replyTime; style: small; color: muted }
+        if actionPending != "" { Text { text: _("Working…"); color: accent } }
+        if actionPending == "" && actionResult != "" { Text { text: parseJson(actionResult).ok ? (parseJson(actionResult).status_ui ?? _("Done")) : (parseJson(actionResult).error_ui ?? _("Action failed")); color: parseJson(actionResult).ok ? accent : red; maxLines: 3 } }
         Text { text: voice.error_ui ?? ""; style: small; color: red; maxLines: 5 }
+        if detailTab == "read" {
+        Text { text: replyTime; style: small; color: muted }
         Text { text: voice.source == "terminal" ? _("Reading: ${voice.source_name ?? 'Terminal'} · tmux session oma-voice") : _("Reading: Codex chat"); bold: true; color: accent; maxLines: 3 }
         Row {
-          Button { weight: 1; height: 44; text: _("Codex chat"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py source codex") }
-          Button { weight: 1; height: 44; text: _("Terminal / Claude"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py source terminal") }
+          Button { weight: 1; height: 44; text: voice.source == "codex" ? _("Codex chat selected") : _("Codex chat"); onTap: { actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source codex --json") } }
+          Button { weight: 1; height: 44; text: voice.source == "terminal" ? _("Terminal / Claude selected") : _("Terminal / Claude"); onTap: { actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source terminal --json") } }
         }
         if voice.source == "terminal" {
           Text { text: _("Run this in your existing terminal, then start Codex, Claude or another program there. Play reads the current screen; dictation sends to that pane."); style: small; color: muted; maxLines: 7 }
@@ -77,32 +89,44 @@ widget "Terminal Voice" {
         Text { text: _("Completed replies update automatically. Sync refreshes text without replaying older replies."); style: small; maxLines: 4; color: muted }
         }
         Row {
-          Button { weight: 1; height: 44; text: _("Summary"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py replay") }
-          Button { weight: 1; height: 44; text: _("Full reply"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py replay --full") }
+          Button { weight: 1; height: 44; text: _("Summary"); onTap: { actionPending = "play"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py replay --json") } }
+          Button { weight: 1; height: 44; text: _("Full reply"); onTap: { actionPending = "play"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py replay --full --json") } }
         }
         Text { text: voice.source == "terminal" ? _("Terminal screen") : _("Latest reply"); bold: true; color: accent }
         Text { text: voice.full == "" || voice.full == null ? _("Nothing to read yet") : voice.full; maxLines: 160 }
         Button { fill: width; height: 44; text: _("Copy text"); onTap: copy(voice.full ?? "") }
+        }
+        if detailTab == "settings" {
+        Text { text: _("Voice settings"); bold: true; color: accent }
+        if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.follow_latest ? _("Chat: follow latest") : _("Chat: pinned"); onTap: { actionPending = "follow"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py follow --json") } } }
+        if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.auto ? _("Auto-read: on") : _("Auto-read: off"); onTap: { actionPending = "auto"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py auto toggle --json") } } }
+        Row {
+          gap: 8
+          Button { weight: 1; height: 44; text: voice.engine == "online" ? _("Online voice selected") : _("Online voice"); onTap: { actionPending = "engine"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py engine online --json") } }
+          Button { weight: 1; height: 44; text: voice.engine == "offline" ? _("Offline voice selected") : _("Offline voice"); onTap: { actionPending = "engine"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py engine offline --json") } }
+        }
+        Text { text: voice.pause_minutes == 0 ? _("Idle pause: never") : _("Idle pause: ${voice.pause_minutes ?? 10} min"); style: small; color: accent }
+        Row {
+          gap: 8
+          Button { weight: 1; height: 44; text: voice.pause_minutes == 10 ? _("10 minutes selected") : _("10 minutes"); onTap: { actionPending = "pause"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py pause 10 --json") } }
+          Button { weight: 1; height: 44; text: voice.pause_minutes == 0 ? _("Never pause selected") : _("Never pause"); onTap: { actionPending = "pause"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py pause off --json") } }
+        }
+        Input { placeholder: _("Custom minutes (1–1440), then send"); clear: true; onSubmit: { actionPending = "pause"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py pause ${sh(value)} --json") } }
+        Text { text: _("Idle pause stops the service when the tile is off screen and Codex is inactive. It does not slow replies while connected."); style: small; color: muted; maxLines: 4 }
         Text { text: _("Interface language"); bold: true; color: accent }
         Grid {
           columns: 2
           gap: 8
-          Button { fill: width; height: 44; text: "English"; onTap: run("mkdir -p ~/.config/omalauncher && printf en > ~/.config/omalauncher/voice-ui-language") }
-          Button { fill: width; height: 44; text: "中文"; onTap: run("mkdir -p ~/.config/omalauncher && printf zh > ~/.config/omalauncher/voice-ui-language") }
-          Button { fill: width; height: 44; text: "Español"; onTap: run("mkdir -p ~/.config/omalauncher && printf es > ~/.config/omalauncher/voice-ui-language") }
-          Button { fill: width; height: 44; text: "Deutsch"; onTap: run("mkdir -p ~/.config/omalauncher && printf de > ~/.config/omalauncher/voice-ui-language") }
-          Button { fill: width; height: 44; text: "Français"; onTap: run("mkdir -p ~/.config/omalauncher && printf fr > ~/.config/omalauncher/voice-ui-language") }
-          Button { fill: width; height: 44; text: "日本語"; onTap: run("mkdir -p ~/.config/omalauncher && printf ja > ~/.config/omalauncher/voice-ui-language") }
-          Button { fill: width; height: 44; text: "한국어"; onTap: run("mkdir -p ~/.config/omalauncher && printf ko > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: uiLanguage == "en" ? "✓ English" : "English"; onTap: run("mkdir -p ~/.config/omalauncher && printf en > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: uiLanguage == "zh" ? "✓ 中文" : "中文"; onTap: run("mkdir -p ~/.config/omalauncher && printf zh > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: uiLanguage == "es" ? "✓ Español" : "Español"; onTap: run("mkdir -p ~/.config/omalauncher && printf es > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: uiLanguage == "de" ? "✓ Deutsch" : "Deutsch"; onTap: run("mkdir -p ~/.config/omalauncher && printf de > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: uiLanguage == "fr" ? "✓ Français" : "Français"; onTap: run("mkdir -p ~/.config/omalauncher && printf fr > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: uiLanguage == "ja" ? "✓ 日本語" : "日本語"; onTap: run("mkdir -p ~/.config/omalauncher && printf ja > ~/.config/omalauncher/voice-ui-language") }
+          Button { fill: width; height: 44; text: uiLanguage == "ko" ? "✓ 한국어" : "한국어"; onTap: run("mkdir -p ~/.config/omalauncher && printf ko > ~/.config/omalauncher/voice-ui-language") }
         }
-        Text { text: _("Voice settings"); bold: true; color: accent }
-        if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.follow_latest ? _("Chat: follow latest") : _("Chat: pinned"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py follow") } }
-        if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.auto ? _("Auto-read: on") : _("Auto-read: off"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py auto toggle") } }
-        Button { fill: width; height: 44; text: voice.engine == "offline" ? _("Voice: offline") : _("Voice: online"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py engine toggle") }
-        Button { fill: width; height: 44; text: voice.pause_minutes == 0 ? _("Idle pause: never") : _("Idle pause: ${voice.pause_minutes ?? 10} min"); onTap: run("python ~/.local/share/oma-voice/oma_voice.py pause toggle") }
-        Input { placeholder: _("Custom minutes (1–1440), then send"); clear: true; onSubmit: run("python ~/.local/share/oma-voice/oma_voice.py pause ${sh(value)}") }
-        Text { text: _("The voice service pauses after this long with the tile off screen and no Codex activity, and resumes when the tile is back. Tap the button to switch between 10 minutes and never."); style: small; color: muted; maxLines: 4 }
         Button { fill: width; height: 44; text: _("Start dictation"); onTap: run("bash ~/.local/bin/speak") }
+        }
       }
     }
   }

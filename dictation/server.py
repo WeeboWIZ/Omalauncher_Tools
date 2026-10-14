@@ -68,6 +68,11 @@ class Handler(BaseHTTPRequestHandler):
             tmp.write_text(text)
             os.chmod(tmp, 0o600)
             tmp.replace(CACHE / 'latest.txt')
+            status = CACHE / 'send-status.json'
+            status_tmp = CACHE / 'send-status.tmp'
+            status_tmp.write_text(json.dumps({'phase': 'saved'}))
+            os.chmod(status_tmp, 0o600)
+            status_tmp.replace(status)
             self.reply(200, 'Saved. Return to the launcher and tap Send to target.')
         except (ValueError, KeyError, TypeError, UnicodeError):
             self.reply(400, 'Invalid text')

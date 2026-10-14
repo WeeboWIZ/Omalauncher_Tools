@@ -18,6 +18,32 @@ voice = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(voice)
 
 class VoiceTests(unittest.TestCase):
+    def test_dictation_send_reports_progress_and_failure_without_live_queue(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            share = home/'.local/share/oma-voice'
+            bin_dir = home/'.local/bin'
+            cache = home/'.cache/oma-speak'
+            share.mkdir(parents=True)
+            bin_dir.mkdir(parents=True)
+            cache.mkdir(parents=True)
+            (share/'language.py').write_text('def local(text): return text\n')
+            (cache/'latest.txt').write_text('Test message')
+            target = bin_dir/'oma-voice'
+            target.write_text('#!/usr/bin/python\nimport json\nprint(json.dumps({"ok": True, "status": "queued"}))\n')
+            target.chmod(0o700)
+            env = dict(os.environ, HOME=str(home))
+            run = lambda: subprocess.run([sys.executable, str(ROOT/'bin/oma-send-dictation')],
+                                         env=env, capture_output=True, text=True, timeout=10)
+            result = run()
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(json.loads((cache/'send-status.json').read_text())['phase'], 'sent')
+            self.assertEqual(json.loads(result.stdout.splitlines()[-1])['status'], 'queued')
+            target.write_text('#!/usr/bin/python\nimport json, sys\nprint(json.dumps({"ok": False, "error": "rejected"}))\nsys.exit(1)\n')
+            result = run()
+            self.assertEqual(json.loads((cache/'send-status.json').read_text())['phase'], 'failed')
+            self.assertIn('rejected', result.stdout)
+
     def test_follow_and_completion(self):
         previous = voice.CACHE, voice.CONFIG, voice.SESSIONS
         try:
@@ -57,6 +83,31 @@ class VoiceTests(unittest.TestCase):
                 reader.command({'action':'refresh'})
                 self.assertFalse(reader.state['playing'])
                 self.assertEqual(reader.state['full'],'Fresh completion')
+        finally:
+            voice.CACHE, voice.CONFIG, voice.SESSIONS = previous
+
+    def test_send_follows_new_chat_without_waiting_for_background_retry(self):
+        previous = voice.CACHE, voice.CONFIG, voice.SESSIONS
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                base = Path(directory)
+                voice.CACHE, voice.CONFIG, voice.SESSIONS = base/'cache', base/'config.json', base/'sessions'
+                voice.SESSIONS.mkdir()
+                first = str(uuid.uuid4())
+                old = voice.SESSIONS/(first+'.jsonl')
+                old.write_text(json.dumps({'payload': {'id': first}})+'\n')
+                reader = voice.Reader()
+                reader.bind(first)
+                reader.checked_session = time.monotonic()
+                second = str(uuid.uuid4())
+                new = voice.SESSIONS/(second+'.jsonl')
+                new.write_text(json.dumps({'payload': {'id': second}})+'\n')
+                os.utime(new,(old.stat().st_mtime+10,old.stat().st_mtime+10))
+                with mock.patch.object(voice.subprocess,'run',return_value=mock.Mock(returncode=0)) as queued:
+                    result = reader.command({'action':'send','text':'Hello'})
+                self.assertTrue(result['ok'])
+                self.assertEqual(reader.config['thread'],second)
+                self.assertEqual(queued.call_args.args[0][3],second)
         finally:
             voice.CACHE, voice.CONFIG, voice.SESSIONS = previous
 

@@ -1,13 +1,72 @@
 #!/usr/bin/python
-import pathlib, subprocess, json, sys
-home = pathlib.Path.home()
-sys.path.insert(0, str(home/'.local/share/oma-voice'))
+# Send the saved dictation and publish progress for both widget views.
+import fcntl
+import json
+from pathlib import Path
+import subprocess
+import sys
+import uuid
+
+home = Path.home()
+sys.path.insert(0, str(home / '.local/share/oma-voice'))
 from language import local
-try:
-    text = home.joinpath('.cache/oma-speak/latest.txt').read_text().strip()
-    if not text:
-        raise ValueError()
-    subprocess.run([str(home/'.local/bin/oma-voice'), 'send', '--json', '--text', text], check=False)
-except (OSError, ValueError):
-    message = '請先開始語音輸入，停止後保存。'
-    print(json.dumps({'ok': False, 'error': message, 'error_ui': local(message)}, ensure_ascii=False))
+
+cache = home / '.cache/oma-speak'
+status_file = cache / 'send-status.json'
+NO_TEXT = '請先開始語音輸入，停止後保存。'
+FAILED = '送出失敗'
+
+
+def publish(value):
+    cache.mkdir(parents=True, exist_ok=True, mode=0o700)
+    temporary = status_file.with_name(status_file.name + '.' + uuid.uuid4().hex + '.tmp')
+    temporary.write_text(json.dumps(value, ensure_ascii=False))
+    temporary.chmod(0o600)
+    temporary.replace(status_file)
+    print(json.dumps(value, ensure_ascii=False), flush=True)
+
+
+def failure(message, detail=''):
+    return {'phase': 'failed', 'ok': False, 'error': detail or message,
+            'error_ui': local(message), 'request_id': uuid.uuid4().hex}
+
+
+def main():
+    try:
+        cache.mkdir(parents=True, exist_ok=True, mode=0o700)
+        with (cache / 'send.lock').open('w') as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                # The first click is still running. Keep its progress visible.
+                return
+            try:
+                text = (cache / 'latest.txt').read_text().strip()
+                if not text:
+                    publish(failure(NO_TEXT))
+                    return
+                request_id = uuid.uuid4().hex
+                publish({'phase': 'sending', 'ok': None, 'request_id': request_id})
+                result = subprocess.run([str(home / '.local/bin/oma-voice'), 'send', '--json', '--text', text],
+                                        capture_output=True, text=True, timeout=24)
+                try:
+                    response = json.loads(result.stdout)
+                except (ValueError, TypeError):
+                    response = failure(FAILED, result.stderr[-300:] or 'No JSON response')
+                if not isinstance(response, dict):
+                    response = failure(FAILED, 'Invalid JSON response')
+                if result.returncode or response.get('ok') is not True:
+                    response = failure(FAILED, response.get('error', '') or result.stderr[-300:])
+                else:
+                    response['phase'] = 'sent'
+                    response['request_id'] = request_id
+                publish(response)
+            except (OSError, subprocess.TimeoutExpired, ValueError) as error:
+                publish(failure(FAILED, type(error).__name__))
+    except OSError as error:
+        # A broken cache must still give run() a visible answer.
+        print(json.dumps(failure(FAILED, type(error).__name__), ensure_ascii=False), flush=True)
+
+
+if __name__ == '__main__':
+    main()
