@@ -62,9 +62,9 @@ def inert_handlers(text):
 
 def fixture():
     logs = [
-        '14:20 · Sample App: added daily journal browsing over monthly Markdown files. Date switching and pagination checks passed.',
-        '11:05 · Sample App: added per-report copying and error filters. Verified that warnings remain available under All.',
-        '09:10 · Sample App: added Markdown editing and trash recovery. File-operation checks passed; device review remains pending.',
+        dict(id='1', project='Sample App', text='14:20 · Added daily journal browsing over monthly Markdown files. Date switching and pagination checks passed.'),
+        dict(id='2', project='Sample App', text='11:05 · Added per-report copying and error filters. Verified that warnings remain available under All.'),
+        dict(id='3', project='Notes Site', text='09:10 · Added Markdown editing and trash recovery. File-operation checks passed; device review remains pending.'),
     ]
     entry = dict(id=1, time='2026-10-01T14:15:00+00:00', name='sample-app.log',
                  source='/home/demo/oma-devlogs/logs/terminals/sample-app.log', level='error',
@@ -75,23 +75,30 @@ def fixture():
         'installed': '"demo"', 'setupState': '""',
         'snapshot': literal(dict(ok=True, out=dict(notes=4, entries=8, latest='14:20 · Sample App: daily logs added; checks passed.', updated='14:20:00',
                                                  home='/home/demo', projects='/home/demo/projects', root='/home/demo/oma-devlogs'))),
-        'archive': literal(dict(ok=True, out=dict(days=['2026-10-01', '2026-09-30'], day='2026-10-01', entries=logs, total=3, more=False))),
-        'directory': literal(dict(ok=True, out=dict(path='/home/demo/projects', parent='/home/demo', total=3, more=False, items=[
-            dict(name='sample-app', path='/home/demo/projects/sample-app', dir=True, size=0),
-            dict(name='architecture.md', path='/home/demo/projects/architecture.md', dir=False, size=1850, link=False),
-            dict(name='release-checklist.md', path='/home/demo/projects/release-checklist.md', dir=False, size=940, link=False),
+        'archive': literal(dict(ok=True, out=dict(days=['2026-10-01', '2026-09-30'], day='2026-10-01', entries=logs, total=3, more=False,
+                                                all=8, unassigned=0, projects=[dict(name='Sample App', count=5), dict(name='Notes Site', count=3)]))),
+        'directory': literal(dict(ok=True, out=dict(path='/home/demo/projects', parent='/home/demo', total=6, more=False,
+            crumbs=[dict(name='~', path='/home/demo'), dict(name='projects', path='/home/demo/projects')], items=[
+            dict(name='sample-app', path='/home/demo/projects/sample-app', dir=True, size=0, count=12, kind='folder'),
+            dict(name='notes-site', path='/home/demo/projects/notes-site', dir=True, size=0, count=7, kind='folder'),
+            dict(name='archive', path='/home/demo/projects/archive', dir=True, size=0, count=0, kind='folder'),
+            dict(name='architecture.md', path='/home/demo/projects/architecture.md', dir=False, size=1850, link=False, kind='md'),
+            dict(name='release-checklist.md', path='/home/demo/projects/release-checklist.md', dir=False, size=940, link=False, kind='md'),
+            dict(name='build.sh', path='/home/demo/projects/build.sh', dir=False, size=420, link=False, kind='code'),
         ]))),
+        'found': literal(dict(ok=True, out={})),
+        'agentInfo': literal(dict(installed=True, name='Claude Code', batch=True)),
+        'agentState': literal({}),
         'systemErrors': literal(dict(ok=True, out=dict(total=1, all_total=3, error_total=1, counts=dict(error=1, warning=1, info=1), entries=[entry], more=False))),
     }
 
 
-def prepare(name, tab='logs', settings=False):
+def prepare(name, tab='logs'):
     text = (ROOT / 'widgets/65-dev-logs.owl').read_text()
     text = text.replace('__VERSION__', VERSION).replace('__PAYLOAD_ID__', 'demo').replace('__SETUP_COMMAND__', 'true')
     for source, expression in fixture().items():
         text = re.sub(r'^\s*source ' + source + r' = .*$', lambda _: '  let ' + source + ' = ' + expression, text, flags=re.M)
     text = text.replace('state tab = "logs"', 'state tab = ' + json.dumps(tab))
-    text = text.replace('state settingsOpen = false', 'state settingsOpen = ' + str(settings).lower())
     if tab == 'errors':
         text = text.replace('state expandedError = 0', 'state expandedError = 1')
     text = text.replace('page: 2', 'page: 3')
@@ -140,13 +147,11 @@ def cleanup(path):
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     manifest = []
-    for name, tab, settings in [('logs', 'logs', False), ('files', 'files', False),
-                                ('errors', 'errors', False), ('settings', 'logs', True)]:
-        path = prepare(name)
+    for name, tab in [('logs', 'logs'), ('files', 'files'), ('errors', 'errors'), ('settings', 'settings')]:
+        path = prepare(name, tab)
         try:
             subprocess.run(['owl-check', str(path)], check=True)
             subprocess.run(['owl-send', str(path), 'set', 'tab', tab], check=True)
-            subprocess.run(['owl-send', str(path), 'set', 'settingsOpen', str(settings).lower()], check=True)
             if tab == 'errors':
                 subprocess.run(['owl-send', str(path), 'set', 'expandedError', '1'], check=True)
             if name == 'logs':

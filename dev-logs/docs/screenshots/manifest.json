@@ -10,38 +10,38 @@
   },
   {
     "file": "logs.png",
-    "bytes": 121337,
+    "bytes": 127631,
     "pixels": [
       1080,
       2400
     ],
-    "sha256": "fbba89819e6be04a6b9012afea6cfc45e02fa9f342e256f444ddf9b1d4f69a31"
+    "sha256": "06dd2b623ab08ba190593d1f9dcda944c83f6ef79e4575a329f6d1174a179a1f"
   },
   {
     "file": "files.png",
-    "bytes": 81694,
+    "bytes": 80876,
     "pixels": [
       1080,
       2400
     ],
-    "sha256": "eee98ff7bf9470b539a1f2b8cb5e6de70b1523bc82b85103ffa1c4da62859d24"
+    "sha256": "f60a9b6329ef2358efd486f73810b695995b5a8c53a07965b8f7bb0f089ee2cd"
   },
   {
     "file": "errors.png",
-    "bytes": 99850,
+    "bytes": 120777,
     "pixels": [
       1080,
       2400
     ],
-    "sha256": "642fd4bc0e430c1073684049311ba107253788e3e7639dde3039138c9d901bf2"
+    "sha256": "c87a89c49c4c388a349105ae427d217f3e78f306c6de172ec8d03de6a261c919"
   },
   {
     "file": "settings.png",
-    "bytes": 183450,
+    "bytes": 228755,
     "pixels": [
       1080,
       2400
     ],
-    "sha256": "830097993adb499e3f5cd13d5e45f53027c25623b38586e3465d0fd72ab0e9cb"
+    "sha256": "6f1f2922f556e4a9f83af725c2773dd81f9caa708bf59ac93b2a2c23bceb9a59"
   }
 ]

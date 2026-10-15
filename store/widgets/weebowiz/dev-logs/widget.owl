@@ -96,7 +96,6 @@ Use DEV LOGS to log important development progress for this project. Save these 
   state errorLevel = "error" persist
   state copiedError = 0
   state expandedError = 0
-  state reportOpen = 0
   state agentMsg = ""
   state expandedLog = ""
   state editingLog = ""
@@ -107,7 +106,7 @@ Use DEV LOGS to log important development progress for this project. Save these 
   state mdTitle = ""
   state fileResult = ""
   state deletePath = ""
-  state view = "list" persist
+  state view = "grid" persist
   state searchMode = false
   state searchContent = false
   state query = ""
@@ -116,7 +115,7 @@ Use DEV LOGS to log important development progress for this project. Save these 
   let pageSize = view == "grid" ? 24 : 40
   on folder { deletePath = ""; createOpen = false; fileResult = ""; selected = ""; query = "" }
   on view { offset = 0; selected = "" }
-  on expandedError { copiedError = 0; reportOpen = 0; agentMsg = "" }
+  on expandedError { copiedError = 0; agentMsg = "" }
   on errorOffset { expandedError = 0; copiedError = 0 }
   on errorLevel { errorOffset = 0; expandedError = 0; copiedError = 0 }
   on tab { agentPromptCopied = false; expandedLog = ""; editingLog = ""; deleteLog = ""; selected = "" }
@@ -327,7 +326,7 @@ Use DEV LOGS to log important development progress for this project. Save these 
           Button { text: zh ? "全部" : "All"; weight: 1; color: errorLevel == "all" ? accent : muted; onTap: { errorLevel = "all"; refresh() } }
         }
         Text { text: zh ? "自動保留最近 500 筆；時間為收集時間。終端診斷只收集已啟用紀錄的 stderr 與異常退出碼；整個環境被終止時可能無紀錄。" : "Keeps 500 records; times indicate collection. Terminal diagnostics require logging to be enabled. Environment termination may leave no record."; style: small; color: muted }
-        Text { text: zh ? "${errors.total ?? 0} 筆紀錄 · 展開後可複製、請 Agent 分析或匯報" : "Records: ${errors.total ?? 0} · Expand to copy, ask the agent or report"; color: accent; style: small }
+        Text { text: zh ? "${errors.total ?? 0} 筆紀錄 · 展開後可複製或請 Agent 分析" : "Records: ${errors.total ?? 0} · Expand to copy or ask the agent"; color: accent; style: small }
         Column {
           scroll: true
           weight: 1
@@ -404,16 +403,6 @@ Use DEV LOGS to log important development progress for this project. Save these 
                     }
                   }
                   if agentMsg != "" && ask.status != "running" { Text { text: agentMsg; style: small; color: muted; maxLines: 3 } }
-                  Button { text: zh ? "匯報給 Omalauncher 作者" + (reportOpen == entry.id ? " ▴" : " ▾") : "Report to the Omalauncher author" + (reportOpen == entry.id ? " ▴" : " ▾"); fill: width; color: muted; onTap: reportOpen = reportOpen == entry.id ? 0 : entry.id }
-                  if reportOpen == entry.id {
-                    Text { text: zh ? "以下為隱藏家目錄、使用者名稱、信箱與密鑰後的內容。開啟後會在瀏覽器預填 GitHub Issue，由你確認後送出。" : "Below is the report with your home path, user name, e-mail addresses and keys hidden. It opens a prefilled GitHub issue in the browser; you submit it there."; style: small; color: muted }
-                    Text { text: entry.shared; style: small; font: mono; maxLines: 12; padding: 6; background: background }
-                    Row {
-                      gap: 8
-                      Button { text: zh ? "開 GitHub Issue" : "Open GitHub issue"; weight: 1; onTap: url(ask.issue ?? entry.issue) }
-                      Button { text: zh ? "複製報告" : "Copy report"; weight: 1; color: muted; onTap: { copy(entry.shared); copiedError = entry.id } }
-                    }
-                  }
                 }
               }
             }

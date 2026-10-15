@@ -7,7 +7,7 @@ Local development logs, Markdown notes and Linux diagnostics for Omalauncher. En
 - Browse logs by day; save them as one Markdown file per month with dated entries. Tap an entry to copy, edit or delete it. Filter by project: your agent tags each entry with its project.
 - Browse your home directory as a list or a grid of pixel folder icons, search names and Markdown text, create/view/edit Markdown, and move deleted notes to recoverable local trash after confirmation.
 - Collect local diagnostics, filter Errors / Warnings / All, expand a record and copy only that report. Keeps 500 collected records.
-- Ask the launcher's default coding agent to explain an error and suggest a fix (read-only for Claude Code and Codex; in a terminal for others), run the fix in a terminal, or open a prefilled, redacted GitHub issue for the Omalauncher author.
+- Ask the launcher's default coding agent to explain an error and suggest a fix (read-only for Claude Code and Codex; in a terminal for others) and run the fix in a terminal.
 - Copy a concise logging prompt for Codex or Claude. Your agent records meaningful changes, real verification results and unresolved problems; general replies are skipped.
 
 DEV LOGS does not automatically capture conversations. It runs your local agent only when you tap Analyze or Fix, and sends it only the selected record. Agent logging requires a local agent that saves and follows the copied project instructions. The refresh time is a display update, not an automatically generated entry.
