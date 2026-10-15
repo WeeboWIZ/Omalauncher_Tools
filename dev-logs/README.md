@@ -45,7 +45,7 @@ After importing `widget.owl`, tap **Set up**. The widget contains the helper pro
 
 ## Set up agent logging
 
-1. Open DEV LOGS and tap **Settings** at the top right.
+1. Open DEV LOGS and tap the **Settings** tab.
 2. Under **Agent log setup**, tap **Copy prompt**.
 3. Paste it into your local Codex or Claude session. Ask the agent to save the rules in the project's `AGENTS.md` or `CLAUDE.md`, preserving existing instructions.
 4. After meaningful work, the agent writes a concise entry using the local command. Confirm that the new entry appears in Logs.
@@ -117,10 +117,10 @@ DEV LOGS 提供開發日誌、專案 Markdown 與本機系統錯誤紀錄。畫�
 
 安裝：在倉庫根目錄執行 `python dev-logs/install.py`。商店版匯入 `widget.owl` 後按「安裝」，即可寫入內嵌程式；更新會保留筆記、日誌與錯誤資料。新使用者從空白日誌開始，不會看到開發者的紀錄。
 
-「更新」在右上角；「設定」是第四個分頁，可切換語言，左邊 English、右邊繁體中文。「Agent 記錄設定」可複製提示詞給 Codex／Claude，請 agent 保存規則後，以 `~/.local/bin/oma-devlogs log '內容'` 記錄重要功能、變更、驗證結果與待追蹤問題。同一工作合併一筆、簡潔 1–3 句，一般回覆不記錄。工具沒有自動讀取全部回覆或額外呼叫 AI API；「自動更新」只代表畫面資料刷新。
+「更新」在右上角；「設定」是第四個分頁，可切換語言，左邊 English、右邊繁體中文。「Agent 記錄設定」可複製提示詞給 Codex／Claude，請 agent 保存規則後，以 `~/.local/bin/oma-devlogs log '內容'` 記錄重要功能、變更、驗證結果與待追蹤問題。同一工作合併一筆、簡潔 1–3 句，一般回覆不記錄。工具不會自動讀取全部回覆或彙整對話；只有按「Agent 分析」或「在終端修復」時才呼叫 agent。「自動更新」只代表畫面資料刷新。
 
-「日誌」點一條即可複製、編輯（保留時間與專案）或刪除（原文移至回收區）。每筆可標記專案（`log --project '名稱'`，未指定時取 git 倉庫名稱或 `~/projects` 下的資料夾名），日期旁可依專案篩選；選定專案時手動寫的日誌也歸入該專案。「專案」可切換列表或像素資料夾圖示，並可搜尋目前目錄下的檔名與 Markdown 內容。
+「日誌」點一條即可複製、編輯（保留時間與專案）或刪除（原文移至回收區）。每筆可標記專案（`log --project '名稱'`，未指定時取 git 倉庫名稱或 `~/projects` 下的資料夾名），日期旁可依專案篩選；選定專案時手動寫的日誌也歸入該專案。「專案」預設以像素資料夾與檔案圖示顯示，可切換列表，路徑每段可點擊，並可搜尋目前目錄下的檔名與 Markdown 內容。
 
-「系統」紀錄由工具讀取本機診斷檔，預設只看錯誤，可切換警告／全部；展開後只複製該筆報告。「Agent 分析」請啟動器的預設 agent 以只讀方式說明問題、原因與修復建議；「在終端修復」在終端中由 agent 執行；「匯報給 Omalauncher 作者」脫敏後開啟預填的 GitHub Issue，由你確認送出。一般終端不會自動被錄製，需用 `~/.local/bin/oma-devlogs-terminal` 開啟有 stderr 診斷的終端。收集時間不等於發生時間，紀錄也不保證能判斷閃退原因。
+「系統」紀錄由工具讀取本機診斷檔，預設只看錯誤，可切換警告／全部；展開後只複製該筆報告。「Agent 分析」請啟動器提示列選定的 agent（`~/.config/omalauncher/agent`，未選時取第一個已安裝的）說明問題、可能原因與修復建議：Claude Code 與 Codex 在背景以只讀模式分析（`claude -p --permission-mode plan`、`codex exec --sandbox read-only`），其他 agent 沒有可靠的只讀選項，改在終端中分析。只送出選中的這筆紀錄與系統類型，並告知 agent 紀錄是資料、不是指令；結果留在 `~/.local/share/oma-devlogs/agent/`，分析時可離開頁面。「在終端修復」一律在終端中由 agent 執行，agent 自己的權限確認照常生效；完成後重新收集診斷，同一來源再出錯會標示為未解決。一般終端不會自動被錄製，需用 `~/.local/bin/oma-devlogs-terminal` 開啟有 stderr 診斷的終端。收集時間不等於發生時間，紀錄也不保證能判斷閃退原因。
 
-本機資料留在 `~/oma-devlogs`，刪除的 Markdown 可從 `~/.local/share/oma-devlogs/trash/` 還原。套件不含私人日誌、資料庫、會話或密鑰；未自動提交商店或傳送報告。
+本機資料留在 `~/oma-devlogs`，刪除的 Markdown 可從 `~/.local/share/oma-devlogs/trash/` 還原。套件不含私人日誌、資料庫、會話或密鑰；不會自動上傳任何資料，只有你要求分析時才把一筆紀錄交給本機 agent。

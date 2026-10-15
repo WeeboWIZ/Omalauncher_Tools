@@ -210,7 +210,7 @@ def run(event_id):
     else:
         analysis = parse(done.stdout)
         if analysis:
-            result = {'status': 'done', 'analysis': analysis, 'issue': system_errors.issue_url(entry, analysis)}
+            result = {'status': 'done', 'analysis': analysis}
         else:
             result = {'status': 'failed', 'raw': (done.stdout.strip() or done.stderr.strip())[-1500:],
                       'error': t('agent 的回覆格式不符，原文如下。', 'The agent did not reply in the expected format; its reply follows.')

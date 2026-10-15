@@ -1,6 +1,6 @@
 # DEV LOGS 2.0 升級規劃
 
-狀態：已實作於 `dev-logs` 分支（2.0），待手機實機測試。依據 OWL 規格 [`omarchy-widgets/docs/LANGUAGE.md`](https://github.com/SimonSchubert/omarchy-widgets/blob/main/docs/LANGUAGE.md) 與 [`omalauncher`](https://github.com/SimonSchubert/omalauncher) 原始碼（`linux/Agents.kt`）調整。
+狀態：已實作於 `dev-logs` 分支（2.0），手機實機測試通過。規劃中的「匯報給 Omalauncher 作者」（預填 GitHub Issue）已在 2.0 定稿前移除，以下相關段落僅保留作紀錄。依據 OWL 規格 [`omarchy-widgets/docs/LANGUAGE.md`](https://github.com/SimonSchubert/omarchy-widgets/blob/main/docs/LANGUAGE.md) 與 [`omalauncher`](https://github.com/SimonSchubert/omalauncher) 原始碼（`linux/Agents.kt`）調整。
 
 ## 規格中確認的能力與限制
 
@@ -41,7 +41,7 @@ DEV LOGS                                    ✕
 - 日誌頁的日期列左邊新增 `[全部專案 ▾]`，展開後列出各專案與筆數（依最近活動排序）以及「未分類」。選定專案後，日期清單只列出該專案有紀錄的日子，手動寫的日誌也歸入該專案。
 - 「全部」檢視時，每條日誌上方以強調色顯示專案名稱；編輯時保留專案標籤，複製時附上專案名稱。
 
-## 3. 系統：Agent 分析／修復／匯報
+## 3. 系統：Agent 分析／修復（匯報已移除）
 
 ### 互動流程（每筆錯誤各自獨立）
 
@@ -111,12 +111,12 @@ DEV LOGS                                    ✕
 
 - `owl.jar check`：編譯通過；`owl.jar review`：商店規則通過（僅提示指令變更，已安裝使用者會被重新詢問）。
 - 用假的 `claude` 執行完整分析流程：背景啟動 → 狀態 `running` → `done` 並產生分析與 Issue 連結。
-- 尚未驗證：實機畫面排版、像素圖示外觀、`url()` 開啟 Issue、終端修復流程、真實 agent 的回覆格式。
+- 手機實機測試已通過（排版、像素圖示、終端修復與真實 agent 分析）。
 
 ## 版本與驗證
 
 - 版本 `1.9` → `2.0`；中英文介面同步。
-- 單元測試（25 項，全部通過）：專案標籤、偵測與篩選；日誌 id／編輯／刪除與衝突、搜尋（深度、略過目錄、內容命中）、browse 新欄位、agent 狀態檔與提示產生、Issue 網址脫敏與長度。
+- 單元測試（24 項，全部通過）：專案標籤、偵測與篩選；日誌 id／編輯／刪除與衝突、搜尋（深度、略過目錄、內容命中）、browse 新欄位、agent 狀態檔與提示產生。
 - 手機端測試清單：
   1. 拉取 `dev-logs` 分支，執行 `python dev-logs/install.py --skip-deps`。
   2. 日誌：展開、複製、編輯儲存、刪除確認。
