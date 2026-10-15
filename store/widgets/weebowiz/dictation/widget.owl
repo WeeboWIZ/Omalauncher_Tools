@@ -3,7 +3,7 @@ widget "Dictation" {
  order: 7
  size: 3x4
  minSize: 3x3
- meta { owl: 6; description: "Dictate by voice and send the text to a Codex chat or a tmux terminal running Claude or any CLI. English, Chinese, Spanish, German, French, Japanese, Korean."; version: "3.5.6"; license: "MIT"; category: "productivity" }
+ meta { owl: 6; description: "Dictate by voice, let a Codex agent tidy the text, review it, then send it to a Codex chat or to Claude or any CLI in tmux. One page, no copy and paste."; version: "3.5"; license: "MIT"; category: "productivity" }
  requires { pacman: ["python", "espeak-ng", "libpulse", "mpg123", "tmux", "curl", "util-linux"] }
  source uiLanguage = file("~/.config/omalauncher/voice-ui-language")
  source installed = file("~/.local/share/oma-voice/dictation-version")

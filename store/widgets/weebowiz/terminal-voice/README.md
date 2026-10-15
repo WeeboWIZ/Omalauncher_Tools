@@ -1,18 +1,20 @@
 # Terminal Voice (終端播報)
 
-Reads Codex replies or a tmux terminal aloud.
+Hear what your coding agent said without watching the screen.
 
-**Languages:** English (default), 中文, Español, Deutsch, Français, 日本語, 한국어. Pick one under **Details**.
-A reply is read in its own language with a matching voice; a text too short to tell is read in the interface language.
+- **Codex chat:** follows the latest local Codex conversation and reads a summary of each finished reply, also when the
+  task finishes with the screen off.
+- **Terminal / Claude:** run `tmux new -A -s oma-voice`, start Claude, Codex or any CLI there, and tap **Play** to hear
+  the pane. If Claude is running outside tmux, Details offers to open it in that session.
 
-- **Codex chat:** follows the latest local Codex conversation and can read a summary of each finished reply.
-- **Terminal / Claude:** run `tmux new -A -s oma-voice`, start Claude, Codex or any CLI there, and tap **Play** to hear the pane.
+Each reply is read in its own language with a matching voice. Pair it with **Dictation** to answer by voice: speak,
+let the Agent tidy the text, send, and listen to the reply.
 
 ## What Set up does
 
 The tile shows a **Set up** button until its programs are installed. Tapping it:
 
-- writes the voice and dictation programs held in `widget.owl` to `~/.local/share/oma-voice`, `~/.local/share/oma-speak` and `~/.local/bin` (`oma-voice`, `oma-send-dictation`, `speak`), readable by you only
+- writes the voice and dictation programs held in `widget.owl` to `~/.local/share/oma-voice`, `~/.local/share/oma-speak` and `~/.local/bin` (`oma-voice`, `oma-send-dictation`, `oma-refine-dictation`, `speak`), readable by you only
 - makes a Python environment in `~/.local/share/oma-voice/venv` and installs `edge-tts` from PyPI for online speech; without the network, speech stays offline (espeak-ng)
 - stops an older voice service and dictation page so the new ones start
 
@@ -30,7 +32,6 @@ that should be read aloud however long the screen has been off.
 ## Privacy
 
 Online speech sends the text being read to Microsoft Edge TTS; choose **Voice: offline** to keep it local.
-Browser speech recognition may use the browser provider's online service. The dictation page listens only on
-`127.0.0.1:18763` and checks a random token before saving text. Terminal mode reads only the tmux session `oma-voice`.
+Terminal mode reads only the tmux session `oma-voice`.
 
 Source, tests and the build script: https://github.com/WeeboWIZ/Omalauncher_Tools

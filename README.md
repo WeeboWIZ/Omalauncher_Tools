@@ -1,6 +1,6 @@
 # Terminal Voice & Dictation for Omalauncher
 
-Read terminal output aloud and dictate text into Codex, Claude, or another command-line program on Android Omalauncher.
+Talk to Codex, Claude, or another command-line program on Android Omalauncher, and hear the reply: dictate, let an Agent tidy the text, send it, and listen.
 
 <details open>
 <summary><strong>English · shown by default</strong></summary>
@@ -17,8 +17,8 @@ These screenshots use fixed English example text and the launcher's actual rende
 
 - **Codex chat mode:** follows the latest local Codex conversation, displays completed replies and can automatically read a summary aloud. Dictation is sent through Omalauncher's `codex queue` command.
 - **Terminal mode:** reads the visible text of a dedicated tmux pane and sends dictated text to it when you tap **Send to target**. Start Codex, Claude, or another terminal program in that pane. Terminal playback is manual so changing prompts and progress messages are not read aloud repeatedly.
-- Both home-screen widgets and the browser dictation page share one interface language: English (default), 中文, Español, Deutsch, Français, 日本語 or 한국어. A reply is read aloud in its own language with a matching voice. The reply or dictated text stays in its original language.
-- Change the interface language in either widget's **Details** screen or in the dictation page. The home tiles keep their controls focused on playback and dictation.
+- **Dictation with Agent refine:** speak on the dictation page, optionally let the local Codex CLI turn it into a clear request shown beside your original, then send either one to the chosen target from the same page. No copying and pasting between apps.
+- A reply is read aloud in its own language with a matching voice. The interface follows the speech language chosen on the dictation page.
 - The voice widget offers summary/full-screen playback, stop, refresh, source selection, and a detailed view. Online speech converts to playable WAV; offline speech uses espeak-ng.
 
 ## Install
@@ -49,7 +49,7 @@ Then start `claude`, `codex`, or any other CLI inside that tmux session. The voi
 
 For Codex chat mode, open or resume a local Codex chat and tap **Sync**. Completed replies update automatically. Sync never replays an old answer. The voice service pauses after 10 minutes with the tile off screen and no Codex activity, and resumes when the tile is back; **Idle pause** in the voice settings changes the time or turns the pause off. This mode needs Omalauncher's `codex queue` for sending; if your Codex build lacks it, copy the dictated text and paste it yourself.
 
-Dictation uses browser speech recognition. Choose a speech language, tap Start, stop, and edit. Tap **Refine with Agent** to create a separate draft below the original text, review it, choose **Codex chat** or **Terminal / Claude** as the target on the same page, then tap **Send original** or **Send refined draft**. The buttons show progress, success, or failure beside the action; the widget details also show command results. Refining uses the locally authenticated Codex CLI and sends the text to Codex; it never submits to the selected target by itself. Reopen an existing page from the widget after updating the service so it receives a new access token. The browser must grant microphone permission; Chrome is recommended.
+Dictation uses browser speech recognition. Choose a speech language (the list on the page), tap Start, stop, and edit. Tap **Refine with Agent** to create a separate draft below the original text, review it, choose **Codex chat** or **Terminal / Claude** as the target on the same page, then tap **Send original** or **Send refined draft**. The buttons show progress, success, or failure beside the action; the widget details also show command results. Refining uses the locally authenticated Codex CLI and sends the text to Codex; it never submits to the selected target by itself. Reopen an existing page from the widget after updating the service so it receives a new access token. The browser must grant microphone permission; Chrome is recommended.
 
 ## Update and data
 
@@ -58,6 +58,10 @@ Download or pull the latest version and rerun `python install.py`. It preserves 
 The repository contains no conversation logs, drafts, tokens, audio files, models, or virtual environments. Your Codex logs remain under `~/.codex/sessions/`; voice settings and output under `~/.config/omalauncher/voice.json` and `~/.cache/oma-voice/`; original and refined dictation under `~/.cache/oma-speak/` and the original browser draft in local storage. Terminal mode reads only the dedicated `oma-voice` tmux session. Online TTS sends the text being spoken to Microsoft Edge TTS. Browser speech recognition may use the browser provider's online service. Select offline speech to use local espeak-ng. The dictation page listens only on `127.0.0.1:18763` and checks an origin and random token before saving or sending text.
 
 Run `python -m unittest discover -s tests -v` to check the package. `python tools/build_store.py` rebuilds the store folders under `store/`; see `docs/STORE_PLAN.md`. You can preview a widget after installation with `owl-check ~/.config/omalauncher/widgets/46-speak.owl`.
+
+## Contributing
+
+Several people and AI agents work on this repository. Commits, pull requests, issues and releases carry no agent attribution: no `Co-Authored-By` trailer for an AI and no "Generated with …" line. Commit as the repository's git user. All code belongs to this repository and is released under the [MIT License](LICENSE).
 
 </details>
 
@@ -76,7 +80,8 @@ Run `python -m unittest discover -s tests -v` to check the package. `python tool
 
 - **Codex 會話模式：** 跟隨本機最近活動的 Codex 對話，顯示已完成回覆，可自動播報摘要。語音輸入經 Omalauncher 的 `codex queue` 送入對話。
 - **終端模式：** 讀取指定 tmux 窗格的可見文字；點「送到目前目標」後將聽寫文字送入該窗格。可以在裡面運行 Codex、Claude 或其他命令列程式。終端畫面採手動播報，避免進度訊息重複朗讀。
-- 兩個首頁工具及瀏覽器聽寫頁共用中英文介面切換；回覆和聽寫內容保留原語言。
+- **語音輸入 + Agent 整理：** 在聽寫頁說話，可選擇讓本機 Codex CLI 把口語整理成清楚的需求，與原文並列對照，再於同一頁送到目前目標，不必在 App 之間複製貼上。
+- 回覆以它自己的語言朗讀；介面跟隨聽寫頁選的輸入語言。
 - 播報工具可播放摘要或全文、停止、同步、選擇來源及查看詳情。線上語音會轉成可播放的 WAV；離線語音使用 espeak-ng。
 
 ## 安裝
@@ -116,5 +121,9 @@ tmux new -A -s oma-voice
 倉庫不包含對話紀錄、草稿、Token、音檔、模型或虛擬環境。Codex 記錄位於 `~/.codex/sessions/`；播報設定和快取位於 `~/.config/omalauncher/voice.json`、`~/.cache/oma-voice/`；聽寫原文與整理稿位於 `~/.cache/oma-speak/`，瀏覽器本機儲存原始草稿。終端模式只讀取指定的 `oma-voice` tmux 工作階段。線上語音會把朗讀文字傳給 Microsoft Edge TTS；瀏覽器語音辨識也可能使用供應商的線上服務。選擇離線語音則使用本機 espeak-ng。聽寫頁只監聽 `127.0.0.1:18763`，保存或送出時檢查來源與隨機 Token。
 
 執行 `python -m unittest discover -s tests -v` 可檢查分享包；`python tools/build_store.py` 重新產生 `store/` 下的商店版本，流程見 `docs/STORE_PLAN.md`。安裝後以 `owl-check ~/.config/omalauncher/widgets/46-speak.owl` 預覽首頁和詳情頁。
+
+## 協作規定
+
+本倉庫由多人與多個 AI agent 協作。提交、PR、issue 與發佈一律不加 agent 署名：不得有 AI 的 `Co-Authored-By` 行，也不得有「Generated with …」字樣，以倉庫的 git 使用者提交。所有程式碼歸屬本倉庫，以 [MIT 授權](LICENSE) 發佈。
 
 </details>

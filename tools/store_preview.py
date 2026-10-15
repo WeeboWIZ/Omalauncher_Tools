@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 import re
 import subprocess
-from build_store import VERSION
+from build_store import RELEASE
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'docs/screenshots'
@@ -33,7 +33,7 @@ def prepare():
         text = (ROOT / 'widgets' / template).read_text()
         # Use the actual widget layout, with fixed example data and no setup payload.
         text = re.sub(r'_\("((?:[^"\\]|\\.)*)"\)', r'"\1"', text)
-        text = text.replace('__VERSION__', VERSION).replace('__PAYLOAD_ID__', 'demo')
+        text = text.replace('__VERSION__', RELEASE).replace('__PAYLOAD_ID__', 'demo')
         text = text.replace('__LANGUAGE_NEXT__', '"en"').replace('__LANGUAGE_NAME__', '"English"').replace('__LANGUAGE_SHORT__', '"EN"')
         text = text.replace('run("""__SETUP_COMMAND__""")', 'copy("Preview only")')
         text = re.sub(r'run\("(?:[^"\\]|\\.)*"\)', 'copy("Preview only")', text)

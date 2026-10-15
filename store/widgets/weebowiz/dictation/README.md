@@ -1,10 +1,16 @@
 # Dictation (語音輸入)
 
-Dictate in the browser, optionally refine the text with the locally authenticated Codex CLI, then review the draft, select Codex chat or Terminal / Claude on the same page, and send the original or refined draft. Save and Send show progress, success, or failure next to their buttons; the widget details also show command results. Reopen an old browser page from the widget after an update so it receives the new access token.
-Interface in English (default), 中文, Español, Deutsch, Français, 日本語 and 한국어; the page has a list for the language you
-speak. Chrome is recommended; the browser asks for the microphone.
+Talk to Codex, Claude or any CLI instead of typing on the phone keyboard.
 
-Sending to a Codex chat uses Omalauncher's `codex queue`; sending to a terminal types into the tmux session `oma-voice`.
+1. **Speak.** Tap the tile to open the dictation page in the browser and dictate; edit the text right there.
+2. **Refine with Agent (optional).** The locally signed-in Codex CLI turns rambling speech into a clear request, shown as a
+   separate draft under your original so you can compare before anything is sent.
+3. **Send.** Pick **Codex chat** or **Terminal / Claude** on the same page and send the original or the refined draft.
+   Progress, success or failure shows next to the button; the tile shows the last result too.
+
+Sending to a Codex chat uses Omalauncher's `codex queue`; a newer dictation replaces one still waiting instead of piling
+up. Sending to a terminal types into the tmux session `oma-voice` and presses Enter. Pair it with **Terminal Voice** to
+hear the reply. Chrome is recommended; the browser asks for the microphone.
 
 ## What Set up does
 
@@ -15,12 +21,13 @@ The tile shows a **Set up** button until its programs are installed. Tapping it:
 - stops an older voice service and dictation page so the new ones start
 
 Nothing is downloaded and run apart from that pip package. The log is `~/.cache/oma-voice/setup.log`.
-Terminal Voice and Dictation hold the same programs: setting up one sets up both.
+Terminal Voice and Dictation hold the same programs: setting up one sets up both. After an update, reopen the
+dictation page from the tile so it gets the new access token.
 
 ## Privacy
 
-Online speech sends the text being read to Microsoft Edge TTS; choose **Voice: offline** to keep it local.
-Browser speech recognition may use the browser provider's online service. The dictation page listens only on
-`127.0.0.1:18763` and checks a random token before saving or sending text. Refining sends the transcript to Codex but never sends it to the selected target automatically. Terminal mode reads only the tmux session `oma-voice`.
+Browser speech recognition may use the browser provider's online service. Refining sends the transcript to Codex and
+never sends anything to the target by itself. The dictation page listens only on `127.0.0.1:18763` and checks a random
+token before saving or sending text. Terminal mode reaches only the tmux session `oma-voice`.
 
 Source, tests and the build script: https://github.com/WeeboWIZ/Omalauncher_Tools

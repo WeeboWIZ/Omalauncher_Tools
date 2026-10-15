@@ -10,6 +10,8 @@ import ui_strings
 
 ROOT = Path(__file__).resolve().parent.parent
 VERSION = '3.5.6'
+# The store sees only major.minor; the full VERSION stays in the payload id and the setup script's checks.
+RELEASE = '.'.join(VERSION.split('.')[:2])
 AUTHOR = 'weebowiz'
 # template -> store folder. Each folder's preview.png and README.md are kept by hand.
 WIDGETS = {'46-speak.owl': 'terminal-voice', '47-voice-input.owl': 'dictation'}
@@ -117,7 +119,7 @@ def by_language(values):
 def render(template):
     """The widget as installed: the same text for install.py and the store."""
     text = template.replace('\r\n', '\n')
-    text = text.replace('__VERSION__', VERSION).replace('__PAYLOAD_ID__', payload_id())
+    text = text.replace('__VERSION__', RELEASE).replace('__PAYLOAD_ID__', payload_id())
     codes = ui_strings.LANGUAGES
     text = re.sub(r'_\("((?:[^"\\]|\\.)*)"\)', lambda found: by_language(dict(zip(codes, (found.group(1),)+ui_strings.STRINGS[found.group(1)]))), text)
     text = text.replace('__LANGUAGE_NEXT__', by_language(dict(zip(codes, codes[1:]+codes[:1]))))

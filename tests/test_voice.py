@@ -491,7 +491,7 @@ class VoiceTests(unittest.TestCase):
                 self.assertNotIn('\r',text)
                 for personal in ('/root/','/home/','__HOME__'):
                     self.assertNotIn(personal,text)
-                self.assertIn('version: "%s"'%build_store.VERSION,text)
+                self.assertIn('version: "%s"'%build_store.RELEASE,text)
                 # The store shows the name, the description and the preview as they are: English.
                 head = text.split('requires')[0]
                 self.assertFalse(chinese(head.split('source uiLanguage')[0]),head)
