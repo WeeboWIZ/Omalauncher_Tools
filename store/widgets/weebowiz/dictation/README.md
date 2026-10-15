@@ -3,8 +3,8 @@
 Talk to Codex, Claude or any CLI instead of typing on the phone keyboard.
 
 1. **Speak.** Tap the tile to open the dictation page in the browser and dictate; edit the text right there.
-2. **Refine with Agent (optional).** The locally signed-in Codex CLI turns rambling speech into a clear request, shown as a
-   separate draft under your original so you can compare before anything is sent.
+2. **Refine with Agent (optional).** The locally signed-in Claude Code (Haiku) or Codex CLI, whichever matches the current
+   source with the other as fallback, turns rambling speech into a clear request, shown as a separate draft under your original so you can compare before anything is sent.
 3. **Send.** Pick **Codex chat** or **Terminal / Claude** on the same page and send the original or the refined draft.
    Progress, success or failure shows next to the button; the tile shows the last result too.
 
@@ -26,7 +26,7 @@ dictation page from the tile so it gets the new access token.
 
 ## Privacy
 
-Browser speech recognition may use the browser provider's online service. Refining sends the transcript to Codex and
+Browser speech recognition may use the browser provider's online service. Refining sends the transcript to Claude or Codex and
 never sends anything to the target by itself. The dictation page listens only on `127.0.0.1:18763` and checks a random
 token before saving or sending text. Terminal mode reaches only the tmux session `oma-voice`.
 

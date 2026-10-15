@@ -4,6 +4,7 @@ Hear what your coding agent said without watching the screen.
 
 - **Codex chat:** follows the latest local Codex conversation and reads a summary of each finished reply, also when the
   task finishes with the screen off.
+- **Claude chat:** reads finished replies from Claude Code's local transcripts (`~/.claude/projects`), in any terminal.
 - **Terminal / Claude:** run `tmux new -A -s oma-voice`, start Claude, Codex or any CLI there, and tap **Play** to hear
   the pane. If Claude is running outside tmux, Details offers to open it in that session.
 
@@ -32,6 +33,6 @@ that should be read aloud however long the screen has been off.
 ## Privacy
 
 Online speech sends the text being read to Microsoft Edge TTS; choose **Voice: offline** to keep it local.
-Terminal mode reads only the tmux session `oma-voice`.
+Claude chat reads only `~/.claude/projects`; terminal mode reads only the tmux session `oma-voice`.
 
 Source, tests and the build script: https://github.com/WeeboWIZ/Omalauncher_Tools

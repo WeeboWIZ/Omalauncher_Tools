@@ -3,7 +3,7 @@ widget "Terminal Voice" {
   order: 6
   size: 3x4
   minSize: 3x4
-  meta { owl: 6; description: "Hear Codex replies or a tmux terminal running Claude or any CLI read aloud, even a task that finishes with the screen off. Pairs with Dictation to answer by voice."; version: "__VERSION__"; license: "MIT"; category: "productivity" }
+  meta { owl: 6; description: "Hear Codex or Claude replies, or a tmux terminal running any CLI, read aloud, even a task that finishes with the screen off. Pairs with Dictation to answer by voice."; version: "__VERSION__"; license: "MIT"; category: "productivity" }
   requires { pacman: ["python", "espeak-ng", "libpulse", "mpg123", "tmux", "curl", "util-linux"] }
   source uiLanguage = file("~/.config/omalauncher/voice-ui-language")
   source installed = file("~/.local/share/oma-voice/terminal-voice-version")
