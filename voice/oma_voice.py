@@ -76,6 +76,19 @@ def clean_text(text):
     return ''.join(c for c in text if c in '\n\t' or (ord(c) >= 32 and ord(c) != 127)).strip()
 
 
+def readable(text):
+    '''The reply as the detail page shows it: Markdown marks taken out, code and links kept.'''
+    text = re.sub(r'(?m)^\s*```.*$', '', text or '')
+    text = re.sub(r'!?\[([^\]]+)\]\(([^)]*)\)', r'\1 (\2)', text)
+    text = re.sub(r'(?m)^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$\n?', '', text)
+    text = re.sub(r'(?m)^\s*\|(.*)\|\s*$', lambda m: ' · '.join(c.strip() for c in m.group(1).split('|') if c.strip()), text)
+    text = re.sub(r'(?m)^(\s*)#{1,6}\s+', r'\1', text)
+    text = re.sub(r'(?m)^(\s*)[-*+]\s+', r'\1• ', text)
+    text = re.sub(r'(?m)^>\s?', '', text)
+    text = text.replace('**', '').replace('__', '').replace('`', '')
+    return re.sub(r'\n{3,}', '\n\n', text).strip()
+
+
 def summarize(text, limit=360):
     '''Extract sentences verbatim; retain an explicit failure/limitation if present.'''
     text = clean_text(text)
@@ -249,6 +262,7 @@ class Reader:
         self.language_at = changed_at()
         self.state['status_ui'] = local(self.state.get('status', ''), language)
         self.state['error_ui'] = local(self.state.get('error', ''), language)
+        self.state['full_view'] = readable(self.state.get('full') or '')
         for old in ('status_en', 'error_en', 'checked_at'):
             self.state.pop(old, None)
         stamp = self.state.get('reply_at')

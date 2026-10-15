@@ -397,8 +397,9 @@ class VoiceTests(unittest.TestCase):
         self.assertEqual(language.local('not a known message','ja'),'not a known message')
         page = (ROOT/'dictation/index.html').read_text()
         table = json.loads(next(line for line in page.split('\n') if line.startswith('const UI_STRINGS = '))[len('const UI_STRINGS = '):].rstrip(';'))
+        # The page is in Chinese or English only: every other interface language sees English.
         for chinese,texts in table.items():
-            self.assertEqual(set(texts),set(language.LANGUAGES)-{'zh'},chinese)
+            self.assertEqual(set(texts),{'en'},chinese)
         # The one language picker lists spoken languages; each interface language has one.
         speech = json.loads(re.sub(r'(\w+):', r'"\1":', next(line for line in page.split('\n') if line.startswith('const SPEECH='))[len('const SPEECH='):].rstrip(';')).replace("'", '"'))
         for code in language.LANGUAGES:

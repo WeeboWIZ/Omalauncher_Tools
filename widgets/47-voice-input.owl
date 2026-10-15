@@ -58,63 +58,71 @@ widget "Dictation" {
   }
  }
  screen {
-  title: _("DICTATION")
+  title: (uiLanguage == "zh" ? "語音輸入" : "DICTATION")
   Column {
-   fill: true
+   fill: width
+   scroll: true
    height: screenHeight
-   gap: 10
-   Button { fill: width; height: 44; text: _("Back"); onTap: close() }
+   gap: 12
+   if !ready { Text { text: (uiLanguage == "zh" ? "尚未安裝或需要更新：請返回首頁，在此小工具上按「安裝」。" : "Not set up yet: go back and tap Set up on the tile."); color: yellow; maxLines: 3 } }
+   Button { fill: width; height: 52; text: actionPending == "open" ? (uiLanguage == "zh" ? "處理中…" : "Working…") : (uiLanguage == "zh" ? "開始語音輸入" : "Start dictation"); color: background; background: accent; onTap: { actionKind = "open"; actionPending = "open"; actionResult = ""; actionResult = run("bash ~/.local/bin/speak --json") } }
+   if actionKind == "open" && actionMessage != "" { Text { text: actionMessage; style: small; color: actionFailed ? red : accent; maxLines: 3 } }
+   Text { text: (uiLanguage == "zh" ? "送到" : "Send to"); style: small; color: muted }
+   Row {
+    gap: 6
+    Button { weight: 1; height: 44; text: actionPending == "source" ? "…" : "Codex"; color: voice.source == "codex" ? background : accent; background: voice.source == "codex" ? accent : alpha(accent, 0); onTap: { actionKind = "source"; actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source codex --json") } }
+    Button { weight: 1; height: 44; text: actionPending == "source" ? "…" : "Claude"; color: voice.source == "claude" ? background : accent; background: voice.source == "claude" ? accent : alpha(accent, 0); onTap: { actionKind = "source"; actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source claude --json") } }
+    Button { weight: 1; height: 44; text: actionPending == "source" ? "…" : "tmux"; color: voice.source == "terminal" ? background : accent; background: voice.source == "terminal" ? accent : alpha(accent, 0); onTap: { actionKind = "source"; actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source terminal --json") } }
+   }
+   if voice.source == "claude" && (voice.term_pane == "" || voice.term_pane == null) {
+    Text { text: (uiLanguage == "zh" ? "Claude 不在 tmux 中：只能複製貼上" : "Claude is not in tmux: copy and paste only"); style: small; color: yellow; maxLines: 2 }
+    Button { fill: width; height: 44; text: (uiLanguage == "zh" ? "在 tmux 開啟 Claude" : "Open Claude in tmux"); onTap: terminal("tmux new -A -s oma-voice 'claude; exec bash'", "Claude") }
+   }
+   if actionKind == "source" && actionMessage != "" { Text { text: actionMessage; style: small; color: actionFailed ? red : accent; maxLines: 3 } }
    Column {
     fill: width
-    scroll: true
-    height: max(1, screenHeight - 54)
-    gap: 12
-    if !ready { Text { text: _("Not set up yet: go back and tap Set up on the tile."); color: yellow; maxLines: 3 } }
-    Button { fill: width; height: 44; text: actionPending == "open" ? _("Working…") : _("Start dictation"); onTap: { actionKind = "open"; actionPending = "open"; actionResult = ""; actionResult = run("bash ~/.local/bin/speak --json") } }
-    if actionKind == "open" && actionMessage != "" { Text { text: actionMessage; style: small; color: actionFailed ? red : accent; maxLines: 3 } }
-    Text { text: _("Send to: ${voice.source == 'terminal' ? (voice.source_name ?? 'Terminal') : voice.source == 'claude' ? 'Claude' : 'Codex chat'}"); color: accent; maxLines: 2 }
+    padding: 12
+    border: 1
+    borderColor: border
+    gap: 10
+    Text { text: (uiLanguage == "zh" ? "最近文字" : "Latest text"); bold: true; color: accent }
+    Text { text: latest == "" || latest == null ? (uiLanguage == "zh" ? "開始 → 說話 → 停止並保存，文字會出現在這裡" : "Start → speak → stop and save; the text shows here") : latest; color: latest == "" || latest == null ? muted : foreground; maxLines: 160 }
     Row {
      gap: 6
-     Button { weight: 1; height: 44; text: actionPending == "source" ? "…" : voice.source == "codex" ? "✓ Codex" : "Codex"; onTap: { actionKind = "source"; actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source codex --json") } }
-     Button { weight: 1; height: 44; text: actionPending == "source" ? "…" : voice.source == "claude" ? "✓ Claude" : "Claude"; onTap: { actionKind = "source"; actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source claude --json") } }
-     Button { weight: 1; height: 44; text: actionPending == "source" ? "…" : voice.source == "terminal" ? "✓ tmux" : "tmux"; onTap: { actionKind = "source"; actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source terminal --json") } }
+     if voice.source == "claude" && (voice.term_pane == "" || voice.term_pane == null) {
+      Button { weight: 1; height: 44; text: (uiLanguage == "zh" ? "複製給 Claude" : "Copy for Claude"); color: background; background: accent; onTap: { copyState = latest == "" || latest == null ? "empty" : "copied"; copy(latest) } }
+     } else {
+      Button { weight: 1; height: 44; text: actionPending == "send" || sendStatus.phase == "sending" ? (uiLanguage == "zh" ? "正在送出…" : "Sending…") : sendStatus.phase == "sent" && sendStatus.version == "original" ? (uiLanguage == "zh" ? "已排隊" : "Queued") : (uiLanguage == "zh" ? "送出" : "Send"); color: background; background: accent; onTap: { actionKind = "send"; actionPending = "send"; actionResult = ""; actionResult = run("python ~/.local/bin/oma-send-dictation --json") } }
+      Button { weight: 1; height: 44; text: (uiLanguage == "zh" ? "複製" : "Copy"); onTap: { copyState = latest == "" || latest == null ? "empty" : "copied"; copy(latest) } }
+     }
     }
-    if voice.source == "claude" && (voice.term_pane == "" || voice.term_pane == null) {
-     Text { text: _("Dictation: copied for pasting; open Claude in tmux to send directly"); style: small; color: muted; maxLines: 3 }
-     Button { fill: width; height: 44; text: _("Open Claude in tmux"); onTap: terminal("tmux new -A -s oma-voice 'claude; exec bash'", "Claude") }
-    }
-    if actionKind == "source" && actionMessage != "" { Text { text: actionMessage; style: small; color: actionFailed ? red : accent; maxLines: 3 } }
-    Text { text: latest == "" || latest == null ? _("Start → speak → stop and save") : latest; maxLines: 160 }
-    Button { fill: width; height: 44; text: actionPending == "refine" || refineStatus.phase == "refining" ? _("Refining…") : _("Refine with Agent"); onTap: { actionKind = "refine"; actionPending = "refine"; actionResult = ""; actionResult = run("python ~/.local/bin/oma-refine-dictation --start --json") } }
-    Text { text: refineMessage; style: small; color: refineStatus.phase == "failed" ? red : muted; maxLines: 3 }
-    if refineStatus.phase == "ready" && refined != "" {
-     Text { text: _("Refined draft"); color: accent; bold: true }
-     Text { text: refined; maxLines: 160 }
-     Button { fill: width; height: 44; text: actionPending == "send" && actionKind == "send" ? _("Sending…") : sendStatus.phase == "sent" && sendStatus.version == "refined" ? _("Queued") : _("Send refined to target"); onTap: { actionKind = "send"; actionPending = "send"; actionResult = ""; actionResult = run("python ~/.local/bin/oma-send-dictation --refined --json") } }
-    }
-    Text { text: sendMessage; style: small; color: sendStatus.phase == "failed" ? red : sendStatus.phase == "sent" || sendStatus.phase == "saved" ? accent : muted; maxLines: 3 }
-    if queued.id != null {
-     Text { text: _("Waiting for Codex: newest message only"); color: yellow; bold: true }
-     Text { text: queued.text ?? ""; style: small; maxLines: 6 }
-     Button { fill: width; height: 44; text: actionPending == "unqueue" ? _("Working…") : _("Cancel waiting"); onTap: { actionKind = "unqueue"; actionPending = "unqueue"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py unqueue --json") } }
-    }
-    Row {
-     gap: 4
-     Button { weight: 1; height: 44; text: actionPending == "send" || sendStatus.phase == "sending" ? _("Sending…") : sendStatus.phase == "sent" && sendStatus.version == "original" ? _("Queued") : _("Send original"); onTap: { actionKind = "send"; actionPending = "send"; actionResult = ""; actionResult = run("python ~/.local/bin/oma-send-dictation --json") } }
-     Button { weight: 1; height: 44; text: _("Copy text"); onTap: { copyState = latest == "" || latest == null ? "empty" : "copied"; copy(latest) } }
-    }
+    if sendStatus.phase == "sending" || sendStatus.phase == "sent" || sendStatus.phase == "failed" { Text { text: sendMessage; style: small; color: sendStatus.phase == "failed" ? red : accent; maxLines: 3 } }
     if copyNotice != "" { Text { text: copyNotice; style: small; color: latest == "" || latest == null ? red : accent; maxLines: 2 } }
-    Text { text: _("Interface language"); color: accent; bold: true }
-    Grid {
-     columns: 2
+   }
+   if queued.id != null {
+    Column {
+     fill: width
+     padding: 12
+     border: 1
+     borderColor: yellow
      gap: 8
-     Button { fill: width; height: 44; text: uiLanguage == "en" ? "✓ English" : "English"; onTap: run("mkdir -p ~/.config/omalauncher && printf en > ~/.config/omalauncher/voice-ui-language") }
-     Button { fill: width; height: 44; text: uiLanguage == "zh" ? "✓ 中文" : "中文"; onTap: run("mkdir -p ~/.config/omalauncher && printf zh > ~/.config/omalauncher/voice-ui-language") }
-     Button { fill: width; height: 44; text: uiLanguage == "es" ? "✓ Español" : "Español"; onTap: run("mkdir -p ~/.config/omalauncher && printf es > ~/.config/omalauncher/voice-ui-language") }
-     Button { fill: width; height: 44; text: uiLanguage == "de" ? "✓ Deutsch" : "Deutsch"; onTap: run("mkdir -p ~/.config/omalauncher && printf de > ~/.config/omalauncher/voice-ui-language") }
-     Button { fill: width; height: 44; text: uiLanguage == "fr" ? "✓ Français" : "Français"; onTap: run("mkdir -p ~/.config/omalauncher && printf fr > ~/.config/omalauncher/voice-ui-language") }
-     Button { fill: width; height: 44; text: uiLanguage == "ja" ? "✓ 日本語" : "日本語"; onTap: run("mkdir -p ~/.config/omalauncher && printf ja > ~/.config/omalauncher/voice-ui-language") }
-     Button { fill: width; height: 44; text: uiLanguage == "ko" ? "✓ 한국어" : "한국어"; onTap: run("mkdir -p ~/.config/omalauncher && printf ko > ~/.config/omalauncher/voice-ui-language") }
+     Text { text: (uiLanguage == "zh" ? "排隊中：Codex 回覆完成後送出（只保留最新一則）" : "Waiting: sends when Codex finishes (newest message only)"); color: yellow; bold: true; maxLines: 3 }
+     Text { text: queued.text ?? ""; style: small; maxLines: 6 }
+     Button { fill: width; height: 44; text: actionPending == "unqueue" ? (uiLanguage == "zh" ? "處理中…" : "Working…") : (uiLanguage == "zh" ? "取消排隊" : "Cancel waiting"); onTap: { actionKind = "unqueue"; actionPending = "unqueue"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py unqueue --json") } }
+    }
+   }
+   Button { fill: width; height: 44; text: actionPending == "refine" || refineStatus.phase == "refining" ? (uiLanguage == "zh" ? "正在整理…" : "Refining…") : (uiLanguage == "zh" ? "✦ 用 Agent 整理文字" : "✦ Refine with Agent"); onTap: { actionKind = "refine"; actionPending = "refine"; actionResult = ""; actionResult = run("python ~/.local/bin/oma-refine-dictation --start --json") } }
+   if refineStatus.phase == "refining" || refineStatus.phase == "failed" { Text { text: refineMessage; style: small; color: refineStatus.phase == "failed" ? red : muted; maxLines: 3 } }
+   if refineStatus.phase == "ready" && refined != "" {
+    Column {
+     fill: width
+     padding: 12
+     border: 1
+     borderColor: accent
+     gap: 10
+     Text { text: (uiLanguage == "zh" ? "整理稿" : "Refined draft"); color: accent; bold: true }
+     Text { text: refined; maxLines: 160 }
+     Button { fill: width; height: 44; text: actionPending == "send" && actionKind == "send" ? (uiLanguage == "zh" ? "正在送出…" : "Sending…") : sendStatus.phase == "sent" && sendStatus.version == "refined" ? (uiLanguage == "zh" ? "已排隊" : "Queued") : (uiLanguage == "zh" ? "送出整理稿" : "Send refined draft"); color: background; background: accent; onTap: { actionKind = "send"; actionPending = "send"; actionResult = ""; actionResult = run("python ~/.local/bin/oma-send-dictation --refined --json") } }
     }
    }
   }

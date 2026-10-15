@@ -22,7 +22,8 @@ select{max-width:100%;min-width:0;background:var(--panel);font-size:14px}
 .quiet{border:0;min-height:40px;padding:6px 4px;font-size:14px;color:var(--muted)}
 .quiet:not(:disabled):hover{color:var(--accent)}
 .editor-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
-header select{min-height:40px;padding:4px 8px;max-width:58%}
+header select{min-height:40px;padding:4px 8px;max-width:100%}
+.lang{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);min-width:0;max-width:62%}.lang>span{flex:none}
 .agent{width:100%;margin-top:12px;min-height:48px;display:flex;align-items:center;justify-content:center;gap:8px;border-color:var(--accent);color:var(--accent);background:#78ffa212;font-weight:600}
 .agent svg{width:18px;height:18px;flex:none}
 .agent:not(:disabled):hover{background:#78ffa222}
@@ -71,8 +72,7 @@ body[data-listening="true"] #mic{border-color:var(--accent);color:var(--accent)}
 <main>
 <header>
 <h1>語音輸入</h1>
-<label for="language" class="sr-only">語言</label>
-<select id="language"><option value="zh-TW">中文（台灣）</option><option value="zh-CN">中文（普通話）</option><option value="en-US">English</option><option value="es-ES">Español</option><option value="de-DE">Deutsch</option><option value="fr-FR">Français</option><option value="ja-JP">日本語</option><option value="ko-KR">한국어</option><option value="th-TH">ไทย</option></select>
+<label class="lang"><span>輸入語言</span><select id="language"><option value="zh-TW">中文（台灣）</option><option value="zh-CN">中文（普通話）</option><option value="en-US">English</option><option value="es-ES">Español</option><option value="de-DE">Deutsch</option><option value="fr-FR">Français</option><option value="ja-JP">日本語</option><option value="ko-KR">한국어</option></select></label>
 </header>
 <section>
 <div class="editor-bar">
@@ -111,48 +111,48 @@ let token=launchToken;
 try{if(launchToken)sessionStorage.setItem('oma-speak-token',launchToken);else token=sessionStorage.getItem('oma-speak-token')||'';}catch(e){}
 history.replaceState(null,'',location.pathname);
 
-// Chinese is what the page is written in; the other interface languages are looked up here.
-const UI_STRINGS = {"語音輸入":{"en":"Dictation","es":"Dictado","de":"Diktat","fr":"Dictée","ja":"音声入力","ko":"받아쓰기"},"停止":{"en":"Stop","es":"Parar","de":"Stopp","fr":"Arrêter","ja":"停止","ko":"정지"},"保存到首頁":{"en":"Save to home","es":"Guardar en inicio","de":"Auf Start speichern","fr":"Enregistrer sur l’accueil","ja":"ホームに保存","ko":"홈에 저장"},"清空":{"en":"Clear","es":"Borrar","de":"Leeren","fr":"Effacer","ja":"クリア","ko":"지우기"},"已清空。":{"en":"Cleared.","es":"Borrado.","de":"Geleert.","fr":"Effacé.","ja":"クリアしました。","ko":"지웠습니다."},"正在停止…":{"en":"Stopping…","es":"Parando…","de":"Stoppe…","fr":"Arrêt…","ja":"停止中…","ko":"정지하는 중…"},"保存失敗：":{"en":"Save failed: ","es":"Error al guardar: ","de":"Speichern fehlgeschlagen: ","fr":"Échec de l’enregistrement : ","ja":"保存に失敗：","ko":"저장 실패: "},"已複製。":{"en":"Copied.","es":"Copiado.","de":"Kopiert.","fr":"Copié.","ja":"コピーしました。","ko":"복사했습니다."},"請長按選取的文字並複製。":{"en":"Long-press the selected text to copy it.","es":"Mantén pulsado el texto seleccionado para copiarlo.","de":"Markierten Text lange drücken, um ihn zu kopieren.","fr":"Appuyez longuement sur le texte sélectionné pour le copier.","ja":"選択したテキストを長押ししてコピーしてください。","ko":"선택한 텍스트를 길게 눌러 복사하세요."},"此瀏覽器不支援語音辨識，請使用 Chrome 開啟。":{"en":"This browser does not support speech recognition. Open in Chrome.","es":"Este navegador no admite el reconocimiento de voz. Ábrelo en Chrome.","de":"Dieser Browser unterstützt keine Spracherkennung. In Chrome öffnen.","fr":"Ce navigateur ne prend pas en charge la reconnaissance vocale. Ouvrez dans Chrome.","ja":"このブラウザは音声認識に対応していません。Chrome で開いてください。","ko":"이 브라우저는 음성 인식을 지원하지 않습니다. Chrome 에서 여세요."},"麥克風權限被拒絕。請到 Android 設定 → 應用程式 → 目前瀏覽器 → 權限 → 麥克風，並在瀏覽器的本站設定允許麥克風。給 omalauncher 權限不會同時授權瀏覽器。":{"en":"Microphone denied. Allow the browser microphone permission in Android settings and browser site settings.","es":"Micrófono denegado. Permite el micrófono al navegador en los ajustes de Android y en los ajustes del sitio.","de":"Mikrofon verweigert. Dem Browser das Mikrofon in den Android-Einstellungen und den Website-Einstellungen erlauben.","fr":"Micro refusé. Autorisez le micro pour le navigateur dans les réglages Android et les réglages du site.","ja":"マイクが拒否されました。Android の設定とブラウザのサイト設定でマイクを許可してください。","ko":"마이크가 거부되었습니다. Android 설정과 브라우저 사이트 설정에서 마이크를 허용하세요."},"瀏覽器不允許此語音服務，請用 Chrome 開啟。":{"en":"Speech service blocked. Try Chrome.","es":"Servicio de voz bloqueado. Prueba con Chrome.","de":"Sprachdienst blockiert. Chrome versuchen.","fr":"Service vocal bloqué. Essayez Chrome.","ja":"音声サービスがブロックされました。Chrome をお試しください。","ko":"음성 서비스가 차단되었습니다. Chrome 을 써 보세요."},"無法取得麥克風。請確認瀏覽器權限，並關閉其他正在錄音的程式。":{"en":"Microphone unavailable. Check browser permissions and close other recording apps.","es":"Micrófono no disponible. Revisa los permisos del navegador y cierra otras apps que graben.","de":"Mikrofon nicht verfügbar. Browser-Berechtigungen prüfen und andere Aufnahme-Apps schließen.","fr":"Micro indisponible. Vérifiez les autorisations du navigateur et fermez les autres applis qui enregistrent.","ja":"マイクを使用できません。ブラウザの権限を確認し、録音中の他のアプリを閉じてください。","ko":"마이크를 쓸 수 없습니다. 브라우저 권한을 확인하고 녹음 중인 다른 앱을 닫으세요."},"語音服務連線失敗，請檢查網路後重試。":{"en":"Speech service network error. Check connection and retry.","es":"Error de red del servicio de voz. Revisa la conexión y reintenta.","de":"Netzwerkfehler beim Sprachdienst. Verbindung prüfen und erneut versuchen.","fr":"Erreur réseau du service vocal. Vérifiez la connexion et réessayez.","ja":"音声サービスのネットワークエラー。接続を確認して再試行してください。","ko":"음성 서비스 네트워크 오류. 연결을 확인하고 다시 시도하세요."},"沒聽到聲音，請按開始重試。":{"en":"No speech heard. Tap Start to retry.","es":"No se oyó nada. Toca Iniciar para reintentar.","de":"Nichts gehört. Starten antippen, um es erneut zu versuchen.","fr":"Rien entendu. Touchez Démarrer pour réessayer.","ja":"音声が聞こえませんでした。開始をタップして再試行してください。","ko":"소리가 들리지 않았습니다. 시작을 눌러 다시 시도하세요."},"此語音服務不支援所選語言，請切換語言。":{"en":"This speech service does not support the selected language.","es":"Este servicio de voz no admite el idioma elegido.","de":"Dieser Sprachdienst unterstützt die gewählte Sprache nicht.","fr":"Ce service vocal ne prend pas en charge la langue choisie.","ja":"この音声サービスは選択した言語に対応していません。","ko":"이 음성 서비스는 선택한 언어를 지원하지 않습니다."},"語音已停止。":{"en":"Speech stopped.","es":"Voz detenida.","de":"Sprache gestoppt.","fr":"Voix arrêtée.","ja":"音声を停止しました。","ko":"음성이 멈췄습니다."},"先按停止，再選候選文字。":{"en":"Tap Stop before choosing another transcript.","es":"Toca Parar antes de elegir otra transcripción.","de":"Vor der Wahl einer anderen Fassung Stopp antippen.","fr":"Touchez Arrêter avant de choisir une autre transcription.","ja":"別の候補を選ぶ前に停止をタップしてください。","ko":"다른 후보를 고르기 전에 정지를 누르세요."},"這句已修改，請直接編輯文字。":{"en":"This sentence was edited; change it directly.","es":"Esta frase fue editada; cámbiala directamente.","de":"Dieser Satz wurde bearbeitet; bitte direkt ändern.","fr":"Cette phrase a été modifiée ; changez-la directement.","ja":"この文は編集済みです。直接修正してください。","ko":"이 문장은 수정되었습니다. 직접 고치세요."},"請從首頁「語音輸入」重新開啟。":{"en":"Reopen from the Dictation widget.","es":"Vuelve a abrir desde el widget Dictado.","de":"Über das Diktat-Widget erneut öffnen.","fr":"Rouvrez depuis le widget Dictée.","ja":"音声入力ウィジェットから開き直してください。","ko":"받아쓰기 위젯에서 다시 여세요."},"辨識錯誤：":{"en":"Recognition error: ","es":"Error de reconocimiento: ","de":"Erkennungsfehler: ","fr":"Erreur de reconnaissance : ","ja":"認識エラー：","ko":"인식 오류: "},"無法開始：":{"en":"Could not start: ","es":"No se pudo iniciar: ","de":"Start nicht möglich: ","fr":"Impossible de démarrer : ","ja":"開始できません：","ko":"시작할 수 없음: "},"準備就緒":{"en":"Ready","es":"Listo","de":"Bereit","fr":"Prêt","ja":"準備完了","ko":"준비됨"},"說話或在這裡輸入…":{"en":"Speak or type here…","es":"Habla o escribe aquí…","de":"Hier sprechen oder tippen…","fr":"Parlez ou écrivez ici…","ja":"話すか、ここに入力…","ko":"말하거나 여기에 입력하세요…"},"複製":{"en":"Copy","es":"Copiar","de":"Kopieren","fr":"Copier","ja":"コピー","ko":"복사"},"正在聽…":{"en":"Listening…","es":"Escuchando…","de":"Höre zu…","fr":"Écoute…","ja":"聞き取り中…","ko":"듣는 중…"},"已停止，可編輯文字。":{"en":"Stopped. Edit your text.","es":"Detenido. Edita el texto.","de":"Gestoppt. Text bearbeiten.","fr":"Arrêté. Modifiez le texte.","ja":"停止しました。編集できます。","ko":"정지됨. 텍스트를 수정하세요."},"已暫停，可編輯文字。":{"en":"Paused for editing.","es":"En pausa para editar.","de":"Zum Bearbeiten pausiert.","fr":"En pause pour modifier.","ja":"編集のため一時停止中。","ko":"수정을 위해 일시정지됨."},"其他辨識結果":{"en":"Alternatives","es":"Alternativas","de":"Alternativen","fr":"Autres résultats","ja":"他の候補","ko":"다른 인식 결과"},"文字":{"en":"Text","es":"Texto","de":"Text","fr":"Texte","ja":"テキスト","ko":"텍스트"},"關於語音辨識":{"en":"About speech recognition","es":"Sobre el reconocimiento de voz","de":"Über Spracherkennung","fr":"À propos de la reconnaissance vocale","ja":"音声認識について","ko":"음성 인식 안내"}};
+// The page is written in Chinese and shown in English for every other interface language.
+const UI_STRINGS = {"語音輸入":{"en":"Dictation"},"輸入語言":{"en":"Input language"},"停止":{"en":"Stop"},"保存到首頁":{"en":"Save to home"},"清空":{"en":"Clear"},"已清空。":{"en":"Cleared."},"正在停止…":{"en":"Stopping…"},"保存失敗：":{"en":"Save failed: "},"已複製。":{"en":"Copied."},"請長按選取的文字並複製。":{"en":"Long-press the selected text to copy it."},"此瀏覽器不支援語音辨識，請使用 Chrome 開啟。":{"en":"This browser does not support speech recognition. Open in Chrome."},"麥克風權限被拒絕。請到 Android 設定 → 應用程式 → 目前瀏覽器 → 權限 → 麥克風，並在瀏覽器的本站設定允許麥克風。給 omalauncher 權限不會同時授權瀏覽器。":{"en":"Microphone denied. Allow the browser microphone permission in Android settings and browser site settings."},"瀏覽器不允許此語音服務，請用 Chrome 開啟。":{"en":"Speech service blocked. Try Chrome."},"無法取得麥克風。請確認瀏覽器權限，並關閉其他正在錄音的程式。":{"en":"Microphone unavailable. Check browser permissions and close other recording apps."},"語音服務連線失敗，請檢查網路後重試。":{"en":"Speech service network error. Check connection and retry."},"沒聽到聲音，請按開始重試。":{"en":"No speech heard. Tap Start to retry."},"此語音服務不支援所選語言，請切換語言。":{"en":"This speech service does not support the selected language."},"語音已停止。":{"en":"Speech stopped."},"先按停止，再選候選文字。":{"en":"Tap Stop before choosing another transcript."},"這句已修改，請直接編輯文字。":{"en":"This sentence was edited; change it directly."},"請從首頁「語音輸入」重新開啟。":{"en":"Reopen from the Dictation widget."},"辨識錯誤：":{"en":"Recognition error: "},"無法開始：":{"en":"Could not start: "},"準備就緒":{"en":"Ready"},"說話或在這裡輸入…":{"en":"Speak or type here…"},"複製":{"en":"Copy"},"正在聽…":{"en":"Listening…"},"已停止，可編輯文字。":{"en":"Stopped. Edit your text."},"已暫停，可編輯文字。":{"en":"Paused for editing."},"其他辨識結果":{"en":"Alternatives"},"文字":{"en":"Text"},"關於語音辨識":{"en":"About speech recognition"}};
 Object.assign(UI_STRINGS, {
- '複製給 Claude': {en:'Copy for Claude',es:'Copiar para Claude',de:'Für Claude kopieren',fr:'Copier pour Claude',ja:'Claude 用にコピー',ko:'Claude용 복사'},
- '已複製，請到 Claude 貼上送出。': {en:'Copied. Paste it into Claude and send.',es:'Copiado. Pégalo en Claude y envíalo.',de:'Kopiert. In Claude einfügen und senden.',fr:'Copié. Collez-le dans Claude et envoyez.',ja:'コピーしました。Claude に貼り付けて送信してください。',ko:'복사했습니다. Claude에 붙여 넣고 보내세요.'},
- '已找到 Claude。它不在 tmux 裡：按「複製給 Claude」後到 Claude 貼上送出。': {en:'Claude found. It is not in tmux: tap Copy for Claude, then paste it into Claude.',es:'Claude encontrado. No está en tmux: toca Copiar para Claude y pégalo allí.',de:'Claude gefunden. Nicht in tmux: „Für Claude kopieren“ antippen und dort einfügen.',fr:'Claude trouvé. Il n’est pas dans tmux : touchez Copier pour Claude, puis collez-le dans Claude.',ja:'Claude を検出。tmux 外のため「Claude 用にコピー」して Claude に貼り付けてください。',ko:'Claude를 찾았습니다. tmux 밖이므로 “Claude용 복사” 후 Claude에 붙여 넣으세요.'},
- '沒有找到執行中的 Claude。': {en:'No running Claude found.',es:'No hay ningún Claude en ejecución.',de:'Kein laufendes Claude gefunden.',fr:'Aucun Claude en cours trouvé.',ja:'実行中の Claude が見つかりません。',ko:'실행 중인 Claude가 없습니다.'},
- '聽寫': {en:'Dictate',es:'Dictar',de:'Diktieren',fr:'Dicter',ja:'音声入力',ko:'받아쓰기'},
- 'Agent 整理': {en:'Refine with Agent',es:'Organizar con Agent',de:'Mit Agent ordnen',fr:'Réviser avec Agent',ja:'Agent で整理',ko:'Agent로 정리'},
- '語言': {en:'Language',es:'Idioma',de:'Sprache',fr:'Langue',ja:'言語',ko:'언어'},
- 'Claude 會話': {en:'Claude chat',es:'chat de Claude',de:'Claude-Chat',fr:'chat Claude',ja:'Claude チャット',ko:'Claude 채팅'},
- 'tmux 終端': {en:'tmux terminal',es:'terminal tmux',de:'tmux-Terminal',fr:'terminal tmux',ja:'tmux ターミナル',ko:'tmux 터미널'},
- '整理': {en:'Refine',es:'Organizar',de:'Ordnen',fr:'Réviser',ja:'整理',ko:'정리'},
- '整理中…': {en:'Refining…',es:'Organizando…',de:'Ordne…',fr:'Révision…',ja:'整理中…',ko:'정리 중…'},
- '整理稿': {en:'Refined draft',es:'Versión revisada',de:'Überarbeitete Fassung',fr:'Version révisée',ja:'整理した文章',ko:'정리한 글'},
- '採用': {en:'Use it',es:'Usar',de:'Übernehmen',fr:'Utiliser',ja:'採用',ko:'사용'},
- '捨棄': {en:'Discard',es:'Descartar',de:'Verwerfen',fr:'Ignorer',ja:'破棄',ko:'버리기'},
- '已採用整理稿，可再編輯後送出。': {en:'Draft applied. Edit or send it.',es:'Versión aplicada. Edítala o envíala.',de:'Fassung übernommen. Bearbeiten oder senden.',fr:'Version appliquée. Modifiez-la ou envoyez-la.',ja:'整理稿を反映しました。編集または送信できます。',ko:'정리한 글을 적용했습니다. 고치거나 보내세요.'},
- '正在整理…': {en:'Refining…',es:'Organizando…',de:'Wird überarbeitet…',fr:'Révision en cours…',ja:'整理中…',ko:'정리 중…'},
- '整理完成，請檢查內容。': {en:'Draft ready. Review it before sending.',es:'Versión lista. Revísala antes de enviar.',de:'Fassung fertig. Vor dem Senden prüfen.',fr:'Version prête. Relisez-la avant l’envoi.',ja:'整理完了。送信前に確認してください。',ko:'정리 완료. 보내기 전에 확인하세요.'},
- '整理失敗，原文仍可送出。': {en:'Refining failed. You can still send the original.',es:'Error al organizar. Aún puedes enviar el original.',de:'Überarbeitung fehlgeschlagen. Das Original kann gesendet werden.',fr:'Échec de la révision. Vous pouvez envoyer l’original.',ja:'整理に失敗しました。原文は送信できます。',ko:'정리 실패. 원문은 보낼 수 있습니다.'},
- '請先輸入文字。': {en:'Enter some text first.',es:'Escribe texto primero.',de:'Zuerst Text eingeben.',fr:'Saisissez d’abord du texte.',ja:'先に文字を入力してください。',ko:'먼저 내용을 입력하세요.'},
- '原文已變更，請重新整理。': {en:'Text changed. Refine it again.',es:'El texto cambió. Organízalo de nuevo.',de:'Text geändert. Bitte erneut ordnen.',fr:'Le texte a changé. Relancez la révision.',ja:'文字が変更されました。再度整理してください。',ko:'글이 바뀌었습니다. 다시 정리하세요.'},
- '送出': {en:'Send',es:'Enviar',de:'Senden',fr:'Envoyer',ja:'送信',ko:'보내기'},
- '送出中…': {en:'Sending…',es:'Enviando…',de:'Sende…',fr:'Envoi…',ja:'送信中…',ko:'전송 중…'},
- '送到': {en:'To',es:'A',de:'An',fr:'Vers',ja:'送信先',ko:'대상'},
- '已送出。': {en:'Sent.',es:'Enviado.',de:'Gesendet.',fr:'Envoyé.',ja:'送信しました。',ko:'보냈습니다.'},
- '送出失敗：': {en:'Send failed: ',es:'Error al enviar: ',de:'Senden fehlgeschlagen: ',fr:'Échec de l’envoi : ',ja:'送信失敗：',ko:'전송 실패: '},
- '排隊中': {en:'Waiting',es:'En espera',de:'Wartet',fr:'En attente',ja:'待機中',ko:'대기 중'},
- '取消': {en:'Cancel',es:'Cancelar',de:'Abbrechen',fr:'Annuler',ja:'取り消す',ko:'취소'},
- 'Codex 回覆完成後送出這一則；再次送出會取代它。': {en:'Sent when Codex finishes its reply. Sending again replaces it.',es:'Se envía cuando Codex termine. Enviar de nuevo lo sustituye.',de:'Wird gesendet, sobald Codex fertig ist. Erneutes Senden ersetzt sie.',fr:'Envoyé quand Codex aura fini. Un nouvel envoi le remplace.',ja:'Codex の返信後に送信します。もう一度送ると置き換わります。',ko:'Codex 응답이 끝나면 보냅니다. 다시 보내면 교체됩니다.'},
- 'Codex 已收到排隊的訊息。': {en:'Codex picked up the waiting message.',es:'Codex recibió el mensaje en espera.',de:'Codex hat die wartende Nachricht übernommen.',fr:'Codex a pris le message en attente.',ja:'Codex が待機中のメッセージを受け取りました。',ko:'Codex가 대기 중인 메시지를 받았습니다.'},
- '已取消，文字已放回編輯區。': {en:'Cancelled. The text is back in the editor.',es:'Cancelado. El texto volvió al editor.',de:'Abgebrochen. Der Text ist wieder im Editor.',fr:'Annulé. Le texte est revenu dans l’éditeur.',ja:'取り消しました。文字を編集欄に戻しました。',ko:'취소했습니다. 글을 편집기로 되돌렸습니다.'},
- '取消失敗：': {en:'Cancel failed: ',es:'Error al cancelar: ',de:'Abbrechen fehlgeschlagen: ',fr:'Échec de l’annulation : ',ja:'取り消し失敗：',ko:'취소 실패: '},
- '保存失敗：': {en:'Save failed: ',es:'Error al guardar: ',de:'Speichern fehlgeschlagen: ',fr:'Échec de l’enregistrement : ',ja:'保存に失敗：',ko:'저장 실패: '},
- 'Codex 會話': {en:'Codex chat',es:'chat de Codex',de:'Codex-Chat',fr:'chat Codex',ja:'Codex チャット',ko:'Codex 채팅'},
- '正在切換送出目標…': {en:'Switching target…',es:'Cambiando destino…',de:'Ziel wird gewechselt…',fr:'Changement de cible…',ja:'送信先を切り替え中…',ko:'대상 변경 중…'},
- '送出目標已切換。': {en:'Target changed.',es:'Destino cambiado.',de:'Ziel gewechselt.',fr:'Cible modifiée.',ja:'送信先を切り替えました。',ko:'대상을 변경했습니다.'},
- '切換目標失敗：': {en:'Could not change target: ',es:'No se pudo cambiar el destino: ',de:'Zielwechsel fehlgeschlagen: ',fr:'Impossible de changer de cible : ',ja:'送信先を変更できません：',ko:'대상을 변경하지 못함: '},
- '終端尚未連接；請先執行 tmux new -A -s oma-voice。': {en:'Terminal disconnected. Run tmux new -A -s oma-voice first.',es:'Terminal desconectado. Ejecuta tmux new -A -s oma-voice primero.',de:'Terminal nicht verbunden. Zuerst tmux new -A -s oma-voice ausführen.',fr:'Terminal déconnecté. Exécutez d’abord tmux new -A -s oma-voice.',ja:'ターミナル未接続。先に tmux new -A -s oma-voice を実行してください。',ko:'터미널이 연결되지 않았습니다. 먼저 tmux new -A -s oma-voice를 실행하세요.'},
- '辨識使用瀏覽器的語音服務，可能將音訊傳給服務供應商。文字會自動保存到首頁，按「送出」才會傳給目標。': {en:'Browser speech recognition may send audio to its provider. Text is saved to the home widget automatically and only goes to the target when you tap Send.',es:'El reconocimiento de voz del navegador puede enviar audio al proveedor del servicio. El texto se guarda en el widget y solo va al destino al tocar Enviar.',de:'Die Spracherkennung des Browsers kann Audio an ihren Anbieter senden. Der Text wird im Widget gespeichert und erst mit Senden an das Ziel geschickt.',fr:'La reconnaissance vocale du navigateur peut envoyer l’audio à son fournisseur. Le texte est enregistré sur le widget et n’est envoyé qu’en touchant Envoyer.',ja:'ブラウザの音声認識は音声を提供元に送ることがあります。文字はホームに自動保存され、送信をタップした時だけ送信先に送られます。',ko:'브라우저 음성 인식은 오디오를 제공업체로 보낼 수 있습니다. 글은 홈 위젯에 자동 저장되며 보내기를 눌러야 대상에 전송됩니다.'},
- '整理用目前來源的便宜模型（Claude Haiku／Codex 最便宜模型），不會送到目標。': {en:'Refining uses a cheap model of the current source (Claude Haiku / the cheapest Codex model) and does not send to the target.',es:'Organizar usa un modelo barato de la fuente actual (Claude Haiku / el más barato de Codex) y no envía al destino.',de:'Ordnen nutzt ein günstiges Modell der aktuellen Quelle (Claude Haiku / das günstigste Codex-Modell) und sendet nicht an das Ziel.',fr:'La révision utilise un modèle bon marché de la source (Claude Haiku / le moins cher de Codex) et n’envoie rien à la cible.',ja:'整理は現在のソースの安価なモデル（Claude Haiku／Codex 最安モデル）を使い、送信先には送りません。',ko:'정리는 현재 소스의 저렴한 모델(Claude Haiku / Codex 최저가 모델)을 쓰며 대상에 보내지 않습니다.'},
+ '複製給 Claude': {en:'Copy for Claude'},
+ '已複製，請到 Claude 貼上送出。': {en:'Copied. Paste it into Claude and send.'},
+ '已找到 Claude。它不在 tmux 裡：按「複製給 Claude」後到 Claude 貼上送出。': {en:'Claude found. It is not in tmux: tap Copy for Claude, then paste it into Claude.'},
+ '沒有找到執行中的 Claude。': {en:'No running Claude found.'},
+ '聽寫': {en:'Dictate'},
+ 'Agent 整理': {en:'Refine with Agent'},
+ '語言': {en:'Language'},
+ 'Claude 會話': {en:'Claude chat'},
+ 'tmux 終端': {en:'tmux terminal'},
+ '整理': {en:'Refine'},
+ '整理中…': {en:'Refining…'},
+ '整理稿': {en:'Refined draft'},
+ '採用': {en:'Use it'},
+ '捨棄': {en:'Discard'},
+ '已採用整理稿，可再編輯後送出。': {en:'Draft applied. Edit or send it.'},
+ '正在整理…': {en:'Refining…'},
+ '整理完成，請檢查內容。': {en:'Draft ready. Review it before sending.'},
+ '整理失敗，原文仍可送出。': {en:'Refining failed. You can still send the original.'},
+ '請先輸入文字。': {en:'Enter some text first.'},
+ '原文已變更，請重新整理。': {en:'Text changed. Refine it again.'},
+ '送出': {en:'Send'},
+ '送出中…': {en:'Sending…'},
+ '送到': {en:'To'},
+ '已送出。': {en:'Sent.'},
+ '送出失敗：': {en:'Send failed: '},
+ '排隊中': {en:'Waiting'},
+ '取消': {en:'Cancel'},
+ 'Codex 回覆完成後送出這一則；再次送出會取代它。': {en:'Sent when Codex finishes its reply. Sending again replaces it.'},
+ 'Codex 已收到排隊的訊息。': {en:'Codex picked up the waiting message.'},
+ '已取消，文字已放回編輯區。': {en:'Cancelled. The text is back in the editor.'},
+ '取消失敗：': {en:'Cancel failed: '},
+ '保存失敗：': {en:'Save failed: '},
+ 'Codex 會話': {en:'Codex chat'},
+ '正在切換送出目標…': {en:'Switching target…'},
+ '送出目標已切換。': {en:'Target changed.'},
+ '切換目標失敗：': {en:'Could not change target: '},
+ '終端尚未連接；請先執行 tmux new -A -s oma-voice。': {en:'Terminal disconnected. Run tmux new -A -s oma-voice first.'},
+ '辨識使用瀏覽器的語音服務，可能將音訊傳給服務供應商。文字會自動保存到首頁，按「送出」才會傳給目標。': {en:'Browser speech recognition may send audio to its provider. Text is saved to the home widget automatically and only goes to the target when you tap Send.'},
+ '整理用目前來源的便宜模型（Claude Haiku／Codex 最便宜模型），不會送到目標。': {en:'Refining uses a cheap model of the current source (Claude Haiku / the cheapest Codex model) and does not send to the target.'},
 });
 let uiLanguage='zh';
 // The language spoken by default for each interface language.
@@ -165,7 +165,7 @@ function localize(value){if(uiLanguage==='zh')return value;for(const [zh,texts] 
 // One status line for every action; tone: ok, bad or plain.
 function say(message,tone=''){status.dataset.original=message;status.dataset.tone=tone;status.textContent=localize(message);}
 function applyLanguage(){
- document.documentElement.lang=uiLanguage==='zh'?'zh-Hant':uiLanguage;
+ document.documentElement.lang=uiLanguage==='zh'?'zh-Hant':'en';
  for(const [node,zh] of originalNodes)node.textContent=localize(zh);
  text.placeholder=localize(originalPlaceholder);
  document.title=localize('語音輸入');

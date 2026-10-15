@@ -48,91 +48,98 @@ widget "Terminal Voice" {
     }
   }
   screen {
-    title: _("TERMINAL // VOICE")
+    title: (uiLanguage == "zh" ? "TERMINAL // 播報" : "TERMINAL // VOICE")
     Column {
       fill: true
       height: screenHeight
       gap: 10
       Row {
-        height: 44
-        Button { weight: 1; height: 44; text: _("Sync reply"); onTap: { actionPending = "sync"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py refresh --json") } }
-        Button { weight: 1; height: 44; text: _("Stop audio"); onTap: { actionPending = "stop"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py stop --json") } }
-        Button { weight: 1; height: 44; text: _("Back"); onTap: close() }
-      }
-      Row {
         gap: 8
-        Button { weight: 1; height: 44; text: detailTab == "read" ? _("Playback selected") : _("Playback"); onTap: detailTab = "read" }
-        Button { weight: 1; height: 44; text: detailTab == "settings" ? _("Settings selected") : _("Settings"); onTap: detailTab = "settings" }
+        Button { weight: 1; height: 44; text: (uiLanguage == "zh" ? "播放與內容" : "Playback"); color: detailTab == "read" ? background : accent; background: detailTab == "read" ? accent : alpha(accent, 0); onTap: detailTab = "read" }
+        Button { weight: 1; height: 44; text: (uiLanguage == "zh" ? "設定" : "Settings"); color: detailTab == "settings" ? background : accent; background: detailTab == "settings" ? accent : alpha(accent, 0); onTap: detailTab = "settings" }
       }
       Column {
         scroll: true
         fill: width
-        height: max(1, screenHeight - 108)
+        height: max(1, screenHeight - 54)
         gap: 12
-        if !ready { Text { text: _("Not set up yet: go back and tap Set up on the tile."); color: yellow; maxLines: 3 } }
-        Text { text: statusText; color: offline ? yellow : accent; maxLines: 3 }
-        if actionPending != "" { Text { text: _("Working…"); color: accent } }
-        if actionPending == "" && actionResult != "" { Text { text: parseJson(actionResult).ok ? (parseJson(actionResult).status_ui ?? _("Done")) : (parseJson(actionResult).error_ui ?? _("Action failed")); color: parseJson(actionResult).ok ? accent : red; maxLines: 3 } }
-        Text { text: voice.error_ui ?? ""; style: small; color: red; maxLines: 5 }
+        Column {
+          fill: width
+          padding: 12
+          border: 1
+          borderColor: offline || (voice.error_ui ?? "") != "" ? yellow : border
+          gap: 4
+          if !ready { Text { text: (uiLanguage == "zh" ? "尚未安裝或需要更新：請返回首頁，在此小工具上按「安裝」。" : "Not set up yet: go back and tap Set up on the tile."); color: yellow; maxLines: 3 } }
+          Text { text: actionPending != "" ? (uiLanguage == "zh" ? "處理中…" : "Working…") : statusText; color: offline ? yellow : accent; maxLines: 3 }
+          if actionPending == "" && actionResult != "" && parseJson(actionResult).ok != true { Text { text: parseJson(actionResult).error_ui ?? (uiLanguage == "zh" ? "操作失敗" : "Action failed"); style: small; color: red; maxLines: 3 } }
+          if (voice.error_ui ?? "") != "" { Text { text: voice.error_ui; style: small; color: red; maxLines: 5 } }
+        }
         if detailTab == "read" {
-        Text { text: replyTime; style: small; color: muted }
-        Text { text: voice.source == "terminal" ? _("Reading: ${voice.source_name ?? 'Terminal'} · tmux session oma-voice") : voice.source == "claude" ? _("Reading: Claude chat") : _("Reading: Codex chat"); bold: true; color: accent; maxLines: 3 }
+        Text { text: (uiLanguage == "zh" ? "讀取來源" : "Read from"); style: small; color: muted }
         Row {
           gap: 6
-          Button { weight: 1; height: 44; text: voice.source == "codex" ? "✓ Codex" : "Codex"; onTap: { actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source codex --json") } }
-          Button { weight: 1; height: 44; text: voice.source == "claude" ? "✓ Claude" : "Claude"; onTap: { actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source claude --json") } }
-          Button { weight: 1; height: 44; text: voice.source == "terminal" ? "✓ tmux" : "tmux"; onTap: { actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source terminal --json") } }
+          Button { weight: 1; height: 44; text: "Codex"; color: voice.source == "codex" ? background : accent; background: voice.source == "codex" ? accent : alpha(accent, 0); onTap: { actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source codex --json") } }
+          Button { weight: 1; height: 44; text: "Claude"; color: voice.source == "claude" ? background : accent; background: voice.source == "claude" ? accent : alpha(accent, 0); onTap: { actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source claude --json") } }
+          Button { weight: 1; height: 44; text: "tmux"; color: voice.source == "terminal" ? background : accent; background: voice.source == "terminal" ? accent : alpha(accent, 0); onTap: { actionPending = "source"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py source terminal --json") } }
         }
         if voice.source == "claude" {
-          Text { text: _("Reads Claude's finished replies from its chat log, in any terminal. Dictation can be sent only when Claude runs in the oma-voice tmux session."); style: small; color: muted; maxLines: 7 }
-          Text { text: voice.term_pane != "" && voice.term_pane != null ? _("Dictation: can send to Claude") : _("Dictation: copied for pasting; open Claude in tmux to send directly"); style: small; color: voice.term_pane != "" && voice.term_pane != null ? accent : yellow; maxLines: 3 }
-          Button { fill: width; height: 44; text: _("Open Claude in tmux"); onTap: terminal("tmux new -A -s oma-voice 'claude; exec bash'", "Claude") }
+          if voice.term_pane == "" || voice.term_pane == null {
+            Text { text: (uiLanguage == "zh" ? "Claude 不在 tmux 中：語音輸入只能複製貼上" : "Claude is not in tmux: dictation can only be copied"); style: small; color: yellow; maxLines: 2 }
+            Button { fill: width; height: 44; text: (uiLanguage == "zh" ? "在 tmux 開啟 Claude" : "Open Claude in tmux"); onTap: terminal("tmux new -A -s oma-voice 'claude; exec bash'", "Claude") }
+          } else {
+            Text { text: (uiLanguage == "zh" ? "Claude 在 tmux 中：語音輸入可直接送出" : "Claude is in tmux: dictation sends directly"); style: small; color: muted; maxLines: 2 }
+          }
         } else if voice.source == "terminal" {
-          Text { text: _("Run this in your existing terminal, then start Codex, Claude or another program there. Play reads the current screen; dictation sends to that pane."); style: small; color: muted; maxLines: 7 }
-          Button { fill: width; height: 44; text: _("Copy terminal setup command"); onTap: copy("tmux new -A -s oma-voice") }
+          Text { text: (uiLanguage == "zh" ? "讀取 ${voice.source_name ?? '終端'} 的畫面；在終端執行連接命令即可使用" : "Reads ${voice.source_name ?? 'the terminal'}'s screen; run the setup command in your terminal"); style: small; color: muted; maxLines: 2 }
+          Button { fill: width; height: 44; text: (uiLanguage == "zh" ? "複製終端連接命令" : "Copy terminal setup command"); onTap: copy("tmux new -A -s oma-voice") }
         } else {
-        Text { text: voice.follow_latest ? _("Following latest active Codex chat") : _("Pinned to this chat"); bold: true }
-        Text { text: voice.thread ?? _("Waiting for connection"); style: small; maxLines: 2; color: muted }
-        Text { text: _("Completed replies update automatically. Sync refreshes text without replaying older replies."); style: small; maxLines: 4; color: muted }
+          Text { text: (voice.follow_latest ? (uiLanguage == "zh" ? "跟隨最近活動的對話" : "Following the latest active chat") : (uiLanguage == "zh" ? "已固定對話" : "Pinned chat")) + " · " + (voice.thread ?? (uiLanguage == "zh" ? "等待連接" : "waiting for connection")); style: small; color: muted; maxLines: 2 }
         }
         Row {
-          Button { weight: 1; height: 44; text: _("Summary"); onTap: { actionPending = "play"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py replay --json") } }
-          Button { weight: 1; height: 44; text: _("Full reply"); onTap: { actionPending = "play"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py replay --full --json") } }
+          gap: 6
+          Button { weight: 1; height: 48; text: (uiLanguage == "zh" ? "▶ 摘要" : "▶ Summary"); color: background; background: accent; onTap: { actionPending = "play"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py replay --json") } }
+          Button { weight: 1; height: 48; text: (uiLanguage == "zh" ? "▶ 全文" : "▶ Full"); onTap: { actionPending = "play"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py replay --full --json") } }
+          Button { weight: 1; height: 48; text: (uiLanguage == "zh" ? "■ 停止" : "■ Stop"); onTap: { actionPending = "stop"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py stop --json") } }
         }
-        Text { text: voice.source == "terminal" ? _("Terminal screen") : _("Latest reply"); bold: true; color: accent }
-        Text { text: voice.full == "" || voice.full == null ? _("Nothing to read yet") : voice.full; maxLines: 160 }
-        Button { fill: width; height: 44; text: _("Copy text"); onTap: copy(voice.full ?? "") }
+        Column {
+          fill: width
+          padding: 12
+          border: 1
+          borderColor: border
+          gap: 10
+          Row {
+            align: center
+            Column {
+              weight: 1
+              gap: 2
+              Text { text: voice.source == "terminal" ? (uiLanguage == "zh" ? "終端畫面" : "Terminal screen") : (uiLanguage == "zh" ? "最近回覆" : "Latest reply"); bold: true; color: accent }
+              if voice.reply_at != null { Text { text: fmtTime(voice.reply_at, 'MM-dd HH:mm'); style: small; color: muted } }
+            }
+            Button { width: 84; height: 36; text: (uiLanguage == "zh" ? "同步" : "Sync"); onTap: { actionPending = "sync"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py refresh --json") } }
+            Button { width: 84; height: 36; text: (uiLanguage == "zh" ? "複製" : "Copy"); onTap: copy(voice.full ?? "") }
+          }
+          Text { text: voice.full == "" || voice.full == null ? (uiLanguage == "zh" ? "尚無可讀內容" : "Nothing to read yet") : (voice.full_view ?? voice.full); color: voice.full == "" || voice.full == null ? muted : foreground; maxLines: 160 }
+        }
         }
         if detailTab == "settings" {
-        Text { text: _("Voice settings"); bold: true; color: accent }
-        if voice.source == "codex" { Button { fill: width; height: 44; text: voice.follow_latest ? _("Chat: follow latest") : _("Chat: pinned"); onTap: { actionPending = "follow"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py follow --json") } } }
-        if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.auto ? _("Auto-read: on") : _("Auto-read: off"); onTap: { actionPending = "auto"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py auto toggle --json") } } }
+        Text { text: (uiLanguage == "zh" ? "播報" : "Reading"); bold: true; color: accent }
+        if voice.source == "codex" { Button { fill: width; height: 44; text: voice.follow_latest ? (uiLanguage == "zh" ? "對話：自動跟隨最近的" : "Chat: follow latest") : (uiLanguage == "zh" ? "對話：固定目前的" : "Chat: pinned"); onTap: { actionPending = "follow"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py follow --json") } } }
+        if voice.source != "terminal" { Button { fill: width; height: 44; text: voice.auto ? (uiLanguage == "zh" ? "自動播報：開" : "Auto-read: on") : (uiLanguage == "zh" ? "自動播報：關" : "Auto-read: off"); color: voice.auto ? background : accent; background: voice.auto ? accent : alpha(accent, 0); onTap: { actionPending = "auto"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py auto toggle --json") } } }
+        Text { text: voice.source == "claude" ? (uiLanguage == "zh" ? "從 Claude 的對話記錄讀取已完成的回覆，在任何終端都可用。語音輸入只能送到在 oma-voice tmux 會話中執行的 Claude。" : "Reads Claude's finished replies from its chat log, in any terminal. Dictation can be sent only when Claude runs in the oma-voice tmux session.") : voice.source == "terminal" ? (uiLanguage == "zh" ? "在原本的終端執行 tmux new -A -s oma-voice，之後可在該視窗執行 Codex、Claude 或其他程式。播放會讀取目前畫面；語音輸入會送到這個窗格。" : "Run tmux new -A -s oma-voice in your existing terminal, then start Codex, Claude or another program there. Play reads the current screen; dictation sends to that pane.") : (uiLanguage == "zh" ? "正式回覆完成後自動更新；同步只更新文字，不會自動重播舊內容。" : "Completed replies update automatically. Sync refreshes text without replaying older replies."); style: small; color: muted; maxLines: 7 }
+        Text { text: (uiLanguage == "zh" ? "聲音" : "Voice"); bold: true; color: accent }
         Row {
           gap: 8
-          Button { weight: 1; height: 44; text: voice.engine == "online" ? _("Online voice selected") : _("Online voice"); onTap: { actionPending = "engine"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py engine online --json") } }
-          Button { weight: 1; height: 44; text: voice.engine == "offline" ? _("Offline voice selected") : _("Offline voice"); onTap: { actionPending = "engine"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py engine offline --json") } }
+          Button { weight: 1; height: 44; text: (uiLanguage == "zh" ? "自然人聲（線上）" : "Online voice"); color: voice.engine == "online" ? background : accent; background: voice.engine == "online" ? accent : alpha(accent, 0); onTap: { actionPending = "engine"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py engine online --json") } }
+          Button { weight: 1; height: 44; text: (uiLanguage == "zh" ? "離線語音" : "Offline voice"); color: voice.engine == "offline" ? background : accent; background: voice.engine == "offline" ? accent : alpha(accent, 0); onTap: { actionPending = "engine"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py engine offline --json") } }
         }
-        Text { text: voice.pause_minutes == 0 ? _("Idle pause: never") : _("Idle pause: ${voice.pause_minutes ?? 10} min"); style: small; color: accent }
+        Text { text: voice.pause_minutes == 0 ? (uiLanguage == "zh" ? "閒置暫停：不暫停" : "Idle pause: never") : (uiLanguage == "zh" ? "閒置暫停：${voice.pause_minutes ?? 10} 分鐘" : "Idle pause: ${voice.pause_minutes ?? 10} min"); bold: true; color: accent }
         Row {
           gap: 8
-          Button { weight: 1; height: 44; text: voice.pause_minutes == 10 ? _("10 minutes selected") : _("10 minutes"); onTap: { actionPending = "pause"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py pause 10 --json") } }
-          Button { weight: 1; height: 44; text: voice.pause_minutes == 0 ? _("Never pause selected") : _("Never pause"); onTap: { actionPending = "pause"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py pause off --json") } }
+          Button { weight: 1; height: 44; text: (uiLanguage == "zh" ? "10 分鐘" : "10 minutes"); color: voice.pause_minutes == 10 ? background : accent; background: voice.pause_minutes == 10 ? accent : alpha(accent, 0); onTap: { actionPending = "pause"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py pause 10 --json") } }
+          Button { weight: 1; height: 44; text: (uiLanguage == "zh" ? "不暫停" : "Never"); color: voice.pause_minutes == 0 ? background : accent; background: voice.pause_minutes == 0 ? accent : alpha(accent, 0); onTap: { actionPending = "pause"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py pause off --json") } }
         }
-        Input { placeholder: _("Custom minutes (1–1440), then send"); clear: true; onSubmit: { actionPending = "pause"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py pause ${sh(value)} --json") } }
-        Text { text: _("Idle pause stops the service when the tile is off screen and Codex is inactive. It does not slow replies while connected."); style: small; color: muted; maxLines: 4 }
-        Text { text: _("Interface language"); bold: true; color: accent }
-        Grid {
-          columns: 2
-          gap: 8
-          Button { fill: width; height: 44; text: uiLanguage == "en" ? "✓ English" : "English"; onTap: run("mkdir -p ~/.config/omalauncher && printf en > ~/.config/omalauncher/voice-ui-language") }
-          Button { fill: width; height: 44; text: uiLanguage == "zh" ? "✓ 中文" : "中文"; onTap: run("mkdir -p ~/.config/omalauncher && printf zh > ~/.config/omalauncher/voice-ui-language") }
-          Button { fill: width; height: 44; text: uiLanguage == "es" ? "✓ Español" : "Español"; onTap: run("mkdir -p ~/.config/omalauncher && printf es > ~/.config/omalauncher/voice-ui-language") }
-          Button { fill: width; height: 44; text: uiLanguage == "de" ? "✓ Deutsch" : "Deutsch"; onTap: run("mkdir -p ~/.config/omalauncher && printf de > ~/.config/omalauncher/voice-ui-language") }
-          Button { fill: width; height: 44; text: uiLanguage == "fr" ? "✓ Français" : "Français"; onTap: run("mkdir -p ~/.config/omalauncher && printf fr > ~/.config/omalauncher/voice-ui-language") }
-          Button { fill: width; height: 44; text: uiLanguage == "ja" ? "✓ 日本語" : "日本語"; onTap: run("mkdir -p ~/.config/omalauncher && printf ja > ~/.config/omalauncher/voice-ui-language") }
-          Button { fill: width; height: 44; text: uiLanguage == "ko" ? "✓ 한국어" : "한국어"; onTap: run("mkdir -p ~/.config/omalauncher && printf ko > ~/.config/omalauncher/voice-ui-language") }
-        }
-        Button { fill: width; height: 44; text: _("Start dictation"); onTap: run("bash ~/.local/bin/speak") }
+        Input { placeholder: (uiLanguage == "zh" ? "自訂分鐘數（1–1440），輸入後送出" : "Custom minutes (1–1440), then send"); clear: true; onSubmit: { actionPending = "pause"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py pause ${sh(value)} --json") } }
+        Text { text: (uiLanguage == "zh" ? "小工具離開畫面且 Codex 閒置時，服務才會依設定暫停；連接期間不會拖慢回覆。" : "Idle pause stops the service when the tile is off screen and Codex is inactive. It does not slow replies while connected."); style: small; color: muted; maxLines: 4 }
         }
       }
     }
