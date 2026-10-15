@@ -10,38 +10,38 @@
   },
   {
     "file": "dictation.png",
-    "bytes": 28561,
+    "bytes": 28380,
     "pixels": [
       516,
       736
     ],
-    "sha256": "bb2ce2d011db6a36bf2b97282ff07206ae6364d97bbf20017a72ad561f8b9cf4"
+    "sha256": "0e67a90dbd1614fce0217f82462f14ec1ee231618881153a2b06496d642967b4"
   },
   {
     "file": "overview.png",
-    "bytes": 170166,
+    "bytes": 169037,
     "pixels": [
       1080,
       960
     ],
-    "sha256": "6e0eafd3d90e12c3c352780deec1da980b9348b1ef99edfdaae48647991f5cf2"
+    "sha256": "5f259372331ef68e5f9423043fc3426c64fb1ec006e8b60f54463e4b2f10205f"
   },
   {
     "file": "terminal-voice-details.png",
-    "bytes": 127002,
+    "bytes": 84198,
     "pixels": [
       1080,
       2400
     ],
-    "sha256": "1281b85d7e753db2e0f5ed01fc7c8db99fa76cb67f379529bf66d64d5bf26de3"
+    "sha256": "07a323457b655903995860cf88787b4971ac540a67c01f345564b0b693f65c57"
   },
   {
     "file": "dictation-details.png",
-    "bytes": 64968,
+    "bytes": 48248,
     "pixels": [
       1080,
       2400
     ],
-    "sha256": "8af7ba0ee269770c271469d2e634dfb301c8be8f0efa7bded9e5f9d559afdec3"
+    "sha256": "cc6a728df9e7bc490875f2bb60258b55ff76a81dec0179dab77552e59c5e9ebe"
   }
 ]

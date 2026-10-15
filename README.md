@@ -49,7 +49,7 @@ Then start `claude`, `codex`, or any other CLI inside that tmux session. The voi
 
 For Codex chat mode, open or resume a local Codex chat and tap **Sync**. Completed replies update automatically. Sync never replays an old answer. The voice service pauses after 10 minutes with the tile off screen and no Codex activity, and resumes when the tile is back; **Idle pause** in the voice settings changes the time or turns the pause off. This mode needs Omalauncher's `codex queue` for sending; if your Codex build lacks it, copy the dictated text and paste it yourself.
 
-Dictation uses browser speech recognition. Choose a speech language (the list on the page), tap Start, stop, and edit. Tap **Refine with Agent** to create a separate draft below the original text, review it, choose **Codex chat** or **Terminal / Claude** as the target on the same page, then tap **Send original** or **Send refined draft**. The buttons show progress, success, or failure beside the action; the widget details also show command results. Refining uses the locally signed-in Claude Code (Haiku) or Codex CLI, matching the current source with the other as fallback, and sends the text to it; it never submits to the selected target by itself. Reopen an existing page from the widget after updating the service so it receives a new access token. The browser must grant microphone permission; Chrome is recommended.
+Dictation uses browser speech recognition. Choose a speech language (the list on the page), tap Start, stop, and edit. Tap **Refine with Agent** to create a separate draft below the original text, review it, choose **Codex chat** or **Terminal / Claude** as the target on the same page, then tap **Send** or **Send refined draft**. The buttons show progress, success, or failure beside the action; the widget details also show command results. Refining uses the locally signed-in Claude Code (Haiku) or Codex CLI, matching the current source with the other as fallback, and sends the text to it; it never submits to the selected target by itself. Reopen an existing page from the widget after updating the service so it receives a new access token. The browser must grant microphone permission; Chrome is recommended.
 
 ## Update and data
 
@@ -112,7 +112,7 @@ tmux new -A -s oma-voice
 
 使用 Codex 會話模式時，開啟或恢復本機對話，按「同步」。正式回覆完成後自動更新；同步不會重播歷史回覆。小工具不在畫面上、Codex 也沒有動靜超過 10 分鐘，播報服務會暫停，回到畫面時自動恢復；可在播報設定的「閒置暫停」改時間或設為無限制。送入對話需 Omalauncher 的 `codex queue`；若使用的 Codex 沒有該命令，可複製聽寫文字再手動貼上。
 
-語音輸入使用瀏覽器語音辨識。選好語音語言，開始、停止並修改文字。按「一鍵 Agent 整理」後，原文下方會出現獨立的整理稿；確認內容後，可在同一頁選擇「Codex 會話」或「終端 / Claude」，再按「送出原文」或「送出整理稿」。按鈕旁會顯示進度、成功或失敗；小工具詳情也會顯示命令結果。整理會透過本機已登入的 Claude Code（Haiku）或 Codex CLI（依目前來源，另一個作備援）把文字傳給它，但不會自動送到目前目標。更新服務後，請從小工具重新開啟舊頁面以取得新授權碼。瀏覽器需授予麥克風權限，建議使用 Chrome。
+語音輸入使用瀏覽器語音辨識。選好語音語言，開始、停止並修改文字。按「一鍵 Agent 整理」後，原文下方會出現獨立的整理稿；確認內容後，可在同一頁選擇「Codex 會話」或「終端 / Claude」，再按「送出」或「送出整理稿」。按鈕旁會顯示進度、成功或失敗；小工具詳情也會顯示命令結果。整理會透過本機已登入的 Claude Code（Haiku）或 Codex CLI（依目前來源，另一個作備援）把文字傳給它，但不會自動送到目前目標。更新服務後，請從小工具重新開啟舊頁面以取得新授權碼。瀏覽器需授予麥克風權限，建議使用 Chrome。
 
 ## 更新與資料
 

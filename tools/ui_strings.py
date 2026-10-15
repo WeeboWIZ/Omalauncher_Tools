@@ -100,7 +100,6 @@ STRINGS = {
     'Open Claude in tmux': ('在 tmux 開啟 Claude', 'Abrir Claude en tmux', 'Claude in tmux öffnen', 'Ouvrir Claude dans tmux', 'tmux で Claude を開く', 'tmux에서 Claude 열기'),
     'Queued for current target': ('已送到目前目標佇列', 'En cola para el destino actual', 'Für das aktuelle Ziel eingereiht', 'En file pour la cible actuelle', '現在の送信先のキューに追加しました', '현재 대상 대기열에 추가됨'),
     'Send failed': ('送出失敗', 'Error al enviar', 'Senden fehlgeschlagen', 'Échec de l’envoi', '送信に失敗しました', '전송 실패'),
-    'Send original': ('送出原文', 'Enviar original', 'Original senden', 'Envoyer l’original', '原文を送信', '원문 보내기'),
     'Refine with Agent': ('一鍵 Agent 整理', 'Organizar con Agent', 'Mit Agent ordnen', 'Organiser avec Agent', 'Agent で整理', 'Agent로 정리'),
     'Refining…': ('正在整理…', 'Organizando…', 'Wird überarbeitet…', 'Révision en cours…', '整理中…', '정리 중…'),
     'Refined draft ready': ('整理稿已完成，請檢查', 'Versión revisada lista; revísala', 'Überarbeitete Fassung prüfen', 'Version révisée prête ; relisez-la', '整理稿が完成しました。確認してください', '정리한 글이 준비되었습니다. 확인하세요'),

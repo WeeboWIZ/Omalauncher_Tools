@@ -47,7 +47,7 @@ widget "Dictation" {
    if voice.source == "claude" && (voice.term_pane == "" || voice.term_pane == null) {
     Button { height: 36; weight: 1; text: copyState == "copied" ? _("Copied") : _("Copy text"); onTap: { copyState = latest == "" || latest == null ? "empty" : "copied"; copy(latest) } }
    } else {
-   Button { height: 36; weight: 1; text: actionPending == "send" || sendStatus.phase == "sending" ? _("Sending…") : sendStatus.phase == "sent" && sendStatus.version == "original" ? _("Queued") : _("Send original"); onTap: { actionKind = "send"; actionPending = "send"; actionResult = ""; actionResult = run("python ~/.local/bin/oma-send-dictation --json") } }
+   Button { height: 36; weight: 1; text: actionPending == "send" || sendStatus.phase == "sending" ? _("Sending…") : sendStatus.phase == "sent" && sendStatus.version == "original" ? _("Queued") : _("Send"); onTap: { actionKind = "send"; actionPending = "send"; actionResult = ""; actionResult = run("python ~/.local/bin/oma-send-dictation --json") } }
    }
    if queued.id != null {
     Button { height: 36; weight: 1; text: actionPending == "unqueue" ? _("Working…") : _("Cancel waiting"); onTap: { actionKind = "unqueue"; actionPending = "unqueue"; actionResult = ""; actionResult = run("python ~/.local/share/oma-voice/oma_voice.py unqueue --json") } }
