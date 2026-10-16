@@ -75,12 +75,20 @@
     "cancel": "✕ Cancel",
     "retryGen": "↻ Try again",
     "stalled": "Generation seems to have stopped (the agent isn't responding).",
-    "delThis": "✕ Delete “{n}”",
     "delAsk": "Delete “{n}”?",
     "delWarn": "Only this agent-made scene and its preview are removed; built-in scenes and the wallpaper album stay. This can't be undone.",
     "keep": "Keep",
     "delYes": "Delete",
-    "defaultModel": "Default model"
+    "defaultModel": "Default model",
+    "manage": "⋯ Manage this scene",
+    "collapse": "Close",
+    "editScene": "✎ Edit scene",
+    "delScene": "✕ Delete scene",
+    "editAsk": "How should “{n}” change?",
+    "editHint": "e.g. heavier rain, add a moon",
+    "editNote": "The agent changes only what you ask, and it goes in only after the local check passes. The old version is kept.",
+    "editGo": "✦ Apply change",
+    "editingScene": "Agent edit"
   },
   "msg": {
     "notPassed": "{name} failed the check, not applied: ",
@@ -114,7 +122,8 @@
     "already": "Already generating",
     "cancelled": "Cancelled",
     "tryAt": ", try again at {t}",
-    "deleted": "Deleted “{name}”"
+    "deleted": "Deleted “{name}”",
+    "edited": "Edited: {name} ({secs})"
   },
   "ideas": [
     "Glowing fairies in a moonlit forest",

@@ -75,12 +75,20 @@
     "cancel": "✕ 取消",
     "retryGen": "↻ 再試一次",
     "stalled": "生成好像中斷了（agent 沒有回應）。",
-    "delThis": "✕ 刪除「{n}」",
     "delAsk": "確定刪除「{n}」？",
     "delWarn": "只刪除這個 Agent 生成的場景和它的縮圖，內建場景和桌布相簿不受影響。刪掉就無法復原。",
     "keep": "保留",
     "delYes": "確認刪除",
-    "defaultModel": "預設模型"
+    "defaultModel": "預設模型",
+    "manage": "⋯ 管理這個場景",
+    "collapse": "收起",
+    "editScene": "✎ 編輯場景",
+    "delScene": "✕ 刪除場景",
+    "editAsk": "要怎麼改「{n}」？",
+    "editHint": "例如：雨下大一點、加一輪月亮",
+    "editNote": "agent 只改你說的部分，通過本機檢查才換上；舊版會備份。",
+    "editGo": "✦ 送出修改",
+    "editingScene": "Agent 修改場景"
   },
   "msg": {
     "notPassed": "{name} 沒通過檢查，沒有套用：",
@@ -114,7 +122,8 @@
     "already": "已經在生成了",
     "cancelled": "已取消",
     "tryAt": "，{t} 後可再試",
-    "deleted": "已刪除「{name}」"
+    "deleted": "已刪除「{name}」",
+    "edited": "已修改：{name}（{secs}）"
   },
   "ideas": [
     "月光森林裡的發光精靈",

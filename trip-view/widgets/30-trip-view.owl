@@ -41,6 +41,10 @@ widget "trip view" {
   // 刪除要按兩次：第一次記下要刪哪個場景、什麼時候按的，10 秒內在確認框按「確認刪除」才真的刪
   state delId = ""
   state delAt = 0
+  // 場景名下的小字「管理這個場景」點開才有編輯、刪除；editOpen 是正在寫修改要求的場景
+  state manageId = ""
+  state editOpen = ""
+  state editWish = ""
 
   // 目前的場景。設為桌布時 export.json 指定要畫哪一個、隱藏介面
   let list = bundle.scenes ?? []
@@ -76,19 +80,24 @@ widget "trip view" {
 
   // 進度：pixbg 給目前進度 p，以及 eta 秒內要推到的 to（等 agent 時只知道大概要多久）
   // 生成時 pixbg 每幾秒更新 beat：超過 45 秒沒更新就是行程死了，別一直顯示忙碌
-  let alive = st.job == "gen" ? (st.beat ?? st.t) > now - 45 : st.t > now - 900
+  // 生成和編輯場景都是交給 agent 的工作，進度、心跳、取消都一樣
+  let agentJob = st.job == "gen" || st.job == "edit"
+  let alive = agentJob ? (st.beat ?? st.t) > now - 45 : st.t > now - 900
   let busy = st.state == "working" && alive
-  let stalled = st.state == "working" && st.job == "gen" && !alive && st.t > now - 3600
+  let stalled = st.state == "working" && agentJob && !alive && st.t > now - 3600
   let pct = busy ? clamp(st.p + (st.to - st.p) * min(1, (now - st.since) / max(st.eta, 1)), 0, 1) : 0
   let elapsed = max(0, now - (st.started ?? now))
-  let jobName = st.job == "wall" ? T.setWall : T.aiGen
+  let jobName = st.job == "wall" ? T.setWall : st.job == "edit" ? T.editingScene : T.aiGen
   let fresh = st.t > now - 12
   let doneMsg = fresh && st.state == "done" ? "✓ ${st.msg}" : fresh && st.state == "error" ? "✕ ${st.msg}" : ""
   // 目前選的 agent 的狀態；不能用時給使用者一行可以複製到終端的指令
   let agentId = ui.agent ?? "claude"
   let agentInfo = (agents.list ?? []).find(x => x.id == agentId) ?? {}
-  let genErr = st.job == "gen" && st.state == "error" && st.t > now - 1800
-  let fixCmd = genErr && (st.fix ?? "") != "" ? st.fix : agentInfo.ok == false ? (agentInfo.fix ?? "") : ""
+  let jobErr = agentJob && st.state == "error" && st.t > now - 1800
+  let genErr = jobErr && st.job == "gen"
+  let editingCur = busy && st.job == "edit" && st.edit == cur.id
+  let editErrCur = jobErr && st.job == "edit" && st.edit == cur.id
+  let fixCmd = jobErr && (st.fix ?? "") != "" ? st.fix : agentInfo.ok == false ? (agentInfo.fix ?? "") : ""
   // 開全螢幕頁時，agent 狀態超過 10 分鐘就重查（背景跑，一兩秒）
   let probeStale = now - (agents.t ?? 0) > 600
   // 刪除確認框：只在 10 秒內、還是同一個場景時出現
@@ -548,11 +557,16 @@ Steps:
               Box { weight: 1; onTap: { sel = prevId; run(sound ? "paplay ~/.cache/pixbg/sfx/prev.wav" : "true") }; PixelBtn { label: T.prev; tone: P.ac } }
               Box { weight: 1; onTap: { sel = nextId; run(sound ? "paplay ~/.cache/pixbg/sfx/next.wav" : "true") }; PixelBtn { label: T.next; tone: P.ac } }
             }
-            // 刪除放在場景名旁邊：只對目前這個 Agent 場景，按鈕寫明場景名；確認框只在 10 秒內、而且還是同一個場景時出現
+            // 管理只對 Agent 場景：平常只有一行小字，點開才有「編輯」「刪除」，刪除還要再確認一次
             if cur.kind == "ai" {
-              if !delAsking {
-                Box { fill: width; onTap: { delId = cur.id; delAt = now; haptic() }; PixelBtn { label: replace(T.delThis ?? "{n}", "{n}", nm); tone: "#ff6a6a"; h: 46; size: 13 } }
-              } else {
+              if editingCur {
+                PixelMeter { value: pct; tone: P.ac }
+                Row {
+                  Text { text: st.msg; style: small; color: "#eef3fa"; weight: 1; maxLines: 2 }
+                  Text { text: fmtDuration(elapsed); font: mono; style: small; color: soft; width: 70; align: end }
+                }
+                Box { fill: width; onTap: run("~/.local/bin/pixbg cancel"); PixelBtn { label: T.cancel; tone: "#ff6a6a"; h: 40; size: 12 } }
+              } else if delAsking {
                 Column {
                   fill: width; gap: 8; padding: [12, 10]; background: "#1a0a0e"; border: 2; radius: 0; borderColor: "#ff6a6a"
                   Text { text: replace(T.delAsk ?? "{n}", "{n}", nm); bold: true; color: "#ffb4b4"; maxLines: 2 }
@@ -560,12 +574,41 @@ Steps:
                   Row {
                     gap: 8
                     Box { weight: 1; onTap: { delId = "" }; PixelBtn { label: T.keep; tone: P.ac; h: 46; size: 13 } }
-                    Box { weight: 1; onTap: { delId = ""; run(sound ? "paplay ~/.cache/pixbg/sfx/error.wav" : "true"); run("~/.local/bin/pixbg del ${sh(cur.id)}") }; PixelBtn { label: T.delYes; on: true; tone: "#ff6a6a"; h: 46; size: 13 } }
+                    Box { weight: 1; onTap: { delId = ""; manageId = ""; run(sound ? "paplay ~/.cache/pixbg/sfx/error.wav" : "true"); run("~/.local/bin/pixbg del ${sh(cur.id)}") }; PixelBtn { label: T.delYes; on: true; tone: "#ff6a6a"; h: 46; size: 13 } }
                   }
                 }
+              } else if editOpen == cur.id {
+                Column {
+                  fill: width; gap: 8; padding: [12, 10]; background: "#0a0e15"; border: 2; radius: 0; borderColor: alpha(P.ac, 0.7)
+                  Text { text: replace(T.editAsk ?? "{n}", "{n}", nm); bold: true; color: "#eef3fa"; maxLines: 2 }
+                  if cur.prompt != null { Text { text: replace(T.thisScene ?? "{p}", "{p}", cur.prompt); style: small; color: soft; maxLines: 2 } }
+                  Input { fill: width; height: 52; padding: [12, 0]; background: "#05070b"; border: 2; radius: 0; borderColor: alpha(P.ac, 0.6); placeholder: T.editHint; text: editWish; onChange: editWish = value; onSubmit: { editWish = value; run(trim(value) == "" || busy ? "true" : "~/.local/bin/pixbg edit ${sh(cur.id)} ${sh(trim(value))}"); editOpen = trim(value) == "" || busy ? editOpen : "" } }
+                  Text { text: T.editNote; style: small; color: soft; maxLines: 3 }
+                  Row {
+                    gap: 8
+                    Box { weight: 1; onTap: { editOpen = "" }; PixelBtn { label: T.cancel; tone: P.ac; h: 46; size: 13 } }
+                    Box { weight: 1; onTap: { run(trim(editWish) == "" || busy ? "true" : "~/.local/bin/pixbg edit ${sh(cur.id)} ${sh(trim(editWish))}"); editOpen = trim(editWish) == "" || busy ? editOpen : "" }; PixelBtn { label: T.editGo; on: trim(editWish) != "" && !busy; dim: busy; tone: P.ac; h: 46; size: 13 } }
+                  }
+                }
+              } else if manageId == cur.id {
+                Row {
+                  gap: 8
+                  Box { weight: 1; onTap: { editOpen = cur.id; editWish = "" }; PixelBtn { label: T.editScene; dim: busy; tone: P.ac; h: 46; size: 13 } }
+                  Box { weight: 1; onTap: { delId = cur.id; delAt = now; haptic() }; PixelBtn { label: T.delScene; tone: "#ff6a6a"; h: 46; size: 13 } }
+                }
+                Text { text: T.collapse; style: small; color: soft; align: center; fill: width; padding: [0, 4]; onTap: { manageId = "" } }
+              } else {
+                Text { text: T.manage; style: small; color: soft; padding: [0, 4]; onTap: { manageId = cur.id } }
               }
+              if editErrCur && !busy {
+                Row {
+                  gap: 8
+                  Text { text: stalled ? T.stalled : "✕ ${st.msg}"; style: small; color: "#ff6a6a"; weight: 1; maxLines: 3 }
+                  Box { width: 120; onTap: run("~/.local/bin/pixbg edit ${sh(cur.id)} ${sh(st.wish ?? "")}"); PixelBtn { label: T.retryGen; tone: P.ac; h: 40; size: 12; pad: 4 } }
+                }
+              }
+              if fresh && st.job == "edit" && st.state == "done" && st.edit == cur.id { Text { text: "✓ ${st.msg}"; style: small; color: good; maxLines: 2 } }
             }
-            if fresh && st.job == "del" && st.state == "done" { Text { text: "✓ ${st.msg}"; style: small; color: good; maxLines: 1 } }
           }
 
           // ---------------------------------------------- Agent 生成動畫（醒目的大卡片）
@@ -624,13 +667,13 @@ Steps:
               }
               Box { fill: width; onTap: run("~/.local/bin/pixbg cancel"); PixelBtn { label: T.cancel; tone: "#ff6a6a"; h: 40; size: 12 } }
             }
-            if stalled || (genErr && fixCmd == "") {
+            if (stalled && st.job == "gen") || (genErr && fixCmd == "") {
               Row {
                 gap: 8
                 Text { text: stalled ? T.stalled : "✕ ${st.msg}"; style: small; color: "#ff6a6a"; weight: 1; maxLines: 3 }
                 Box { width: 120; onTap: { wish = st.wish ?? wish; run("~/.local/bin/pixbg gen ${sh(st.wish ?? trim(wish))}") }; PixelBtn { label: T.retryGen; tone: P.ac; h: 40; size: 12; pad: 4 } }
               }
-            } else if genErr && fixCmd != "" {
+            } else if (genErr || (jobErr && st.job == "edit")) && fixCmd != "" {
               Text { text: "✕ ${st.msg}"; style: small; color: "#ff6a6a"; maxLines: 3 }
             }
             if !busy && !genErr && !stalled && st.job == "gen" && doneMsg != "" { Text { text: doneMsg; style: small; color: st.state == "error" ? "#ff6a6a" : good; maxLines: 3 } }
@@ -744,16 +787,10 @@ Steps:
         }
       } else {
         if !exporting {
-          // 隱藏介面時：點畫面任何地方叫回來；剛隱藏的幾秒底部有提示；右上角留一顆淡淡的 ✕
+          // 隱藏介面時只剩場景（連 ✕ 也收起）：點畫面任何地方叫回介面；剛隱藏的幾秒底部有提示；返回鍵照樣能關
           Column {
             fill: true
             onTap: { panel = true; run(sound ? "paplay ~/.cache/pixbg/sfx/tap.wav" : "true") }
-            Row {
-              fill: width
-              padding: 0
-              Spacer { weight: 1 }
-              Box { width: 60; height: 52; opacity: 0.55; onTap: { run(sound ? "paplay ~/.cache/pixbg/sfx/hide.wav" : "true"); close() }; PixelBtn { label: "✕"; tone: "#ff6a6a"; h: 52; size: 20; pad: 0 } }
-            }
             Spacer { weight: 1 }
             if now - hiddenAt < 5 {
               Row { Spacer { weight: 1 }  Text { text: T.tapToShow; style: small; color: "#eef3fa"; background: alpha("#0c111a", 0.8); padding: [12, 6]; width: len(T.tapToShow ?? "") * (latin ? 7.5 : 14) + 28 }  Spacer { weight: 1 } }

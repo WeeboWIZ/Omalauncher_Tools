@@ -33,6 +33,7 @@ Every scene has five palettes; in Kaiju Tokyo each palette is a different act.
 - **A pixel pet** for each scene that bobs along and reacts when tapped. Optional **pixel clock** in the scene's colors. Both can be switched off.
 - **Full-screen page** with the scene filling the whole screen: scene cards with previews, palettes, speed, sound, clock and pet switches.
 - **Generate a scene with AI.** Type a sentence (for example "a shrine under falling cherry blossoms"). Your agent writes it as an AGSL shader, and Trip View checks it on the Linux side before it ever reaches the phone. A progress bar shows each step; generating takes a few minutes.
+- **Edit or delete a generated scene.** Under its name, tap **Manage this scene**: **Edit** asks your agent to change only what you describe (it is checked the same way before it replaces the scene, and the old version is kept); **Delete** names the scene and asks you to confirm.
 - **Wallpaper.** Freeze any moment as the launcher wallpaper. Every wallpaper is kept in `~/Pictures/pixbg`, and you can switch back to one from the album.
 - **Languages:** English and 中文. **Custom** writes a prompt for your agent that adds a new language pack.
 - Optional 8-bit sound effects (off by default).
@@ -69,6 +70,7 @@ A generated scene that fails goes back to the agent with the errors, at most thr
 |---|---|
 | `pixbg list` / `pixbg use <id>` | List scenes / switch to one |
 | `pixbg gen <sentence>` | Generate a scene with your agent |
+| `pixbg edit <id> <change>` | Ask your agent to change a generated scene; the old version is kept in `~/.cache/pixbg/scene-history` |
 | `pixbg check [id]` | Check scenes offline (compile, AGSL rules, GPU cost) |
 | `pixbg wall [id]` | Freeze a scene as the launcher wallpaper |
 | `pixbg walls` / `setwall <file>` / `rmwall <file>` | Wallpaper album |
@@ -120,6 +122,7 @@ install.py    standalone installer
 - **數字寵物**：每個場景一隻像素吉祥物，會浮動，點一下有反應。**像素時鐘**用場景的配色，兩者都能關掉。
 - **全螢幕頁**：場景滿版，有場景卡片（附縮圖）、配色、速度、音效、時鐘、寵物開關。
 - **AI 生成場景**：輸入一句話（例如「櫻花飄落的神社」），你的 agent 會把它寫成 AGSL shader。Trip View 先在 Linux 這邊檢查過才送上手機，進度條會顯示每個步驟，大約要幾分鐘。
+- **編輯或刪除生成的場景**：在場景名下點「管理這個場景」。「編輯」請 agent 只改你說的部分，一樣先檢查過才換上，舊版會備份；「刪除」會寫明場景名並要你再確認一次。
 - **桌布**：把任何一刻定格成啟動器的桌布。每張都保留在 `~/Pictures/pixbg`，可以從相簿換回去。
 - **語言**：English、中文。按「自定義」會產生一段提示詞，交給 agent 就能新增語言包。
 - 8-bit 音效（預設關閉）。
@@ -154,6 +157,7 @@ python trip-view/install.py
 |---|---|
 | `pixbg list` / `pixbg use <id>` | 列出場景／切換場景 |
 | `pixbg gen <一句話>` | 交給 agent 生成場景 |
+| `pixbg edit <id> <想怎麼改>` | 請 agent 修改生成的場景，舊版留在 `~/.cache/pixbg/scene-history` |
 | `pixbg check [id]` | 在本機檢查場景（編譯、AGSL 規則、GPU 運算量） |
 | `pixbg wall [id]` | 把場景定格成啟動器桌布 |
 | `pixbg walls` / `setwall <檔名>` / `rmwall <檔名>` | 桌布相簿 |

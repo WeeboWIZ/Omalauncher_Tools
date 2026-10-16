@@ -5,7 +5,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
 // 最早由 Opus 5.5 依「雨夜的霓虹拉麵攤，蒸氣往上飄」生成，後來手工加細：
-//   遠方高架電車、大樓的陽台冷氣與逃生梯、屋頂水塔、LED 跑馬燈、閃電、屋頂上的貓。
+//   遠方高架電車、大樓的陽台冷氣與逃生梯、屋頂水塔、LED 跑馬燈、閃電、屋頂上的貓；
+//   中景大樓的外牆色調、女兒牆、窗框百葉、樓板線、一樓店面。
 void palette(float z, out half3 bg, out half3 c0, out half3 c1, out half3 c2, out half3 ac) {
   if (z < 0.5)      { bg = hx(0x070a24); c0 = hx(0x1a1f4a); c1 = hx(0x3a5fb0); c2 = hx(0xff4fa8); ac = hx(0xff3a2a); }
   else if (z < 1.5) { bg = hx(0x140726); c0 = hx(0x34145a); c1 = hx(0x7a3cc8); c2 = hx(0x5ff0ff); ac = hx(0xff5a8a); }
@@ -153,9 +154,13 @@ half4 main(float2 p) {
   float bl = nx - nb * 26.0;
   float nh = gy - floor(gy * (0.1 + 0.38 * hash1(nb * 3.1 + 9.0)));
   if (bl > 1.5 && c.y >= nh) {
-    col = mix(bg, c0, 0.55);
+    // 每棟外牆的色調不同；左緣受光、右緣背光，樓頂一圈女兒牆
+    float tone = hash1(nb * 5.3 + 1.0);
+    col = mix(bg, c0, 0.45 + 0.2 * tone);
+    if (tone > 0.6 && mod(c.x + c.y, 2.0) < 1.0 && mod(c.y, 3.0) < 1.0) col = mix(col, c0, 0.25);
     if (bl < 3.5) col = mix(col, c1, 0.25);
-    if (c.y < nh + 1.0) col = mix(col, c1, 0.35);
+    if (bl > 24.5) col = col * 0.8;
+    if (c.y < nh + 2.0) col = mix(col, c1, c.y < nh + 1.0 ? 0.4 : 0.15);
     float wy = c.y - nh - 3.0;
     float ix = floor((bl - 5.0) / 5.0);
     float iy = floor(wy / 6.0);
@@ -168,9 +173,23 @@ half4 main(float2 p) {
       if (on < 0.32) {
         col = hash2(id + 7.0) < 0.5 ? warm * 0.75 : mix(c1, c2, 0.3);
         if (my > 1.5) col = col * 0.75;
+        // 有些窗的百葉拉下一半
+        if (my < 1.0 && hash2(id + 5.0) < 0.3) col = mix(bg, c0, 0.7);
       } else {
         col = mix(bg, c0, 0.8);
+        if (my < 1.0) col = col * 0.85;
       }
+    }
+    // 窗台（窗下一條亮線）和每層的樓板線
+    if (bl >= 5.0 && bl < 23.0 && wy >= 0.0 && mx < 3.0 && my > 2.5 && my < 3.5) col = mix(col, c1, 0.3);
+    if (wy >= 0.0 && my > 4.5 && my < 5.5) col = mix(col, c1, 0.1);
+    // 一樓店面：暖光的玻璃門面或拉下的鐵捲門，上面一條雨遮
+    float sy = gy - c.y;
+    if (sy > 0.0 && sy <= 7.0 && bl >= 4.0 && bl < 24.0) {
+      bool shop = hash1(nb + 2.9) < 0.6;
+      col = shop ? mix(warm * 0.35, warm * 0.7, band(1.0 - sy / 7.0, c, 3.0)) : (mod(c.y, 2.0) < 1.0 ? mix(bg, c0, 0.75) : mix(bg, c0, 0.5));
+      if (shop && mod(bl, 6.0) < 1.0) col = mix(bg, c0, 0.6);
+      if (sy > 6.0) col = shop ? mix(ac, c0, 0.4) : mix(c0, c1, 0.4);
     }
     // 冷氣機：窗戶旁邊的小方塊，底下一格暗影
     if (bl >= 21.0 && bl < 24.0 && wy >= 0.0 && my >= 3.0 && my < 5.0 && hash2(float2(nb, iy) + 11.0) < 0.5) col = my < 4.0 ? mix(c0, c1, 0.5) : mix(bg, c0, 0.3);
@@ -276,16 +295,11 @@ half4 main(float2 p) {
     }
     if (d.y > -74.5 && d.y < -71.5 && abs(abs(d.x) - 22.0) < 1.0) col = dark;
 
-    // 店內：暖光往下越亮、碗架、師傅剪影（輕輕點頭）
+    // 店內：暖光往下越亮、碗架
     if (abs(d.x) < W - 1.0 && d.y >= -66.0 && d.y < -26.0) {
       col = ramp(warm * 0.25, warm * 0.6, warm, band((d.y + 66.0) / 40.0, c, 5.0));
       if (abs(d.y + 44.0) < 0.5) col = wood * 0.7;
       if (d.y >= -47.0 && d.y < -44.0 && mod(d.x + 3.0, 7.0) < 4.0 && abs(d.x) < W - 6.0) col = mix(white, warm, 0.4);
-      float hb = floor(sin(t * 1.8) * 0.5 + 0.5);
-      float2 hd = d - float2(-6.0, -38.0 + hb);
-      bool head = dot(hd, hd) < 13.0;
-      if (head || (d.y > -35.0 + hb && abs(d.x + 6.0) < 5.0 + (d.y + 35.0) * 0.35)) col = mix(bg, c0, 0.5) * 0.6;
-      if (head && hd.y < -1.5) col = white * 0.85;
     }
     // 柱子
     if (abs(abs(d.x) - (W - 1.0)) < 1.5 && d.y >= -66.0 && d.y < -23.0) col = wood;

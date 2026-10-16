@@ -6,10 +6,10 @@ The store edition includes English only. Language → Custom provides a prompt t
 
 First use is a visible Set up action. The widget embeds its Python runtime, shader scenes, sprite data and MIT license as reviewable text. It writes these locally, checks all built-in shaders and generates sounds; it does not fetch or execute downloaded scripts. Runtime dependencies are declared in requires. Either agent CLI must be installed and signed in separately; built-in scenes do not need an agent.
 
-Deleting a generated scene names it and asks for confirmation; built-in scenes cannot be deleted. Updates preserve generated scenes, custom language packs and settings. Replaced program files are backed up. The installer refuses linked developer installations and never writes another widget file.
+A generated scene can be edited or deleted from a small "Manage this scene" link under its name. Edit sends the scene and the requested change to the agent, which must keep the name, mascot and everything not mentioned; the result passes the same offline check before it replaces the scene, and the old version is backed up. Delete names the scene and asks for confirmation; built-in scenes cannot be deleted. Updates preserve generated scenes, custom language packs and settings. Replaced program files are backed up. The installer refuses linked developer installations and never writes another widget file.
 
 Validation:
-- 18 automated tests passed, including isolated clean install, repeat install, custom-data preservation, linked-directory protection, agent persistence, streaming CLI invocation through fake Claude and Codex CLIs, error explanations, model names, stall detection and shader validation.
+- 19 automated tests passed, including isolated clean install, repeat install, custom-data preservation, linked-directory protection, agent persistence, streaming CLI invocation through fake Claude and Codex CLIs, error explanations, model names, scene editing, stall detection and shader validation.
 - Store OWL compiled and passed the current store review checker.
 - First-use tile/full-screen views and English generation controls rendered with owl-check and were visually inspected. Ready-state rendering uses local built-in scenes with an English-only UI fixture; installation itself was exercised in isolated temporary homes.
 - The widget is below 256 KiB and the preview is below 300 KiB. The setup command is below 120 KiB to stay within Linux's argument length limit.

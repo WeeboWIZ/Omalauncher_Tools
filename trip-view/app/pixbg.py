@@ -8,6 +8,7 @@
   pixbg next | prev          下一個／上一個
   pixbg bundle               重新打包場景給小工具
   pixbg gen <一句話>          交給終端 agent（Codex 或 Claude，使用 CLI 預設模型）生成新場景
+  pixbg edit <id> <想怎麼改>   請 agent 修改 AI 生成的場景（舊版留在 ~/.cache/pixbg/scene-history）
   pixbg del [id]             刪除 AI 生成的場景（預設目前這個）
   pixbg wall [id]            把場景定格成啟動器桌布
   pixbg lang <代碼>           小工具和進度訊息的語言（語言包在 ~/.local/share/pixbg/lang/<代碼>.json）
@@ -50,6 +51,7 @@ STYLE = os.path.join(HOME, ".config/omalauncher/style/style.toml")
 BOX = os.path.join(CACHE, "screen-box.json")
 GALLERY = os.path.join(HOME, "Pictures/pixbg")  # 生成過的桌布都留在這裡，也可以自己丟圖進來
 THUMBS = os.path.join(CACHE, "thumbs")
+HISTORY = os.path.join(CACHE, "scene-history")      # 編輯前的舊版場景
 SCENE_THUMBS = os.path.join(CACHE, "scene-thumbs")   # 場景卡片的縮圖
 WALLS = os.path.join(CACHE, "walls.json")
 BLANK = "half4 main(float2 p) { return half4(0.0, 0.0, 0.0, 1.0); }"
@@ -354,7 +356,7 @@ def config():
 PROMPT = """你是像素藝術家兼 shader 工程師。為 Android 啟動器 omalauncher 寫一個「像素動畫背景」場景，
 用 AGSL（Android 的 SkSL 片段著色器，語法近似 GLSL ES）。
 
-使用者的一句話：「{wish}」
+{task}
 
 規則（和 UFOPUMP 遊戲背景同一套像素語言）：
 1. 下面這段標頭會自動加在你的程式前面，不要重寫它，直接用裡面的 PX、hash*、band、dith、hx、ramp、segd、zone、speed、size、time：
@@ -378,11 +380,17 @@ PROMPT = """你是像素藝術家兼 shader 工程師。為 Android 啟動器 om
    palette() 裡的顏色一律寫成 `hx(0xRRGGBB)`，時鐘和吉祥物會沿用同一套顏色。
 8. 只輸出一個 ```agsl 程式碼區塊，裡面是完整的場景（palette、輔助函式、`half4 main(float2 p)`），區塊外不要有任何文字。不要用工具、不要讀寫檔案。
 
-參考範例（內建的 VOID SPACE）：
+{example_title}：
 ```agsl
 {example}
 ```
 """
+
+# 生成和編輯共用 PROMPT，只換「要做什麼」和最後附的程式
+GEN_TASK = "使用者的一句話：「{wish}」"
+EDIT_TASK = """這次是修改一個已經做好的場景，不是從頭畫。使用者當初的一句話：「{orig}」
+現在使用者想這樣改：「{change}」
+以最後附的「目前的場景」為基礎，只改使用者要求的部分，其他的構圖、動效、配色、名稱和吉祥物都保持原樣。"""
 
 FIX = """剛才的程式沒有通過檢查（還沒送上手機），問題是：
 {err}
@@ -640,15 +648,17 @@ def agent_model(agent):
     return read_json(MODELS, {}).get(agent, "")
 
 
-def gen(wish):
-    _job["job"] = "gen"
+def gen(wish, edit=None):
+    """生成新場景；edit 是要修改的場景 id 時，請 agent 照 wish 改那個場景，通過檢查才覆蓋（舊版先備份）。"""
+    _job["job"] = "edit" if edit else "gen"
+    extra = {"edit": edit} if edit else {}
     # pixbg cancel 送 SIGTERM 給這個行程：先停掉 agent 那一組再離開
     signal.signal(signal.SIGTERM, lambda *_: (kill_agent(), os._exit(143)))
-    status("working", M("connecting", agent=NAMES[config()["agent"]]), p=0.02, to=0.05, eta=8, wish=wish)
+    status("working", M("connecting", agent=NAMES[config()["agent"]]), p=0.02, to=0.05, eta=8, wish=wish, **extra)
     try:
         cfg, note = ready_agent(config())
     except AgentError as e:
-        status("error", str(e)[:300], wish=wish, fix=e.fix)
+        status("error", str(e)[:300], wish=wish, fix=e.fix, **extra)
         sys.exit(1)
     agent = cfg["agent"]
     who = model_label(cfg.get("model") or agent_model(agent), agent)
@@ -661,10 +671,21 @@ def gen(wish):
         example = f.read()
     hdr = header()
     _, example_cost = agslcheck.check(hdr, example)
-    prompt = PROMPT.format(wish=wish, wish_line=wish.replace("\n", " "), header=hdr.replace("// ── 場景 ──\n", ""),
-                           example=example, budget=agslcheck.BUDGET, example_cost=round(example_cost))
-    expect = len(example) * 1.9     # 回傳的程式實測約是範例的兩倍長，用來估「寫了多少」
-    sid = time.strftime("ai-%Y%m%d-%H%M%S")
+    if edit:
+        with open(os.path.join(SCENES, edit + ".agsl")) as f:
+            base = f.read()
+        orig = meta(base, "prompt") or meta(base, "name") or edit
+        prompt = PROMPT.format(task=EDIT_TASK.format(orig=orig, change=wish), wish_line=orig.replace("\n", " "),
+                               header=hdr.replace("// ── 場景 ──\n", ""), example_title="目前的場景（要修改的就是它）",
+                               example=base, budget=agslcheck.BUDGET, example_cost=round(example_cost))
+        expect = len(base) * 1.1    # 改過的程式大約和原本一樣長
+        sid = edit
+    else:
+        prompt = PROMPT.format(task=GEN_TASK.format(wish=wish), wish_line=wish.replace("\n", " "), header=hdr.replace("// ── 場景 ──\n", ""),
+                               example_title="參考範例（內建的 VOID SPACE）", example=example, budget=agslcheck.BUDGET,
+                               example_cost=round(example_cost))
+        expect = len(example) * 1.9     # 回傳的程式實測約是範例的兩倍長，用來估「寫了多少」
+        sid = time.strftime("ai-%Y%m%d-%H%M%S")
     t0 = time.time()
 
     def reporter(lo, hi, retry=""):
@@ -678,7 +699,7 @@ def gen(wish):
             if kind == "connected" and st["phase"] == "":
                 who = model_label(model, agent) if model else who
                 st["phase"] = "thinking"
-                status("working", lead + M("thinking", who=who, wish=wish), p=lo + 0.04, to=lo + (hi - lo) * 0.6, eta=eta * 0.8, wish=wish, agent=agent)
+                status("working", lead + M("thinking", who=who, wish=wish), p=lo + 0.04, to=lo + (hi - lo) * 0.6, eta=eta * 0.8, wish=wish, agent=agent, **extra)
             elif kind == "thinking" and st["phase"] == "" :
                 on("connected")
             elif kind == "writing" and (st["phase"] != "writing" or now - st["at"] > 1):
@@ -687,7 +708,7 @@ def gen(wish):
                 parts = re.findall(r"^\s*(?:half[34]|float[234]?|void)\s+(\w+)\s*\(", text, re.M)
                 where = (parts[-1] + "()") if parts else ""
                 p = lo + (hi - lo) * (0.6 + 0.4 * f)
-                status("working", lead + M("writing", who=who, n=text.count("\n") + 1, part=where), p=p, to=min(hi, p + 0.03), eta=4, wish=wish, agent=agent)
+                status("working", lead + M("writing", who=who, n=text.count("\n") + 1, part=where), p=p, to=min(hi, p + 0.03), eta=4, wish=wish, agent=agent, **extra)
             else:
                 beat()
         return on
@@ -698,7 +719,7 @@ def gen(wish):
             lo = [0.05, 0.45, 0.65][attempt]
             retry = M("retry", n=attempt) + errs[0].splitlines()[0][:50] + " · " if attempt else ""
             status("working", (note + " · " if note and not attempt else "") + retry + M("handoffTo", who=who),
-                   p=lo, to=lo + 0.04, eta=10, wish=wish, agent=agent)
+                   p=lo, to=lo + 0.04, eta=10, wish=wish, agent=agent, **extra)
             try:
                 code = ask_agent(prompt if attempt == 0 else FIX.format(err="\n".join(errs), code=code), cfg, reporter(lo, 0.86, retry))
             except AgentError as e:
@@ -709,39 +730,50 @@ def gen(wish):
                 note = "↪ " + M("switched", a=NAMES[agent], b=NAMES[other])
                 cfg, agent, mine = {"agent": other, "model": ""}, other, times.get(other) or []
                 who = model_label(agent_model(other), other)
-                status("working", note, p=lo, to=lo + 0.04, eta=10, wish=wish, agent=agent)
+                status("working", note, p=lo, to=lo + 0.04, eta=10, wish=wish, agent=agent, **extra)
                 try:
                     code = ask_agent(prompt if attempt == 0 else FIX.format(err="\n".join(errs), code=code), cfg, reporter(lo, 0.86, retry))
                 except AgentError as e2:
                     raise AgentError(f"{e} {e2}", e.fix or e2.fix)     # 兩個都不行：兩個原因都說
             if not re.search(r"^//\s*name:", code, re.M):
-                code = f"// name: {wish[:16]}\n" + code
+                code = f"// name: {(meta(base, 'name') if edit else '') or wish[:16]}\n" + code
             if not re.search(r"^//\s*prompt:", code, re.M):
                 code = code.replace("\n", f"\n// prompt: {wish}\n", 1)
             # 先在本機檢查，通過了才存進場景、送上手機
-            status("working", M("checking"), p=0.88, to=0.92, eta=5, wish=wish, agent=agent)
+            status("working", M("checking"), p=0.88, to=0.92, eta=5, wish=wish, agent=agent, **extra)
             errs, c = agslcheck.check(hdr, code)
             print(f"[{time.strftime('%T')}] {agent} 第 {attempt + 1} 次：{time.time() - t0:.0f}s，運算量 {c:.0f}，{errs or 'ok'}", flush=True)
             if not errs:
+                if edit:
+                    # 舊版先備份；prompt 留當初那句，每次的修改記成一行 // edit:
+                    os.makedirs(HISTORY, exist_ok=True)
+                    shutil.copyfile(os.path.join(SCENES, sid + ".agsl"), os.path.join(HISTORY, f"{sid}-{time.strftime('%Y%m%d-%H%M%S')}.agsl"))
+                    code = re.sub(r"^//\s*(prompt|edit|name):.*\n", "", code, flags=re.M)
+                    if meta(base, "mascot"):
+                        code = re.sub(r"^//\s*mascot:.*\n", "", code, flags=re.M)
+                        code = f"// mascot: {meta(base, 'mascot')}\n" + code
+                    code = f"// name: {meta(base, 'name') or sid}\n" + code     # 編輯不換名字和吉祥物
+                    notes = "".join(f"// edit: {x}\n" for x in re.findall(r"^//\s*edit:\s*(.+)$", base, re.M) + [wish.replace("\n", " ")])
+                    code = re.sub(r"^(//\s*name:.*\n)", lambda m: m.group(1) + f"// prompt: {orig}\n" + notes, code, count=1, flags=re.M)
                 with open(os.path.join(SCENES, sid + ".agsl"), "w") as f:
                     f.write(code)
                 build_bundle()
                 notify_sel(sid)
-                status("working", M("thumbing"), p=0.95, to=0.99, eta=8, wish=wish, agent=agent)
+                status("working", M("thumbing"), p=0.95, to=0.99, eta=8, wish=wish, agent=agent, **extra)
                 try:
-                    make_thumbs([sid])
+                    make_thumbs([sid], force=bool(edit))
                 except BaseException:
                     pass
                 times[agent] = (mine + [int(time.time() - t0)])[-9:]
                 write_json(os.path.join(CACHE, "gen-times.json"), times)
-                status("done", M("done", name=split_name(meta(code, "name"))[pack(lang())["names"] != "en"], secs=fmt_secs(time.time() - t0)), p=1, wish=wish, id=sid, agent=agent)
+                status("done", M("edited" if edit else "done", name=split_name(meta(code, "name"))[pack(lang())["names"] != "en"], secs=fmt_secs(time.time() - t0)), p=1, wish=wish, id=sid, agent=agent, **extra)
                 return
         raise AgentError(M("failed3") + errs[0].splitlines()[0][:160])
     except AgentError as e:
-        status("error", str(e)[:300], wish=wish, fix=e.fix, agent=agent)
+        status("error", str(e)[:300], wish=wish, fix=e.fix, agent=agent, **extra)
         sys.exit(1)
     except Exception as e:
-        status("error", str(e)[:300], wish=wish, agent=agent)
+        status("error", str(e)[:300], wish=wish, agent=agent, **extra)
         sys.exit(1)
 
 
@@ -749,7 +781,7 @@ def gen_running():
     """正在跑的生成的 pid（status.json 記的那個行程還活著才算）。"""
     st = read_json(STATUS, {})
     pid = st.get("pid")
-    if st.get("state") != "working" or st.get("job") != "gen" or not pid:
+    if st.get("state") != "working" or st.get("job") not in ("gen", "edit") or not pid:
         return None
     try:
         os.kill(pid, 0)
@@ -918,21 +950,28 @@ def main(argv):
         ok, bad = build_bundle()
         build_ui()
         print(f"{len(ok)} 個場景打包好" + "".join(f"\n  ✗ {sc['id']}: {errs[0].splitlines()[0]}" for sc, errs in bad))
-    elif cmd == "gen":
-        wish = " ".join(a for a in argv[1:] if a != "--fg").strip()
+    elif cmd in ("gen", "edit"):
+        # pixbg gen <一句話>；pixbg edit <id> <想怎麼改>
+        args = [a for a in argv[1:] if a != "--fg"]
+        edit = None
+        if cmd == "edit":
+            edit = args.pop(0) if args else ""
+            if not edit.startswith("ai-") or not os.path.exists(os.path.join(SCENES, edit + ".agsl")):
+                sys.exit("pixbg: 只能編輯 AI 生成的場景")
+        wish = " ".join(args).strip()
         if not wish:
-            sys.exit("pixbg gen <一句話>")
+            sys.exit("pixbg gen <一句話> | pixbg edit <id> <想怎麼改>")
         if "--fg" in argv or os.environ.get("PIXBG_FG"):
-            gen(wish)
+            gen(wish, edit)
         elif gen_running():
             print(M("already"))
         else:
             # 小工具的 run() 不必等 agent：自己放到背景（自成一個行程群組，取消時整組停掉），進度寫進 status.json
             log = open(os.path.join(CACHE, "gen.log"), "a")
-            child = subprocess.Popen([sys.executable, os.path.abspath(__file__), "gen", "--fg", wish],
+            child = subprocess.Popen([sys.executable, os.path.abspath(__file__), cmd, "--fg"] + ([edit] if edit else []) + [wish],
                                      stdout=log, stderr=log, start_new_session=True)
-            _job.update(job="gen", started=int(time.time()), pid=child.pid)
-            status("working", M("handoff"), p=0.02, to=0.04, eta=5, wish=wish)
+            _job.update(job=cmd, started=int(time.time()), pid=child.pid)
+            status("working", M("handoff"), p=0.02, to=0.04, eta=5, wish=wish, **({"edit": edit} if edit else {}))
     elif cmd == "cancel":
         pid = gen_running()
         if pid:
@@ -942,8 +981,8 @@ def main(argv):
                 os.kill(pid, signal.SIGTERM)
             time.sleep(0.3)
             st = read_json(STATUS, {})
-            _job.update(job="gen", started=st.get("started"))
-            status("error", M("cancelled"), wish=st.get("wish", ""))
+            _job.update(job=st.get("job"), started=st.get("started"))
+            status("error", M("cancelled"), wish=st.get("wish", ""), **({"edit": st["edit"]} if st.get("edit") else {}))
         print("cancelled" if pid else "nothing running")
     elif cmd == "agents":
         for a in probe_all()["list"]:

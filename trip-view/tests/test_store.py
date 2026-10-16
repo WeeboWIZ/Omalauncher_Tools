@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 import importlib.util
 import json
+import re
 import os
 from pathlib import Path
 import subprocess
@@ -156,3 +157,36 @@ class Agents(unittest.TestCase):
             self.assertEqual(pixbg.agent_model('claude'), 'claude-sonnet-5-5')
             pixbg.write_json(d + '/config.json', {'agent': 'claude', 'model': 'opus'})
             self.assertEqual(pixbg.agent_model('claude'), 'opus')
+
+    def test_edit_keeps_name_prompt_and_old_version(self):
+        base = (ROOT / 'app/scenes/10-void.agsl').read_text()
+        scene = '// name: CHIANG MAI 清邁晴山\n// prompt: mountains\n// edit: more clouds\n// mascot: star\n' + base
+        reply = '// name: SOMETHING ELSE\n// mascot: ufo\n' + base     # ask_agent returns the code without the fence
+        with tempfile.TemporaryDirectory() as d:
+            scenes, cache = Path(d) / 'scenes', Path(d) / 'cache'
+            scenes.mkdir()
+            cache.mkdir()
+            (scenes / 'ai-1.agsl').write_text(scene)
+            (scenes / '10-void.agsl').write_text(base)
+            seen = {}
+            def agent(prompt, cfg, on=None):
+                seen['prompt'] = prompt
+                return reply
+            with patch.object(pixbg, 'SCENES', str(scenes)), patch.object(pixbg, 'CACHE', str(cache)), \
+                    patch.object(pixbg, 'STATUS', str(cache / 'status.json')), patch.object(pixbg, 'HISTORY', str(cache / 'history')), \
+                    patch.object(pixbg, 'ready_agent', return_value=({'agent': 'claude', 'model': ''}, '')), \
+                    patch.object(pixbg, 'agent_model', return_value=''), patch.object(pixbg, 'ask_agent', side_effect=agent), \
+                    patch.object(pixbg, 'build_bundle'), patch.object(pixbg, 'notify_sel'), patch.object(pixbg, 'make_thumbs'), \
+                    patch.object(pixbg.signal, 'signal'):
+                pixbg.gen('add a moon', 'ai-1')
+            self.assertIn('add a moon', seen['prompt'])
+            self.assertIn('mountains', seen['prompt'])
+            edited = (scenes / 'ai-1.agsl').read_text()
+            self.assertEqual(pixbg.meta(edited, 'name'), 'CHIANG MAI 清邁晴山')
+            self.assertEqual(pixbg.meta(edited, 'prompt'), 'mountains')
+            self.assertEqual(pixbg.meta(edited, 'mascot'), 'star')
+            self.assertEqual(re.findall(r'^// edit: (.+)$', edited, re.M), ['more clouds', 'add a moon'])
+            self.assertEqual([p.read_text() for p in (cache / 'history').iterdir()], [scene])
+            status = json.loads((cache / 'status.json').read_text())
+            self.assertEqual((status['state'], status['job'], status['edit']), ('done', 'edit', 'ai-1'))
+
