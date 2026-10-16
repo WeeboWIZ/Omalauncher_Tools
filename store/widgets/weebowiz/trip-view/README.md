@@ -12,7 +12,9 @@ The store edition ships with **English only**. For Traditional Chinese or any ot
 2. Tap **Set up**. This writes the embedded, reviewed Python programs and five scenes locally, generates sounds, and validates the shaders. Setup does not download or run external scripts.
 3. Tap the tile to open the controls. The optional pixel clock and sound start off; the pixel pet starts on.
 
-Scene cards initially show palette previews. After using **Freeze this moment as wallpaper** once, run `pixbg thumbs` in the terminal to render thumbnails for all built-in scenes. New agent animations get a thumbnail automatically when screen measurements are available.
+To save battery, the home tile shows a still of the scene and animates for a few seconds when you tap it. Settings can switch it to always animated. The still for each scene is taken in the background the first time you switch to it.
+
+Scene cards initially show palette previews. Run `pixbg thumbs` in the terminal to render thumbnails for all built-in scenes. New agent animations get a thumbnail automatically.
 
 ## Local files and updates
 

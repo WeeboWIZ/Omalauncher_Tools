@@ -88,7 +88,11 @@
     "editHint": "例如：雨下大一點、加一輪月亮",
     "editNote": "agent 只改你說的部分，通過本機檢查才換上；舊版會備份。",
     "editGo": "✦ 送出修改",
-    "editingScene": "Agent 修改場景"
+    "editingScene": "Agent 修改場景",
+    "tileLiveOff": "主畫面的磚：靜態",
+    "tileLiveOn": "主畫面的磚：動畫",
+    "tileLiveOffHelp": "主畫面平常顯示場景的靜態圖，點一下會播幾秒動畫。比較省電。",
+    "tileLiveOnHelp": "主畫面一直播動畫，比較耗電。"
   },
   "msg": {
     "notPassed": "{name} 沒通過檢查，沒有套用：",

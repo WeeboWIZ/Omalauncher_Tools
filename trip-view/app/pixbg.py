@@ -53,13 +53,15 @@ GALLERY = os.path.join(HOME, "Pictures/pixbg")  # 生成過的桌布都留在這
 THUMBS = os.path.join(CACHE, "thumbs")
 HISTORY = os.path.join(CACHE, "scene-history")      # 編輯前的舊版場景
 SCENE_THUMBS = os.path.join(CACHE, "scene-thumbs")   # 場景卡片的縮圖
+TILE_THUMBS = os.path.join(CACHE, "tile-thumbs")     # 主畫面的磚平常放的靜態圖，照磚的大小拍
+TILE_WANT = os.path.join(CACHE, "tile-want")         # 最後一次要拍的場景（連按好幾下時只拍最後停下的）
 WALLS = os.path.join(CACHE, "walls.json")
 BLANK = "half4 main(float2 p) { return half4(0.0, 0.0, 0.0, 1.0); }"
 
 
 def write_json(path, obj):
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    tmp = path + ".tmp"
+    tmp = f"{path}.{os.getpid()}.tmp"     # 幾個背景工作可能同時寫同一個檔
     with open(tmp, "w") as f:
         json.dump(obj, f, ensure_ascii=False)
     os.replace(tmp, path)
@@ -230,7 +232,8 @@ def entry(sc, body):
             "actors": read_json(sc["path"][:-5] + ".actors.json", None),
             # 場景卡片：縮圖（pixbg thumbs 請手機畫的）與標籤
             "tag": meta(body, "tag") or ("ai" if sc["kind"] == "ai" else "ufopump"),
-            "thumb": thumb_path(sc["id"]) if os.path.exists(thumb_path(sc["id"])) else None}
+            "thumb": thumb_path(sc["id"]) if os.path.exists(thumb_path(sc["id"])) else None,
+            "tile": tile_path(sc["id"]) if os.path.exists(tile_path(sc["id"])) else None}
 
 
 def thumb_path(sid):
@@ -245,10 +248,11 @@ def make_thumbs(ids=None, force=False):
     if not box:
         sys.exit("pixbg: 先「設為桌布」一次，量出全螢幕畫面的範圍")
     todo = [sc for sc in scenes() if (ids is None or sc["id"] in ids) and (force or not os.path.exists(thumb_path(sc["id"])))]
+    lock = render_lock()
     try:
         for sc in todo:
             z = meta(open(sc["path"]).read(), "thumb")
-            write_json(EXPORT, {"on": True, "id": sc["id"], "zone": int(z) if z and z.isdigit() else None})
+            write_json(EXPORT, {"on": True, "id": sc["id"], "zone": int(z) if z and z.isdigit() else None, "t": int(time.time())})
             im = Image.open(render()).convert("RGB").crop(tuple(box))
             w, h = im.size
             ch = int(w * 0.72)                    # 卡片的比例，取畫面偏下的地方（角色和地景多在那裡）
@@ -257,7 +261,91 @@ def make_thumbs(ids=None, force=False):
             print("縮圖：", sc["id"], flush=True)
     finally:
         write_json(EXPORT, {"on": False})
+        lock.close()
     build_bundle()
+
+
+def tile_path(sid):
+    return os.path.join(TILE_THUMBS, sid + ".png")
+
+
+def render_lock():
+    """拍縮圖、磚、桌布都要改 export.json 再重新載入小工具，一次只能一個。"""
+    import fcntl
+    f = open(os.path.join(CACHE, "render.lock"), "w")
+    fcntl.flock(f, fcntl.LOCK_EX)
+    return f
+
+
+def measure_box():
+    """全螢幕預覽裡 shader 佔的範圍：畫一張純洋紅的量出來，之後沿用。全螢幕頁靠它鋪滿整個畫面（蓋住啟動器的 ✕）。
+    呼叫的人要拿著 render_lock。"""
+    from PIL import Image
+    write_json(EXPORT, {"on": True, "probe": True, "t": int(time.time())})
+    im = Image.open(render()).convert("RGB")
+    W, H = im.size
+    px = im.load()
+    ys = [y for y in range(0, H, 2) if px[W // 2, y] == (255, 0, 255)]
+    xs = [x for x in range(0, W, 2) if px[x, H // 2] == (255, 0, 255)]
+    if not xs or not ys:
+        raise RuntimeError("量不到畫面範圍")
+    box = (min(xs), min(ys), max(xs) + 1, max(ys) + 1)
+    write_json(BOX, {"box": box, "size": [W, H]})
+    return box
+
+
+def make_tiles(ids=None, missing=False):
+    """磚平常放的靜態圖：請啟動器照磚的大小畫一張（介面藏起來），構圖和播動畫時一樣。用當下的配色，換配色不重拍。"""
+    os.makedirs(TILE_THUMBS, exist_ok=True)
+    lock = render_lock()
+    took = False
+    try:
+        if not read_json(BOX, {}).get("box"):
+            # 剛安裝還沒量過全螢幕的範圍：順便量，全螢幕頁才會鋪滿（不用等第一次設桌布）
+            took = True
+            try:
+                measure_box()
+            except Exception as e:
+                print("量不到全螢幕範圍：", e, flush=True)
+        for sc in scenes():
+            if ids is not None and sc["id"] not in ids or missing and os.path.exists(tile_path(sc["id"])):
+                continue
+            took = True
+            write_json(EXPORT, {"on": True, "tile": True, "id": sc["id"], "t": int(time.time())})
+            shot = render("preview")
+            tmp = tile_path(sc["id"]) + ".tmp"
+            shutil.copyfile(shot, tmp)
+            os.replace(tmp, tile_path(sc["id"]))
+            print("磚：", sc["id"], flush=True)
+    finally:
+        if took:
+            write_json(EXPORT, {"on": False})
+            build_bundle()
+            reload_widget()
+        lock.close()
+
+
+def tile_worker():
+    """背景拍磚：等一下再看最後要的是哪個場景，還沒有靜態圖才拍。好幾個同時排隊時，後面的看到已經拍好就直接結束。"""
+    time.sleep(1.0)
+    try:
+        sid = open(TILE_WANT).read().strip()
+    except OSError:
+        return
+    if sid and not os.path.exists(tile_path(sid)) and any(sc["id"] == sid for sc in scenes()):
+        make_tiles([sid], missing=True)   # 排在前面的那個可能剛拍好
+
+
+def reload_widget():
+    """啟動器不一定看得到 export.json、安裝狀態改了，重新存一次小工具檔讓它重讀。"""
+    try:
+        f = widget_file()
+    except SystemExit:
+        return
+    with open(f) as fh:
+        text = fh.read()
+    with open(f, "w") as fh:
+        fh.write(re.sub(r"\n// pixbg-frame: \d+\n?$", "\n", text).rstrip("\n") + f"\n// pixbg-frame: {int(time.time() * 1000)}\n")
 
 
 def build_bundle():
@@ -318,7 +406,7 @@ def widget_file():
     return hits[0]
 
 
-def render():
+def render(which="screen"):
     """請啟動器畫一張全螢幕預覽，回傳 PNG 路徑。
 
     預覽只在小工具檔內容改變時才重畫，所以改寫檔尾的一行註解：這是啟動器正常的重新載入流程，
@@ -331,7 +419,7 @@ def render():
     with open(f, "w") as fh:
         fh.write(text)
     r = subprocess.run(["owl-check", f], capture_output=True, text=True, timeout=120)
-    m = re.search(r"screen: (\S+\.png)", r.stdout)
+    m = re.search(which + r": (\S+\.png)", r.stdout)
     if not m:
         raise RuntimeError("啟動器沒有畫出預覽：" + (r.stdout + r.stderr).strip()[-200:])
     return m.group(1)
@@ -762,6 +850,7 @@ def gen(wish, edit=None):
                 status("working", M("thumbing"), p=0.95, to=0.99, eta=8, wish=wish, agent=agent, **extra)
                 try:
                     make_thumbs([sid], force=bool(edit))
+                    make_tiles([sid])
                 except BaseException:
                     pass
                 times[agent] = (mine + [int(time.time() - t0)])[-9:]
@@ -777,11 +866,11 @@ def gen(wish, edit=None):
         sys.exit(1)
 
 
-def gen_running():
-    """正在跑的生成的 pid（status.json 記的那個行程還活著才算）。"""
+def gen_running(jobs=("gen", "edit")):
+    """正在跑的生成（或其他背景工作）的 pid（status.json 記的那個行程還活著才算）。"""
     st = read_json(STATUS, {})
     pid = st.get("pid")
-    if st.get("state") != "working" or st.get("job") not in ("gen", "edit") or not pid:
+    if st.get("state") != "working" or st.get("job") not in jobs or not pid:
         return None
     try:
         os.kill(pid, 0)
@@ -797,9 +886,15 @@ def fmt_secs(x):
     return M("mins", m=x // 60, s=x % 60) if x >= 60 else M("secs", s=x)
 
 
+def style_top(text):
+    # style.toml 的頂層：第一個 [section] 之前。[status-bar]、[navigation-bar] 裡也有 background = 顏色，不能碰
+    m = re.search(r"^[ \t]*\[", text, re.M)
+    return (text[:m.start()], text[m.start():]) if m else (text, "")
+
+
 def theme_name():
     try:
-        m = re.search(r'^\s*theme\s*=\s*"([^"]+)"', open(STYLE).read(), re.M)
+        m = re.search(r'^[ \t]*theme[ \t]*=[ \t]*"([^"]+)"', style_top(open(STYLE).read())[0], re.M)
         return m.group(1) if m else None
     except OSError:
         return None
@@ -807,16 +902,16 @@ def theme_name():
 
 def set_background(name):
     with open(STYLE) as f:
-        text = f.read()
+        top, rest = style_top(f.read())
     line = f'background = "{name}"'
-    if re.search(r"^\s*background\s*=", text, re.M):
-        text = re.sub(r"^\s*background\s*=.*$", line, text, count=1, flags=re.M)
-    elif re.search(r"^\s*theme\s*=.*$", text, re.M):
-        text = re.sub(r"^(\s*theme\s*=.*)$", r"\1\n" + line, text, count=1, flags=re.M)
+    if re.search(r"^[ \t]*background[ \t]*=", top, re.M):
+        top = re.sub(r"^[ \t]*background[ \t]*=.*$", lambda _: line, top, count=1, flags=re.M)
+    elif re.search(r"^[ \t]*theme[ \t]*=.*$", top, re.M):
+        top = re.sub(r"^([ \t]*theme[ \t]*=.*)$", lambda m: m.group(1) + "\n" + line, top, count=1, flags=re.M)
     else:
-        text = text.rstrip("\n") + "\n" + line + "\n"
+        top = (top.rstrip("\n") + "\n" if top.strip() else "") + line + "\n" + ("\n" if rest else "")
     with open(STYLE, "w") as f:
-        f.write(text)
+        f.write(top + rest)
 
 
 def wall_files():
@@ -828,7 +923,7 @@ def wall_files():
 def active_wall():
     """style.toml 指向的 pixbg-<相簿檔名>，回傳相簿檔名。"""
     try:
-        m = re.search(r'^\s*background\s*=\s*"pixbg-([^"]+)"', open(STYLE).read(), re.M)
+        m = re.search(r'^[ \t]*background[ \t]*=[ \t]*"pixbg-([^"]+)"', style_top(open(STYLE).read())[0], re.M)
         return m.group(1) if m and os.path.exists(os.path.join(GALLERY, m.group(1))) else None
     except OSError:
         return None
@@ -885,36 +980,28 @@ def migrate_walls():
             if not os.path.exists(os.path.join(GALLERY, name)):
                 shutil.copyfile(old, os.path.join(GALLERY, name))
                 os.utime(os.path.join(GALLERY, name), (int(m.group(2)), int(m.group(2))))
-            if re.search(r'background\s*=\s*"%s"' % re.escape(os.path.basename(old)), open(STYLE).read()):
+            if re.search(r'^[ \t]*background[ \t]*=[ \t]*"%s"' % re.escape(os.path.basename(old)), style_top(open(STYLE).read())[0], re.M):
                 apply_wall(name)
 
 
 def wall(sid=None):
-    from PIL import Image
-    sid = sid or current_id() or (read_json(BUNDLE, {}).get("scenes") or [{}])[0].get("id")
-    if not sid:
-        sys.exit("pixbg: 還沒有選場景")
-    if not theme_name():
-        sys.exit("pixbg: style.toml 沒有 theme")
     _job["job"] = "wall"
+    sid = sid or current_id() or (read_json(BUNDLE, {}).get("scenes") or [{}])[0].get("id")
+    # 在背景跑時，錯誤要寫進 status，不然小工具會一直顯示忙碌
+    for bad, why in ((not sid, "還沒有選場景"), (not theme_name(), "style.toml 沒有 theme")):
+        if bad:
+            status("error", M("wallFail") + why)
+            sys.exit("pixbg: " + why)
     status("working", M("wallPrep"), p=0.05)
+    lock = render_lock()
     try:
-        # 全螢幕預覽裡 shader 佔的範圍：第一次畫一張純洋紅的量出來，之後沿用
-        saved = read_json(BOX, {})
-        box = tuple(saved["box"]) if saved.get("box") else None
+        from PIL import Image
+        box = read_json(BOX, {}).get("box")
         if not box:
             status("working", M("wallMeasure"), p=0.1, to=0.4, eta=8)
-            write_json(EXPORT, {"on": True, "probe": True})
-            im = Image.open(render()).convert("RGB")
-            W, H = im.size
-            px = im.load()
-            ys = [y for y in range(0, H, 2) if px[W // 2, y] == (255, 0, 255)]
-            xs = [x for x in range(0, W, 2) if px[x, H // 2] == (255, 0, 255)]
-            if not xs or not ys:
-                raise RuntimeError("量不到畫面範圍")
-            box = (min(xs), min(ys), max(xs) + 1, max(ys) + 1)
-            write_json(BOX, {"box": box, "size": [W, H]})
-        write_json(EXPORT, {"on": True, "id": sid})
+            box = measure_box()
+        box = tuple(box)
+        write_json(EXPORT, {"on": True, "id": sid, "t": int(time.time())})
         status("working", M("wallDraw"), p=0.45, to=0.85, eta=7)
         shot = render()
         status("working", M("wallCrop"), p=0.9)
@@ -930,6 +1017,8 @@ def wall(sid=None):
         raise
     finally:
         write_json(EXPORT, {"on": False})
+        lock.close()
+        reload_widget()
 
 
 def main(argv):
@@ -996,15 +1085,43 @@ def main(argv):
         ids = [x["id"] for x in read_json(BUNDLE, {}).get("scenes", [])]
         before = ids[ids.index(sid) - 1] if sid in ids and ids.index(sid) > 0 else (ids[0] if ids else None)
         os.remove(os.path.join(SCENES, sid + ".agsl"))
-        if os.path.exists(thumb_path(sid)):
-            os.remove(thumb_path(sid))
+        for old in (thumb_path(sid), tile_path(sid)):
+            if os.path.exists(old):
+                os.remove(old)
         build_bundle()
         if before and before != sid and current_id() == sid:
             notify_sel(before)
         _job["job"] = "del"
         status("done", M("deleted", name=split_name(sc["name"])[pack(lang())["names"] != "en"]), p=1)
     elif cmd == "wall":
-        wall(argv[1] if len(argv) > 1 else None)
+        # 和 gen 一樣放到背景跑：啟動器的 run(...) 30 秒就停，兩次全螢幕繪製可能超過，被殺就跑不到 finally
+        args = [a for a in argv[1:] if a != "--fg"]
+        if "--fg" in argv or os.environ.get("PIXBG_FG"):
+            wall(args[0] if args else None)
+        elif gen_running(("wall",)):
+            print(M("wallPrep"))
+        else:
+            log = open(os.path.join(CACHE, "wall.log"), "a")
+            child = subprocess.Popen([sys.executable, os.path.abspath(__file__), "wall", "--fg"] + args[:1],
+                                     stdout=log, stderr=log, start_new_session=True)
+            _job.update(job="wall", started=int(time.time()), pid=child.pid)
+            status("working", M("wallPrep"), p=0.02)
+    elif cmd == "tile":
+        # pixbg tile [id]：在背景照磚的大小拍一張靜態圖（小工具換到還沒有靜態圖的場景時呼叫）
+        args = [a for a in argv[1:] if a != "--fg"]
+        if "--fg" in argv:
+            tile_worker()
+        else:
+            sid = args[0] if args else (current_id() or (read_json(BUNDLE, {}).get("scenes") or [{}])[0].get("id"))
+            if sid:
+                with open(TILE_WANT, "w") as f:
+                    f.write(sid)
+                subprocess.Popen([sys.executable, os.path.abspath(__file__), "tile", "--fg"],
+                                 stdout=open(os.path.join(CACHE, "tile.log"), "a"), stderr=subprocess.STDOUT,
+                                 stdin=subprocess.DEVNULL, start_new_session=True)
+    elif cmd == "tiles":
+        # pixbg tiles [id ...]：馬上重拍磚的靜態圖（不給 id 就全部）
+        make_tiles([a for a in argv[1:] if not a.startswith("--")] or None)
     elif cmd == "lang":
         code = (argv[1] if len(argv) > 1 else "zh").strip()
         path = os.path.join(LANGS, code + ".json")

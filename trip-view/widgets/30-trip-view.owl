@@ -32,11 +32,15 @@ widget "trip view" {
   state showClock = false persist
   state pet = true persist
   state tileClean = false persist
+  // 主畫面的磚：預設放場景縮圖（不耗電），使用者可在設定裡改成一直播動畫
+  state tileLive = false persist
   state langWish = "" persist
   state panel = true
   state hiddenAt = 0
   state langOpen = false
   state poke = 0
+  // 在磚上點按鈕或吉祥物的時間：之後幾秒磚上播動畫
+  state liveAt = 0
   state copiedAt = 0
   // 刪除要按兩次：第一次記下要刪哪個場景、什麼時候按的，10 秒內在確認框按「確認刪除」才真的刪
   state delId = ""
@@ -46,10 +50,13 @@ widget "trip view" {
   state editOpen = ""
   state editWish = ""
 
-  // 目前的場景。設為桌布時 export.json 指定要畫哪一個、隱藏介面
+  // 目前的場景。設為桌布時 export.json 指定要畫哪一個、隱藏介面。
+  // 只認 2 分鐘內寫的：pixbg 萬一在匯出中途被殺，介面也不會一直藏著
   let list = bundle.scenes ?? []
-  let exporting = exp.on == true
-  let curIdx = max(0, list.map(x => x.id).indexOf(exporting && exp.id != null ? exp.id : sel))
+  let exporting = exp.on == true && exp.tile != true && (exp.t ?? 0) > now - 120
+  // 拍磚的靜態圖（pixbg tile）時只動磚：照磚的大小播 shader、藏起磚上的介面，全螢幕頁照常
+  let tileShot = exp.on == true && exp.tile == true && (exp.t ?? 0) > now - 120
+  let curIdx = max(0, list.map(x => x.id).indexOf((exporting || tileShot) && exp.id != null ? exp.id : sel))
   let cur = list[curIdx] ?? {}
   let total = len(list)
   let nextId = total > 0 ? list[(curIdx + 1) % total].id : sel
@@ -60,6 +67,11 @@ widget "trip view" {
   let code = exporting && exp.probe == true ? probe : cur.code ?? blank
   // 卡片縮圖要用每個場景代表性的那一幕：匯出時 export.json 可以指定配色組
   let zn = exporting && exp.zone != null ? exp.zone : zone
+  // 啟動器只要畫面上有 Shader 就每一格都重畫（耗電），所以磚平常放靜態縮圖，不放 Shader。
+  // 使用者選了「磚上播動畫」，或剛在磚上點過（5 秒內），才放 Shader。全螢幕頁照常播。
+  // 沒縮圖時磚上畫配色色帶，角色和吉祥物跟著每秒的時鐘走；速度 0 時停住。
+  let tileAnim = tileLive || now - liveAt < 5 || tileShot
+  let tileT = speed > 0 ? now % 3600 : 0
 
   // 語言：ui.json 裝著所有語言包（~/.local/share/pixbg/lang/*.json）
   let lc = langCode != "" ? langCode : ui.code ?? "en"
@@ -184,14 +196,16 @@ Steps:
     }
   }
 
-  component Mascot(px = 4) {
+  // live：全螢幕頁每格動；主畫面的磚只在被點後的幾秒讀 time，其餘時間跟著每秒的時鐘走
+  component Mascot(px = 4, live = false) {
     Canvas {
       width: 16 * px
       height: 12 * px
-      onTap: { poke = now; haptic(); run(sound ? (mascot == "ufo" ? "paplay ~/.cache/pixbg/sfx/beam.wav" : "paplay ~/.cache/pixbg/sfx/boing.wav") : "true") }
-      let blink = sin(time * 4) > 0
-      let hop = reacting ? abs(sin(time * 9)) * 3 * px : 0
-      let bob = round(sin(time * 2) * px * 0.8)
+      onTap: { poke = now; liveAt = now; haptic(); run(sound ? (mascot == "ufo" ? "paplay ~/.cache/pixbg/sfx/beam.wav" : "paplay ~/.cache/pixbg/sfx/boing.wav") : "true") }
+      let tm = live || reacting ? time : now
+      let blink = sin(tm * 4) > 0
+      let hop = reacting ? abs(sin(tm * 9)) * 3 * px : 0
+      let bob = round(sin(tm * 2) * px * 0.8)
       let x0 = 2 * px
       let y0 = 2 * px + bob - hop
       // 被點到：UFO 放出牽引光束，其他的跳一跳、冒星星
@@ -200,12 +214,12 @@ Steps:
       }
       sprite(MASCOTS[mascot] ?? MASCOTS.ufo, x0, y0, px, palette: {
         a: P.c2, c: P.c1, x: P.ac, w: "#ffffff", k: "#151520", m: "#c9cde0", y: "#ffe46a", r: "#ff3a4a",
-        d: blink ? P.ac : P.c0, g: mix(P.ac, P.c2, sin(time * 1.5) * 0.5 + 0.5)
+        d: blink ? P.ac : P.c0, g: mix(P.ac, P.c2, sin(tm * 1.5) * 0.5 + 0.5)
       })
       if reacting {
         for i in range(5) {
-          let a = time * 3 + i * 1.256
-          let r = 5 * px + sin(time * 5 + i) * px
+          let a = tm * 3 + i * 1.256
+          let r = 5 * px + sin(tm * 5 + i) * px
           rect(x0 + 6 * px + sin(a) * r, y0 + 3 * px - cos(a) * r * 0.6, px, px, fill: i % 2 == 0 ? P.ac : "#ffffff")
         }
       }
@@ -329,12 +343,13 @@ Steps:
   // ---------------------------------------------------------------- 角色層
   // 場景附的 <場景>.actors.json：美術（sprite 字母圖）＋ 每一幕（配色組）的演出。位置是畫面比例：
   // x 是角色中線、y 是腳底，[基準, 振幅, 頻率, 相位]。座標都對齊 shader 的像素格。
-  component Actors(cw = 2) {
+  // live：全螢幕頁、或磚上在播動畫時用 time 每格動；磚上沒縮圖時用 tileT，每秒走一次
+  component Actors(cw = 2, live = false) {
     Canvas {
       fill: true
       let A = cur.actors ?? {}
       let art = A.art ?? {}
-      let tt = time * max(speed, 0)
+      let tt = (live ? time : tileT) * max(speed, 0)
       let live = (A.acts ?? []).filter(a => (a.zones ?? [zn]).indexOf(zn) >= 0 && get(art, a.toy, null) != null)
       let s1 = live.map(a => {a: a, g: get(art, a.toy, {}), cp: cw * (get(art, a.toy, {}).cell ?? 1)})
       let s2 = s1.map(o => {
@@ -469,8 +484,20 @@ Steps:
 
   Box {
     fill: true
-    Shader { fill: true; fallback: background; uniforms: { zone: zn, speed: speed, cellpx: 0 }; code: code }
-    if cur.actors != null { Actors { cw: tileCell } }
+    if tileAnim {
+      Shader { fill: true; fallback: background; uniforms: { zone: zn, speed: speed, cellpx: 0 }; code: code }
+      if cur.actors != null { Actors { cw: tileCell; live: true } }
+    } else if (cur.tile ?? cur.thumb) != null {
+      // 靜態圖裡已經有角色，不再疊一層。cur.tile 是照磚的大小拍的，構圖和播動畫時一樣
+      Image { src: cur.tile ?? cur.thumb; fill: true; fit: cover }
+    } else {
+      Canvas {
+        fill: true
+        for k, i in [P.bg, P.c0, P.c1, P.c2] { rect(0, i * height / 4, width, height / 4 + 1, fill: k) }
+      }
+      if cur.actors != null { Actors { cw: tileCell } }
+    }
+    if !tileShot {
     if tileClean { Column { fill: true; onTap: { tileClean = false; run(sound ? "paplay ~/.cache/pixbg/sfx/tap.wav" : "true") } } }
     Column {
       fill: true
@@ -489,11 +516,11 @@ Steps:
         } else {
           Spacer { weight: 1 }
         }
-        if !tiny && pet { Mascot { px: mascotPx } }
+        if !tiny && pet { Mascot { px: mascotPx; live: tileLive } }
       }
       Spacer { weight: 1 }
       if tiny && pet {
-        Row { Spacer { weight: 1 }  Mascot { px: mascotPx } }
+        Row { Spacer { weight: 1 }  Mascot { px: mascotPx; live: tileLive } }
       }
       if busy && !tileClean {
         ProgressPanel { compact: !big }
@@ -509,13 +536,14 @@ Steps:
       if big && !tileClean {
         Row {
           gap: 2
-          Box { weight: 1; onTap: { sel = prevId; run(sound ? "paplay ~/.cache/pixbg/sfx/prev.wav" : "true") }; PixelBtn { label: "◀"; tone: P.ac; h: 46; size: 13; pad: 2 } }
-          Box { weight: 1; onTap: { sel = nextId; run(sound ? "paplay ~/.cache/pixbg/sfx/next.wav" : "true") }; PixelBtn { label: "▶"; tone: P.ac; h: 46; size: 13; pad: 2 } }
-          Box { weight: 1; onTap: { zone = (zone + 1) % 5; run(sound ? "paplay ~/.cache/pixbg/sfx/zone.wav" : "true") }; PixelBtn { label: "${T.zone} ${zone + 1}"; tone: P.ac; h: 46; size: 12; pad: 2 } }
+          Box { weight: 1; onTap: { liveAt = now; sel = prevId; run(sound ? "paplay ~/.cache/pixbg/sfx/prev.wav" : "true"); run((list.find(x => x.id == prevId) ?? {}).tile == null ? "~/.local/bin/pixbg tile ${sh(prevId)}" : "true") }; PixelBtn { label: "◀"; tone: P.ac; h: 46; size: 13; pad: 2 } }
+          Box { weight: 1; onTap: { liveAt = now; sel = nextId; run(sound ? "paplay ~/.cache/pixbg/sfx/next.wav" : "true"); run((list.find(x => x.id == nextId) ?? {}).tile == null ? "~/.local/bin/pixbg tile ${sh(nextId)}" : "true") }; PixelBtn { label: "▶"; tone: P.ac; h: 46; size: 13; pad: 2 } }
+          Box { weight: 1; onTap: { liveAt = now; zone = (zone + 1) % 5; run(sound ? "paplay ~/.cache/pixbg/sfx/zone.wav" : "true") }; PixelBtn { label: "${T.zone} ${zone + 1}"; tone: P.ac; h: 46; size: 12; pad: 2 } }
           Box { weight: 1; onTap: { tileClean = true; haptic(); run(sound ? "paplay ~/.cache/pixbg/sfx/hide.wav" : "true") }; PixelBtn { label: T.tileHide; tone: P.ac; h: 46; size: 12; pad: 2 } }
           Box { weight: 1; onTap: { panel = true; screen(); run(probeStale ? "~/.local/bin/pixbg agents" : "true") }; PixelBtn { label: T.gen; tone: P.ac; on: true; h: 46; size: 12; pad: 2 } }
         }
       }
+    }
     }
   }
 
@@ -525,7 +553,7 @@ Steps:
       width: screenWidth ?? 400
       height: screenHeight ?? 720
       Shader { fill: true; fallback: background; uniforms: { zone: zn, speed: speed, cellpx: bleedCell }; code: code; scale: bk; offset: bleedOff }
-      if cur.actors != null { Actors { cw: screenCell; scale: bk; offset: bleedOff } }
+      if cur.actors != null { Actors { cw: screenCell; live: true; scale: bk; offset: bleedOff } }
       if panel && !exporting {
         Column {
           fill: width
@@ -550,12 +578,12 @@ Steps:
                   Text { text: "${ymd[0]}/${dateShort}"; style: small; color: soft }
                 }
               }
-              if pet { Mascot { px: 7 } }
+              if pet { Mascot { px: 7; live: true } }
             }
             Row {
               gap: 8
-              Box { weight: 1; onTap: { sel = prevId; run(sound ? "paplay ~/.cache/pixbg/sfx/prev.wav" : "true") }; PixelBtn { label: T.prev; tone: P.ac } }
-              Box { weight: 1; onTap: { sel = nextId; run(sound ? "paplay ~/.cache/pixbg/sfx/next.wav" : "true") }; PixelBtn { label: T.next; tone: P.ac } }
+              Box { weight: 1; onTap: { sel = prevId; run(sound ? "paplay ~/.cache/pixbg/sfx/prev.wav" : "true"); run((list.find(x => x.id == prevId) ?? {}).tile == null ? "~/.local/bin/pixbg tile ${sh(prevId)}" : "true") }; PixelBtn { label: T.prev; tone: P.ac } }
+              Box { weight: 1; onTap: { sel = nextId; run(sound ? "paplay ~/.cache/pixbg/sfx/next.wav" : "true"); run((list.find(x => x.id == nextId) ?? {}).tile == null ? "~/.local/bin/pixbg tile ${sh(nextId)}" : "true") }; PixelBtn { label: T.next; tone: P.ac } }
             }
             // 管理只對 Agent 場景：平常只有一行小字，點開才有「編輯」「刪除」，刪除還要再確認一次
             if cur.kind == "ai" {
@@ -688,7 +716,7 @@ Steps:
               columns: 2
               gap: 8
               for x in list key x.id {
-                Box { onTap: { sel = x.id; haptic(); run(sound ? "paplay ~/.cache/pixbg/sfx/next.wav" : "true") }; SceneCard { x: x; on: x.id == cur.id } }
+                Box { onTap: { sel = x.id; haptic(); run(sound ? "paplay ~/.cache/pixbg/sfx/next.wav" : "true"); run(x.tile == null ? "~/.local/bin/pixbg tile ${sh(x.id)}" : "true") }; SceneCard { x: x; on: x.id == cur.id } }
               }
             }
           }
@@ -752,6 +780,9 @@ Steps:
             Box { onTap: { sound = !sound; run(!sound ? "paplay ~/.cache/pixbg/sfx/tap.wav" : "true") }; PixelBtn { label: sound ? T.sfxOn : T.sfxOff; on: sound; tone: P.ac; h: 54; size: 15 } }
             Box { onTap: { pet = !pet; haptic(); run(sound ? (mascot == "ufo" ? "paplay ~/.cache/pixbg/sfx/beam.wav" : "paplay ~/.cache/pixbg/sfx/boing.wav") : "true") }; PixelBtn { label: pet ? T.petOn : T.petOff; on: pet; tone: P.ac; h: 54; size: 15 } }
           }
+          // 主畫面的磚：靜態縮圖（預設，省電）或一直播動畫
+          Box { fill: width; onTap: { tileLive = !tileLive; run(sound ? "paplay ~/.cache/pixbg/sfx/tap.wav" : "true") }; PixelBtn { label: tileLive ? T.tileLiveOn : T.tileLiveOff; on: tileLive; tone: P.ac; h: 54; size: 15 } }
+          Text { text: tileLive ? T.tileLiveOnHelp : T.tileLiveOffHelp; style: small; color: soft; maxLines: 3; padding: [4, 0] }
 
           // ---------------------------------------------- 語言（最下面）
           Column {

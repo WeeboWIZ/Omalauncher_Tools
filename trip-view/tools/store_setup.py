@@ -72,6 +72,9 @@ def install_files(files, version):
             (cache / 'store-version').write_text(version)
             state.write_text('done')
             print('Trip View is ready. Existing animations, languages and settings were preserved.')
+            # The home tile's still (Neon Ramen for a new install), taken in the background. Taking it also
+            # reloads the widget, so the tile leaves the setup screen even if the launcher missed the state file.
+            subprocess.run([sys.executable, str(tool), 'tile'], check=False, timeout=30)
         except Exception:
             state.write_text('failed')
             raise

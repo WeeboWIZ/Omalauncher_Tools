@@ -88,7 +88,11 @@
     "editHint": "e.g. heavier rain, add a moon",
     "editNote": "The agent changes only what you ask, and it goes in only after the local check passes. The old version is kept.",
     "editGo": "✦ Apply change",
-    "editingScene": "Agent edit"
+    "editingScene": "Agent edit",
+    "tileLiveOff": "Home tile: still",
+    "tileLiveOn": "Home tile: animated",
+    "tileLiveOffHelp": "The home screen shows the scene's preview and plays for a few seconds after you tap it. Saves battery.",
+    "tileLiveOnHelp": "The home screen animates all the time. Uses more battery."
   },
   "msg": {
     "notPassed": "{name} failed the check, not applied: ",
