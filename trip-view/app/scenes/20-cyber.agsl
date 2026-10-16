@@ -2,7 +2,7 @@
 // mascot: car
 // tag: ufopump
 // thumb: 0
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
 // from: UFOPUMP Cyberpunk.ts — 無盡摩天樓、窗格、霓虹招牌、電梯燈、飛船、探照燈、斜雨
 void palette(float z, out half3 bg, out half3 c0, out half3 c1, out half3 c2, out half3 ac) {

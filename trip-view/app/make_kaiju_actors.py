@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 # Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
 """產生 scenes/60-kaiju.actors.json：toys.py 畫的四隻軟膠玩具 + 直升機，加上五幕的演出。
 位置都是畫面的比例：x 是玩具中線，y 是玩具腳底；[基準, 振幅, 頻率, 相位] → 基準 + 振幅 × sin(t × 頻率 + 相位)。"""

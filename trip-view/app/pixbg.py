@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 # Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
 """pixbg（也叫 tripview）：Trip View 的場景管理與 AI 生成，給 omalauncher 的 Trip View 小工具用。
 

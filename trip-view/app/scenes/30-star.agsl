@@ -2,7 +2,7 @@
 // mascot: star
 // tag: ufopump
 // thumb: 1
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
 // from: UFOPUMP StarLand.ts — 粉彩波浪天空、圓滾滾的雲、浮空島和小瀑布、四角星、泡泡
 void palette(float z, out half3 bg, out half3 c0, out half3 c1, out half3 c2, out half3 ac) {

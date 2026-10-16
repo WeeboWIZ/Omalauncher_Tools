@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 # Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
 """KAIJU TOKYO 的軟膠玩具：照 UFOPUMP（src/systems/backdrops/KaijuTokyo.ts）的 Toy 畫法移植，
 離線畫成像素圖，再轉成小工具 Canvas sprite() 用的字母圖（每隻 ≤52 色，'.' 透明）。

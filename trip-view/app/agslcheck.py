@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 # Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
 """在 Linux 這邊檢查 AGSL 場景，不碰手機：
   1. AGSL 的限制（常數次數的 for、沒有 while／陣列／貼圖）

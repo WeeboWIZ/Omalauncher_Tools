@@ -2,7 +2,7 @@
 // mascot: firefly
 // tag: ufopump
 // thumb: 2
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
 // from: UFOPUMP AcidForest.ts — 年輪波紋天空、巨樹樹幹、發光蕈類、擺動藤蔓、孢子、8 字螢火蟲、會眨的眼睛
 void palette(float z, out half3 bg, out half3 c0, out half3 c1, out half3 c2, out half3 ac) {

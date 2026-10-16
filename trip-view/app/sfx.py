@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 # Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
 """pixbg 的 8-bit 音效：短短的方波／三角波，寫成 22 kHz 單聲道 WAV。
 小工具用 paplay 直接播，不必啟動 Python，點下去馬上有聲音。"""

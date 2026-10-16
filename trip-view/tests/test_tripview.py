@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 # Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
 '''Trip View checks: every scene passes the offline shader check, the widget passes the uniforms
 every shader declares, the language packs match, sprites stay under the Canvas limit, and the
@@ -82,7 +82,7 @@ class Widget(unittest.TestCase):
         meta = re.search(r'meta \{([^}]*)\}', WIDGET).group(1)
         desc = re.search(r'description: "([^"]*)"', meta).group(1)
         self.assertTrue(10 <= len(desc) <= 200)
-        self.assertIn('license: "GPL-3.0-or-later"', meta)
+        self.assertIn('license: "MIT"', meta)
         self.assertLess(len(WIDGET.encode()), 256 * 1024)
         self.assertNotIn('/root/', WIDGET)
 

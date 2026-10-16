@@ -1,12 +1,9 @@
 // Trip View: animated pixel-art scenes for the omalauncher home screen, or one your terminal agent paints from a sentence.
 // Copyright (C) 2026 WeeboWIZ. All scenes, characters and pixel art (C) 2026 WeeboWIZ.
-// SPDX-License-Identifier: GPL-3.0-or-later
-// This program is free software: you can redistribute it and/or modify it under the terms
-// of the GNU General Public License as published by the Free Software Foundation, either
-// version 3 of the License, or (at your option) any later version. It is distributed
-// WITHOUT ANY WARRANTY; see <https://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: MIT
+// Licensed under the MIT License; see LICENSE.
 widget "trip view" {
-  meta { owl: 7; description: "Animated pixel scene templates for your home screen. Describe a mood in one sentence and your agent generates an animated scene, which you can also set as your wallpaper."; version: "1.4"; license: "GPL-3.0-or-later"; category: "fun" }
+  meta { owl: 7; description: "Animated pixel scene templates for your home screen. Describe a mood in one sentence and your agent generates an animated scene, which you can also set as your wallpaper."; version: "1.4"; license: "MIT"; category: "fun" }
   page: 3
   order: 1
   size: 6x6
@@ -427,7 +424,7 @@ Steps:
           padding: 6
           if x.kind == "ai" {
             Row {
-              Text { text: T.tag_ai ?? "AI"; font: mono; style: small; bold: true; color: "#071016"; background: "#ff7ad9"; padding: [6, 1]; width: len(T.tag_ai ?? "AI") * (match(T.tag_ai ?? "AI", "^[ -~]+$") != null ? 9.5 : 14) + 14 }
+              Text { text: T.tag_ai ?? "Agent"; font: mono; style: small; bold: true; color: "#071016"; background: "#ff7ad9"; padding: [6, 1]; width: len(T.tag_ai ?? "Agent") * (match(T.tag_ai ?? "Agent", "^[ -~]+$") != null ? 9.5 : 14) + 14 }
               Spacer { weight: 1 }
             }
           }
@@ -536,7 +533,7 @@ Steps:
             }
           }
 
-          // ---------------------------------------------- AI 生成（醒目的大卡片）
+          // ---------------------------------------------- Agent 生成動畫（醒目的大卡片）
           Column {
             fill: width; gap: 10; padding: [16, 14]; background: alpha("#0c111a", 0.92); border: 3; radius: 0
             borderColor: busy && st.job == "gen" ? mix(P.ac, "#ffffff", 0.5 + 0.5 * sin(now * 2)) : P.ac
@@ -569,7 +566,7 @@ Steps:
           // ---------------------------------------------- 場景卡片
           Column {
             fill: width; gap: 10; padding: [14, 12]; background: glass; border: 2; radius: 0; borderColor: cardEdge
-            HudHead { tag: T.scenes; tone: P.ac; meta: "${T.builtin} ${len(list.filter(x => x.kind != "ai"))} · AI ${len(list.filter(x => x.kind == "ai"))}" }
+            HudHead { tag: T.scenes; tone: P.ac; meta: "${T.builtin} ${len(list.filter(x => x.kind != "ai"))} · Agent ${len(list.filter(x => x.kind == "ai"))}" }
             Grid {
               columns: 2
               gap: 8
@@ -668,7 +665,7 @@ Steps:
         // 滿版的背景蓋住了啟動器的 ✕，自己放一顆像素關閉鈕在右上角
         Row {
           fill: width
-          padding: [0, 6, 12, 0]
+          padding: 0
           Spacer { weight: 1 }
           Box { width: 60; height: 52; onTap: { run(sound ? "paplay ~/.cache/pixbg/sfx/hide.wav" : "true"); close() }; PixelBtn { label: "✕"; tone: "#ff6a6a"; h: 52; size: 20; pad: 0 } }
         }
@@ -680,7 +677,7 @@ Steps:
             onTap: { panel = true; run(sound ? "paplay ~/.cache/pixbg/sfx/tap.wav" : "true") }
             Row {
               fill: width
-              padding: [0, 6, 12, 0]
+              padding: 0
               Spacer { weight: 1 }
               Box { width: 60; height: 52; opacity: 0.55; onTap: { run(sound ? "paplay ~/.cache/pixbg/sfx/hide.wav" : "true"); close() }; PixelBtn { label: "✕"; tone: "#ff6a6a"; h: 52; size: 20; pad: 0 } }
             }

@@ -2,7 +2,7 @@
 // mascot: ufo
 // tag: ufopump
 // thumb: 3
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
 // from: UFOPUMP KaijuTokyo.ts — 特攝片場的東京：五組配色各是一幕（黃昏片場、怪獸警報、大樓攻防、英雄登場、高空決戰）。
 //       軟膠玩具角色由小工具的 Canvas 疊在上面（60-kaiju.actors.json），這裡畫天空、大樓、鐵塔、電車、探照燈、火光。

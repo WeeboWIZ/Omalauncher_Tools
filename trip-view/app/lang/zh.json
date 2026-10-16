@@ -18,7 +18,7 @@
     "boost": "加速",
     "normal": "正常",
     "setWall": "設為桌布",
-    "aiGen": "AI 生成",
+    "aiGen": "Agent 生成動畫",
     "zone": "配色",
     "wall": "桌布",
     "applying": "套用中",
@@ -31,9 +31,9 @@
     "setN": "第 {n} 組",
     "speed": "速度",
     "oneLine": "一句話畫一個場景",
-    "hint": "例如：雨夜的霓虹拉麵攤，蒸氣往上飄",
-    "generating": "生成中…",
-    "genNew": "✦ 生成新場景",
+    "hint": "例如：台北，下雨，想放空",
+    "generating": "Agent 生成中…",
+    "genNew": "✦ Agent 生成新動畫",
     "thisScene": "這個場景：「{p}」",
     "albumN": "相簿：點一張換成桌布（共 {n} 張）",
     "inUse": "● 使用中",
@@ -54,11 +54,11 @@
     "playing": "▶ 遊玩中",
     "tag_ufopump": "UFOPUMP",
     "tag_original": "原創",
-    "tag_ai": "AI 生成",
+    "tag_ai": "Agent",
     "tag_travel": "旅行",
-    "aiTitle": "✦ AI 生成新場景",
-    "aiDesc": "說一句話，你的 agent 會畫出一個會動的像素場景，幾分鐘後出現在下面的場景卡片裡。",
-    "ideas": "靈感",
+    "aiTitle": "✦ Agent 生成新動畫",
+    "aiDesc": "輸入你所在的城市，或當前天氣與心情。\n讓 Agent 把此刻畫成像素動畫。",
+    "ideas": "試試這些靈感",
     "noThumb": "縮圖產生中",
     "petOn": "寵物 開",
     "petOff": "寵物 關",
@@ -84,9 +84,9 @@
     "mins": "{m} 分 {s} 秒"
   },
   "ideas": [
-    "海底古城與發光水母",
-    "雪山上的蒸汽列車",
-    "櫻花飄落的神社",
-    "沙漠裡的巨大機器人遺骸"
+    "月光森林裡的發光精靈",
+    "土星環下的太空港",
+    "極光下的冰川與鯨魚",
+    "沙漠遺跡間的蒸汽飛船"
   ]
 }

@@ -174,4 +174,4 @@ AI 生成預設用 `claude` CLI 和 Claude Opus 5.5。用 `pixbg agent codex [mo
 
 Copyright (C) 2026 WeeboWIZ. All scenes, characters and pixel art (C) 2026 WeeboWIZ.
 
-Trip View is free software under the [GNU General Public License v3.0 or later](LICENSE). This license covers the `trip-view/` folder; the rest of this repository keeps its own license.
+Trip View is free software under the [MIT License](LICENSE). This license covers the `trip-view/` folder; the rest of this repository keeps its own license.

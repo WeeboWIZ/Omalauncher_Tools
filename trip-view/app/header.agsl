@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
 // ── pixbg 共用標頭（由 pixbg 自動加在每個場景前面）──
 // size（像素）與 time（秒）由啟動器提供。

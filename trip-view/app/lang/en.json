@@ -18,7 +18,7 @@
     "boost": "boosted",
     "normal": "normal",
     "setWall": "Set wallpaper",
-    "aiGen": "AI scene",
+    "aiGen": "Agent animation",
     "zone": "Palette",
     "wall": "Wallpaper",
     "applying": "Applying",
@@ -31,9 +31,9 @@
     "setN": "Set {n}",
     "speed": "Speed",
     "oneLine": "one sentence, one scene",
-    "hint": "e.g. neon ramen stall, rainy night",
-    "generating": "Generating…",
-    "genNew": "✦ Generate scene",
+    "hint": "e.g. Taipei, rainy, feeling calm",
+    "generating": "Agent generating…",
+    "genNew": "✦ Agent · New animation",
     "thisScene": "This scene: “{p}”",
     "albumN": "Album: tap one to use it ({n} pics)",
     "inUse": "● In use",
@@ -54,11 +54,11 @@
     "playing": "▶ Playing",
     "tag_ufopump": "UFOPUMP",
     "tag_original": "Original",
-    "tag_ai": "AI",
+    "tag_ai": "Agent",
     "tag_travel": "Travel",
-    "aiTitle": "✦ Generate a new scene",
-    "aiDesc": "Say one sentence and your agent paints a moving pixel scene. It shows up among the cards below in a few minutes.",
-    "ideas": "Ideas",
+    "aiTitle": "✦ Agent · New animation",
+    "aiDesc": "Enter your city, or the weather and your mood.\nLet your Agent turn this moment into pixel animation.",
+    "ideas": "Try an idea",
     "noThumb": "Making preview",
     "petOn": "Pet on",
     "petOff": "Pet off",
@@ -84,9 +84,9 @@
     "mins": "{m}m {s}s"
   },
   "ideas": [
-    "Sunken city with glowing jellyfish",
-    "Steam train on a snowy mountain",
-    "Shrine under falling cherry blossoms",
-    "Giant robot wreck in the desert"
+    "Glowing fairies in a moonlit forest",
+    "Spaceport beneath Saturn’s rings",
+    "Glaciers and whales under auroras",
+    "Steam airship over desert ruins"
   ]
 }

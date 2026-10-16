@@ -2,7 +2,7 @@
 // mascot: ufo
 // tag: ufopump
 // thumb: 1
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
 // from: UFOPUMP VoidSpace.ts — 流動星雲、兩層星空、閃爍星、流星、月亮
 void palette(float z, out half3 bg, out half3 c0, out half3 c1, out half3 c2, out half3 ac) {
