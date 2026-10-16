@@ -2,7 +2,9 @@
 
 Animated pixel-art scenes for the [Omalauncher](https://github.com/SimonSchubert/omalauncher) home screen. Pick one of seven hand-made scenes, or describe a new one in a sentence and your terminal agent (Claude Code or Codex) paints it.
 
-![Trip View scenes](docs/screenshots/scenes.png)
+![Trip View](docs/screenshots/store-preview.png)
+
+![All seven scenes](docs/screenshots/scenes.png)
 
 | Full-screen page | Scene cards |
 | --- | --- |
@@ -80,6 +82,10 @@ A generated scene that fails goes back to the agent with the errors, at most thr
 
 On the full-screen page, open **Language → Custom**, type the language and copy the prompt to your agent. To do it by hand, copy `app/lang/en.json` to `app/lang/<code>.json`, translate the values, then run `pixbg lang <code>` and `pixbg preview` to check the layout.
 
+## Store preview
+
+The store shows one picture, both in its grid (about 165×104 dp) and on the widget's page (panel width, at most 320 dp tall). `docs/make_store_preview.py` composes it at 1600×1000 (1.6:1) from a launcher render of the full-screen page, so it reads at both sizes: Neon Ramen at a whole-pixel 2×, the title on a chamfered panel and the other six scenes in a strip. Don't add per-theme previews (`previews/<theme>.webp`): the store would show those instead.
+
 ## Layout
 
 ```
@@ -87,7 +93,7 @@ app/          the pixbg tool, the offline checker, sound effects, the shader hea
 app/scenes/   scenes: <id>.agsl plus optional <id>.actors.json (sprites and choreography)
 app/lang/     language packs
 widgets/      30-trip-view.owl
-docs/         screenshots
+docs/         screenshots and the store preview script
 tests/        unittest suite
 install.py    standalone installer
 ```

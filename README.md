@@ -14,7 +14,7 @@ Animated pixel scene templates for the home screen: a rainy neon ramen stall, a 
 
 See the [Trip View README](trip-view/README.md). Install it independently with `python trip-view/install.py`. Trip View is licensed under GPL-3.0-or-later (see [trip-view/LICENSE](trip-view/LICENSE)).
 
-![Trip View scenes](trip-view/docs/screenshots/scenes.png)
+![Trip View](trip-view/docs/screenshots/store-preview.png)
 
 ## Terminal Voice & Dictation for Omalauncher
 
