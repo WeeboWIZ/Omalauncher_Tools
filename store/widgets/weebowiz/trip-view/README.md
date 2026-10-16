@@ -14,7 +14,7 @@ The store edition ships with **English only**. For Traditional Chinese or any ot
 
 To save battery, the home tile shows a still of the scene and animates for a few seconds when you tap it. Settings can switch it to always animated. The still for each scene is taken in the background the first time you switch to it.
 
-After setup, scene card thumbnails are rendered in the background (about 15 seconds). New agent animations get one automatically.
+Scene card thumbnails are rendered in the background right after setup. New agent animations get one automatically.
 
 ## Local files and updates
 
