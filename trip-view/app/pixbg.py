@@ -7,7 +7,7 @@
   pixbg use <id|編號>         切換場景（小工具自己切換時不必呼叫）
   pixbg next | prev          下一個／上一個
   pixbg bundle               重新打包場景給小工具
-  pixbg gen <一句話>          交給終端 agent（預設 claude / claude-opus-5-5）生成新場景
+  pixbg gen <一句話>          交給終端 agent（Codex 或 Claude，使用 CLI 預設模型）生成新場景
   pixbg del [id]             刪除 AI 生成的場景（預設目前這個）
   pixbg wall [id]            把場景定格成啟動器桌布
   pixbg lang <代碼>           小工具和進度訊息的語言（語言包在 ~/.local/share/pixbg/lang/<代碼>.json）
@@ -75,8 +75,8 @@ def lang():
     try:
         code = open(LANG).read().strip()
     except OSError:
-        code = "zh"
-    return code if os.path.exists(os.path.join(LANGS, code + ".json")) else "zh"
+        code = "zh" if os.path.exists(os.path.join(LANGS, "zh.json")) else "en"
+    return code if os.path.exists(os.path.join(LANGS, code + ".json")) else "en"
 
 
 def pack(code):
@@ -113,7 +113,7 @@ def build_ui(code=None):
     packs = {x["code"]: {k: v for k, v in pack(x["code"]).items() if k != "msg"} for x in langs()}
     # 全螢幕頁的內容框（設為桌布時量的）：小工具據此把背景放大、位移，蓋住啟動器的標題列與外框
     box = read_json(BOX, {})
-    write_json(UI, {"code": code, "packs": packs, "langs": langs(), "screen": box if box.get("box") else None})
+    write_json(UI, {"code": code, "packs": packs, "langs": langs(), "screen": box if box.get("box") else None, "agent": config()["agent"]})
 
 
 def split_name(name):
@@ -328,8 +328,9 @@ def config():
         pass
     cfg = {"agent": agent if agent in ("claude", "codex") else "claude"}
     cfg.update(read_json(CONFIG, {}))
-    if not cfg.get("model"):
-        cfg["model"] = "claude-opus-5-5" if cfg["agent"] == "claude" else ""
+    if cfg.get("agent") not in ("codex", "claude"):
+        cfg = {"agent": "claude", "model": ""}
+    cfg.setdefault("model", "")
     return cfg
 
 
@@ -378,6 +379,8 @@ FIX = """剛才的程式沒有通過檢查（還沒送上手機），問題是�
 
 def ask_agent(prompt, cfg):
     agent, model = cfg["agent"], cfg.get("model")
+    if shutil.which(agent) is None:
+        raise RuntimeError(M("missingAgent", agent=agent.capitalize()))
     if agent == "codex":
         out = os.path.join(CACHE, "codex-last.txt")
         cmd = ["codex", "exec", "--skip-git-repo-check", "-o", out]
@@ -642,7 +645,7 @@ def main(argv):
             sys.exit(f"pixbg: 沒有語言包 {path}")
         except ValueError as e:
             sys.exit(f"pixbg: {path} 不是合法的 JSON：{e}")
-        missing = [k for k in pack("zh")["T"] if k not in (d.get("T") or {})] + [k for k in pack("zh")["msg"] if k not in (d.get("msg") or {})]
+        missing = [k for k in pack("en")["T"] if k not in (d.get("T") or {})] + [k for k in pack("en")["msg"] if k not in (d.get("msg") or {})]
         with open(LANG, "w") as f:
             f.write(code)
         build_ui(code)
@@ -675,10 +678,13 @@ def main(argv):
         os.remove(os.path.join(GALLERY, name))
         list_walls()
     elif cmd == "agent":
+        if len(argv) < 2 or argv[1] not in ("codex", "claude"):
+            sys.exit("Usage: pixbg agent <codex|claude> [model]")
         cfg = read_json(CONFIG, {})
         cfg["agent"] = argv[1]
-        cfg["model"] = argv[2] if len(argv) > 2 else ("claude-opus-5-5" if argv[1] == "claude" else "")
+        cfg["model"] = argv[2] if len(argv) > 2 else ""
         write_json(CONFIG, cfg)
+        build_ui()
         print(cfg)
     elif cmd == "check":
         # pixbg check [id ...]：本機檢查場景（不碰手機）

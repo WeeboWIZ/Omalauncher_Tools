@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 // Licensed under the MIT License; see LICENSE.
 widget "trip view" {
-  meta { owl: 7; description: "Animated pixel scene templates for your home screen. Describe a mood in one sentence and your agent generates an animated scene, which you can also set as your wallpaper."; version: "1.4"; license: "MIT"; category: "fun" }
+  meta { owl: 7; description: "Animated pixel scene templates for your home screen. Describe a mood in one sentence and your agent generates an animated scene, which you can also set as your wallpaper."; version: "1.5"; license: "MIT"; category: "fun" }
   page: 3
   order: 1
   size: 6x6
@@ -53,8 +53,8 @@ widget "trip view" {
   let zn = exporting && exp.zone != null ? exp.zone : zone
 
   // 語言：ui.json 裝著所有語言包（~/.local/share/pixbg/lang/*.json）
-  let lc = langCode != "" ? langCode : ui.code ?? "zh"
-  let LP = get(ui.packs ?? {}, lc, null) ?? get(ui.packs ?? {}, "zh", {})
+  let lc = langCode != "" ? langCode : ui.code ?? "en"
+  let LP = get(ui.packs ?? {}, lc, null) ?? get(ui.packs ?? {}, "en", {})
   let T = LP.T ?? {}
   let latin = (LP.names ?? "zh") == "en"
   // 場景名只顯示一種語言（pixbg 把「VOID SPACE 虛空」拆成 en／zh）
@@ -108,7 +108,7 @@ Language to add: """
   let langPromptB = """
 
 How its languages work:
-- Language packs are ~/.local/share/pixbg/lang/<code>.json. zh.json is the original, en.json its English translation. Each pack has:
+- Language packs are ~/.local/share/pixbg/lang/<code>.json. en.json is the base English pack; copy it to add any language, including Traditional Chinese (zh). Each pack has:
   - "name": the language's own name, shown on its button
   - "names": "en" or "zh". Built-in scene names are bilingual ("VOID SPACE 虛空"); this picks the half to show: "zh" for languages written in Chinese characters, otherwise "en".
   - "wd": 7 short weekday names, Sunday first
@@ -539,6 +539,14 @@ Steps:
             borderColor: busy && st.job == "gen" ? mix(P.ac, "#ffffff", 0.5 + 0.5 * sin(now * 2)) : P.ac
             Text { text: T.aiTitle; style: title; bold: true; color: P.ac }
             Text { text: T.aiDesc; style: small; color: soft; maxLines: 3 }
+            Row {
+              gap: 8
+              for a in [["codex", "Codex"], ["claude", "Claude"]] {
+                Box { weight: 1; onTap: { run(busy ? "true" : "~/.local/bin/pixbg agent ${sh(a[0])}") }; PixelBtn { label: a[1]; on: (ui.agent ?? "claude") == a[0]; dim: busy; tone: P.ac; h: 44; size: 14 } }
+              }
+            }
+            Text { text: T.agentHelp; style: small; color: soft; maxLines: 3 }
+
             Input { fill: width; height: 52; padding: [12, 0]; background: "#0a0e15"; border: 2; radius: 0; borderColor: alpha(P.ac, 0.7); placeholder: T.hint; text: wish; onChange: wish = value; onSubmit: { wish = value; run(sound ? "paplay ~/.cache/pixbg/sfx/gen.wav" : "true"); run("~/.local/bin/pixbg gen ${sh(value)}") } }
             Text { text: T.ideas; font: mono; style: small; color: soft }
             Flow {

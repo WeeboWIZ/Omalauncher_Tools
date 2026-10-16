@@ -84,7 +84,7 @@ def main(frame, box_json, thumbs, out):
     d = ImageDraw.Draw(img, 'RGBA')
 
     # Title panel, top left
-    title, sub = 'TRIP VIEW', '7 ANIMATED SCENES + AI GENERATOR'
+    title, sub = 'TRIP VIEW', '7 ANIMATED SCENES + AGENT'
     tpx, spx = 11, 4
     pw = max(text_width(title, tpx), text_width(sub, spx)) + 2 * 44
     chamfer_panel(d, 36, 36, 36 + pw, 36 + 7 * tpx + 7 * spx + 3 * 34, 6, GLASS + (232,), PINK + (255,))

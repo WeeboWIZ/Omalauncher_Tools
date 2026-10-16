@@ -63,7 +63,9 @@
     "petOn": "寵物 開",
     "petOff": "寵物 關",
     "tapToShow": "點一下畫面顯示介面",
-    "tileHide": "隱藏"
+    "tileHide": "隱藏",
+    "agentHelp": "使用所選 CLI 的預設模型；請先在終端安裝並登入。",
+    "agent": "Agent"
   },
   "msg": {
     "notPassed": "{name} 沒通過檢查，沒有套用：",
@@ -81,7 +83,8 @@
     "handoff": "交給 agent…",
     "wallSwitched": "已換成這張桌布",
     "secs": "{s} 秒",
-    "mins": "{m} 分 {s} 秒"
+    "mins": "{m} 分 {s} 秒",
+    "missingAgent": "尚未安裝 {agent}。請先在終端安裝並登入，再試一次。"
   },
   "ideas": [
     "月光森林裡的發光精靈",

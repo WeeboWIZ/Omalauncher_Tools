@@ -63,7 +63,9 @@
     "petOn": "Pet on",
     "petOff": "Pet off",
     "tapToShow": "Tap anywhere to show the controls",
-    "tileHide": "Hide"
+    "tileHide": "Hide",
+    "agentHelp": "Uses the selected CLI’s default model. Install and sign in to it in your terminal first.",
+    "agent": "Agent"
   },
   "msg": {
     "notPassed": "{name} failed the check, not applied: ",
@@ -81,7 +83,8 @@
     "handoff": "Handing it to the agent…",
     "wallSwitched": "Wallpaper switched",
     "secs": "{s}s",
-    "mins": "{m}m {s}s"
+    "mins": "{m}m {s}s",
+    "missingAgent": "{agent} is not installed. Install it and sign in in your terminal, then try again."
   },
   "ideas": [
     "Glowing fairies in a moonlit forest",

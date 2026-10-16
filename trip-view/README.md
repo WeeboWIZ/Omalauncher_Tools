@@ -53,7 +53,7 @@ The installer installs `python`, `python-pillow`, `glslang` and `libpulse` with 
 
 Run the tests with `python -m unittest discover trip-view/tests`.
 
-AI generation uses the `claude` CLI with Claude Opus 5.5 by default. Switch it with `pixbg agent codex [model]` or `pixbg agent claude [model]`.
+Choose Codex or Claude in the generation panel; the selection is saved and uses the CLI’s default model. Optional model overrides use `pixbg agent codex [model]` or `pixbg agent claude [model]`.
 
 ## Safety
 
@@ -139,7 +139,7 @@ python trip-view/install.py
 
 安裝程式會用 pacman 安裝 `python`、`python-pillow`、`glslang`、`libpulse`，把程式複製到 `~/.local/share/pixbg`，在 `~/.local/bin` 加上 `pixbg` 指令（也叫 `tripview`），檢查並打包場景，再把小工具加到第 3 頁。更新時會保留你生成的場景。套件已經裝好時加 `--skip-deps`；開發時用 `--link` 直接從倉庫執行。
 
-AI 生成預設用 `claude` CLI 和 Claude Opus 5.5。用 `pixbg agent codex [model]` 或 `pixbg agent claude [model]` 切換。
+在生成區選擇 Codex 或 Claude，選擇會保存並使用該 CLI 的預設模型。用 `pixbg agent codex [model]` 或 `pixbg agent claude [model]` 切換。
 
 ## 安全
 
@@ -175,3 +175,9 @@ AI 生成預設用 `claude` CLI 和 Claude Opus 5.5。用 `pixbg agent codex [mo
 Copyright (C) 2026 WeeboWIZ. All scenes, characters and pixel art (C) 2026 WeeboWIZ.
 
 Trip View is free software under the [MIT License](LICENSE). This license covers the `trip-view/` folder; the rest of this repository keeps its own license.
+
+## Store edition (1.5)
+
+The store edition bundles English only. Other languages, including Traditional Chinese, are added through Language → Custom using the English template. The source checkout retains both language packs for local development.
+
+Build with `python trip-view/tools/build_store.py` from the repository root. The generated file is `store/widgets/weebowiz/trip-view/widget.owl`; its Set up button installs the embedded runtime and validates all seven scenes without downloading code. Test with `python -m unittest discover trip-view/tests` and the store's `owl.jar review`. See the store README for installation paths and update behavior.
