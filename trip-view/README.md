@@ -85,7 +85,7 @@ On the full-screen page, open **Language → Custom**, type the language and cop
 
 ## Store preview
 
-The store shows one picture, both in its grid (about 165×104 dp) and on the widget's page (panel width, at most 320 dp tall). `docs/make_store_preview.py` composes it at 1600×1000 (1.6:1) from a launcher render of the full-screen page, so it reads at both sizes: Neon Ramen at a whole-pixel 2×, the title on a chamfered panel and the other four scenes in a strip. Don't add per-theme previews (`previews/<theme>.webp`): the store would show those instead.
+The store shows one picture, both in its grid (about 165×104 dp) and on the widget's page (panel width, at most 320 dp tall). `docs/make_store_preview.py` composes it at 1600×1000 (1.6:1) from a launcher render of the full-screen page, so it reads at both sizes: Neon Ramen at a whole-pixel 2× with the title on a chamfered panel in the sky, and nothing else. Don't add per-theme previews (`previews/<theme>.webp`): the store would show those instead.
 
 ## Layout
 
