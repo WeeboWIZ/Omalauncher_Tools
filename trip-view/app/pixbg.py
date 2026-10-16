@@ -19,11 +19,13 @@
   pixbg rmwall <檔名>         從相簿刪掉一張
   pixbg check [id]           在本機檢查場景（編譯、AGSL 規則、GPU 運算量），不碰手機
   pixbg agent <claude|codex> [model]   換生成用的 agent 與模型
+  pixbg agents               檢查兩個 agent 裝了沒、登入了沒
+  pixbg cancel               停掉正在跑的生成
 
 小工具讀 ~/.cache/pixbg/bundle.json（所有通過檢查的場景）、ui.json（語言）與 status.json（進度）。
 切換場景是小工具自己的狀態，不經過這支程式，所以按下去馬上換；這裡改了目前場景時用 owl-send 通知它。
 """
-import json, os, re, shutil, subprocess, sys, time, glob
+import json, os, queue, re, shutil, signal, subprocess, sys, tempfile, threading, time, glob
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 import agslcheck
@@ -40,6 +42,7 @@ CHECKED = os.path.join(CACHE, "checked.json")   # 通過檢查的 shader 雜湊�
 LANGS = os.path.join(DATA, "lang")
 UI = os.path.join(CACHE, "ui.json")
 STATUS = os.path.join(CACHE, "status.json")
+AGENTS = os.path.join(CACHE, "agents.json")     # 兩個 agent CLI 裝了沒、登入了沒，小工具據此畫按鈕
 CONFIG = os.path.join(HOME, ".config/pixbg/config.json")
 WIDGETS = os.path.join(HOME, ".config/omalauncher/widgets")
 STYLE = os.path.join(HOME, ".config/omalauncher/style/style.toml")
@@ -132,9 +135,22 @@ def status(state, msg="", p=None, to=None, eta=None, **extra):
     """
     if state == "working" and not _job.get("started"):
         _job["started"] = int(time.time())
-    write_json(STATUS, {"state": state, "msg": msg, "t": int(time.time()), "job": _job.get("job"),
-                        "started": _job.get("started"), "p": p, "to": to if to is not None else p,
-                        "eta": eta or 1, "since": int(time.time()), **extra})
+    _last.clear()
+    _last.update({"state": state, "msg": msg, "t": int(time.time()), "job": _job.get("job"),
+                  "started": _job.get("started"), "p": p, "to": to if to is not None else p,
+                  "eta": eta or 1, "since": int(time.time()), "pid": _job.get("pid", os.getpid()),
+                  "beat": int(time.time()), **extra})
+    write_json(STATUS, _last)
+
+
+_last = {}
+
+
+def beat():
+    """心跳：進度不變，只更新 beat。小工具看 beat 判斷生成還活著，程式死掉時不會一直顯示忙碌。"""
+    if _last.get("state") == "working" and time.time() - _last.get("beat", 0) >= 3:
+        _last["beat"] = int(time.time())
+        write_json(STATUS, _last)
 
 
 def header():
@@ -377,78 +393,336 @@ FIX = """剛才的程式沒有通過檢查（還沒送上手機），問題是�
 """
 
 
-def ask_agent(prompt, cfg):
+NAMES = {"claude": "Claude", "codex": "Codex"}
+LOGIN = {"claude": "claude auth login", "codex": "codex login"}
+INSTALL = {"claude": "npm i -g @anthropic-ai/claude-code", "codex": "npm i -g @openai/codex"}
+STALL = 240     # agent 這麼久沒有任何輸出，就當它卡住了
+# agent 在這裡跑：上層沒有 CLAUDE.md、AGENTS.md，不會讀進使用者其他專案的說明，也比較快
+AGENT_CWD = os.path.join(tempfile.gettempdir(), "pixbg-agent")
+
+
+class AgentError(RuntimeError):
+    """給使用者看的錯誤；fix 是在終端要打的那行指令（小工具上有複製鍵）。"""
+    def __init__(self, msg, fix="", kind=""):
+        super().__init__(msg)
+        self.fix, self.kind = fix, kind     # kind：login、busy 時可以換另一個 agent 接手
+
+
+def find_cli(name):
+    """agent 的執行檔。小工具的 run() 不一定載入使用者的 shell 設定（mise、npm、bun 加的 PATH），所以也找常見的位置。"""
+    hit = shutil.which(name)
+    if hit:
+        return hit
+    for d in ("~/.local/bin", "~/.local/share/mise/shims", f"~/.local/share/mise/installs/{name}/latest/bin",
+              f"~/.local/share/mise/installs/{name}/latest", "~/.npm-global/bin", "~/.bun/bin", "/usr/local/bin"):
+        path = os.path.join(os.path.expanduser(d), name)
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    return None
+
+
+def cli_env(exe):
+    env = dict(os.environ)
+    env["PATH"] = os.path.dirname(exe) + os.pathsep + env.get("PATH", "/usr/bin:/bin")
+    return env
+
+
+def probe(agent):
+    """一兩秒內看一個 agent 能不能用：state 是 ready、login（沒登入）、missing（沒裝）或 error。"""
+    out = {"id": agent, "name": NAMES[agent], "ok": False, "state": "missing", "version": "", "fix": INSTALL[agent]}
+    exe = find_cli(agent)
+    if not exe:
+        return out
+    env = cli_env(exe)
+    try:
+        v = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=15, env=env)
+        m = re.search(r"\d+\.\d+\.\d+", v.stdout)
+        out["version"] = m.group(0) if m else ""
+        if agent == "claude":
+            r = subprocess.run([exe, "auth", "status"], capture_output=True, text=True, timeout=15, env=env)
+            try:
+                ok = json.loads(r.stdout).get("loggedIn") is True
+            except ValueError:
+                ok = False
+            ok = ok or bool(os.environ.get("ANTHROPIC_API_KEY"))
+        else:
+            r = subprocess.run([exe, "login", "status"], capture_output=True, text=True, timeout=15, env=env)
+            said = (r.stdout + r.stderr).lower()
+            ok = r.returncode == 0 and "logged in" in said and "not logged" not in said
+    except (OSError, subprocess.TimeoutExpired):
+        out.update(state="error", fix="")
+        return out
+    out.update(ok=ok, state="ready" if ok else "login", fix="" if ok else LOGIN[agent])
+    return out
+
+
+def probe_all():
+    """兩個 agent 一起查（各自一兩秒），寫進 agents.json 給小工具。"""
+    res = {}
+    ts = [threading.Thread(target=lambda a=a: res.__setitem__(a, probe(a))) for a in NAMES]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join()
+    data = {"t": int(time.time()), "list": [res[a] for a in NAMES]}
+    write_json(AGENTS, data)
+    return data
+
+
+def ready_agent(cfg):
+    """生成前先確認選的 agent 能用。它不能用、另一個能用，就換過去（記住）；兩個都不能用，說清楚要在終端打什麼。"""
+    info = {a["id"]: a for a in probe_all()["list"]}
+    a = info[cfg["agent"]]
+    if a["ok"]:
+        return cfg, ""
+    other = info["codex" if cfg["agent"] == "claude" else "claude"]
+    if other["ok"]:
+        saved = read_json(CONFIG, {})
+        saved.update(agent=other["id"], model="")
+        write_json(CONFIG, saved)
+        build_ui()
+        return {"agent": other["id"], "model": ""}, M("switched", a=a["name"], b=other["name"])
+    if a["state"] == "missing":
+        raise AgentError(M("missingAgent", agent=a["name"]), a["fix"])
+    if a["state"] == "login":
+        raise AgentError(M("needLogin", agent=a["name"]), a["fix"])
+    raise AgentError(M("agentFailed", agent=a["name"]))
+
+
+def explain(agent, raw):
+    """把 agent 的錯誤換成使用者看得懂、知道下一步的話。"""
+    low, name = raw.lower(), NAMES[agent]
+    if re.search(r"not (logged|signed) in|please (log|sign) ?in|authenticat|unauthori[sz]ed|\b401\b|invalid api key|oauth|token (has )?expired", low):
+        return AgentError(M("needLogin", agent=name), LOGIN[agent], "login")
+    if re.search(r"rate.?limit|usage limit|\b429\b|quota|overloaded|\b529\b", low):
+        when = re.search(r"try again (?:at|in) ([^.,\n]+)", raw, re.I)
+        return AgentError(M("busyAgent", agent=name, when=M("tryAt", t=when.group(1).strip()) if when else ""), kind="busy")
+    if re.search(r"enotfound|econnre|getaddrinfo|network|dns|socket hang up|connection (refused|reset)", low):
+        return AgentError(M("offline", agent=name))
+    lines = [x for x in raw.strip().splitlines() if x.strip()]
+    return AgentError(M("agentFailed", agent=name) + (lines[-1][:160] if lines else ""))
+
+
+def ask_agent(prompt, cfg, on=lambda kind, **kw: None):
+    """把提示詞交給 agent，邊讀它的串流邊回報：on("connected", model=…)、on("thinking")、on("writing", text=…)、on("tick")。
+
+    Claude 用 stream-json，一個字一個字收到，進度是真的；Codex 的 --json 只有步驟事件。
+    兩個都關掉工具、不留對話紀錄。STALL 秒沒有任何輸出就停掉它，不用等到逾時。
+    """
     agent, model = cfg["agent"], cfg.get("model")
-    if shutil.which(agent) is None:
-        raise RuntimeError(M("missingAgent", agent=agent.capitalize()))
+    exe = find_cli(agent)
+    if exe is None:
+        raise AgentError(M("missingAgent", agent=NAMES[agent]), INSTALL[agent])
     if agent == "codex":
-        out = os.path.join(CACHE, "codex-last.txt")
-        cmd = ["codex", "exec", "--skip-git-repo-check", "-o", out]
-        if model:
-            cmd += ["-m", model]
-        r = subprocess.run(cmd + ["-"], input=prompt, capture_output=True, text=True, timeout=900, cwd=CACHE)
-        text = open(out).read() if os.path.exists(out) else r.stdout
+        cmd = [exe, "exec", "--json", "--skip-git-repo-check", "--ephemeral", "-s", "read-only"] + (["-m", model] if model else []) + ["-"]
     else:
-        cmd = ["claude", "-p", "--output-format", "text"]
-        if model:
-            cmd += ["--model", model]
-        r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=900, cwd=CACHE)
-        text = r.stdout
-    if r.returncode != 0 and not text.strip():
-        raise RuntimeError((r.stderr or "agent 失敗").strip()[-300:])
-    m = re.findall(r"```(?:agsl|glsl|sksl|c|cpp)?\s*\n(.*?)```", text, re.S)
-    code = max(m, key=len) if m else text
+        cmd = [exe, "-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
+               "--tools", "", "--no-session-persistence"] + (["--model", model] if model else [])
+    os.makedirs(AGENT_CWD, exist_ok=True)
+    # 自成一個行程群組：卡住或取消時連它開的子行程一起停掉
+    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True, cwd=AGENT_CWD, env=cli_env(exe), process_group=0)
+    _agent["proc"] = proc
+    lines, err = queue.Queue(), []
+
+    def pump():
+        for line in proc.stdout:
+            lines.put(line)
+        lines.put(None)
+    threading.Thread(target=pump, daemon=True).start()
+    threading.Thread(target=lambda: err.extend(proc.stderr), daemon=True).start()
+    proc.stdin.write(prompt)
+    proc.stdin.close()
+    text, final, fail, last = "", None, "", time.time()
+    while True:
+        try:
+            line = lines.get(timeout=2)
+        except queue.Empty:
+            if time.time() - last > STALL:
+                kill_agent()
+                raise AgentError(M("stalled", agent=NAMES[agent], s=STALL))
+            on("tick")
+            continue
+        if line is None:
+            break
+        last = time.time()
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        t = e.get("type")
+        if agent == "claude":
+            if t == "system" and e.get("subtype") == "init":
+                on("connected", model=e.get("model"))
+            elif t == "stream_event":
+                d = (e.get("event") or {}).get("delta") or {}
+                if d.get("type") == "text_delta":
+                    text += d.get("text", "")
+                    on("writing", text=text)
+                elif d.get("type") == "thinking_delta":
+                    on("thinking")
+            elif t == "result":
+                final = e.get("result") or ""
+                if e.get("is_error"):
+                    fail = final or str(e.get("subtype"))
+        else:
+            it = e.get("item") or {}
+            if t == "thread.started":
+                on("connected")
+            elif t == "item.completed" and it.get("type") == "agent_message":
+                final = it.get("text", "")
+                on("writing", text=final)
+            elif t in ("item.started", "item.completed"):
+                on("thinking")
+            elif t in ("turn.failed", "error"):
+                fail = (e.get("error") or {}).get("message") or e.get("message") or t
+            else:
+                on("tick")
+    proc.wait()
+    out = final if final else text
+    if (fail and agent == "claude") or not out.strip():
+        raise explain(agent, fail + "\n" + "".join(err[-20:]))
+    m = re.findall(r"```(?:agsl|glsl|sksl|c|cpp)?\s*\n(.*?)```", out, re.S)
+    code = max(m, key=len) if m else out
     if "main" not in code:
-        raise RuntimeError("agent 沒有回傳 shader")
+        raise AgentError(M("noShader", agent=NAMES[agent]))
     return code.strip() + "\n"
 
 
+_agent = {}
+
+
+def kill_agent(*_):
+    proc = _agent.pop("proc", None)
+    if proc and proc.poll() is None:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except OSError:
+            pass
+
+
+def model_label(model, agent):
+    """claude-opus-5-5 → Opus 5.5；認不出來就用 agent 名。"""
+    m = re.match(r"claude-([a-z]+)-(\d+)-(\d+)", model or "")
+    return f"{m.group(1).capitalize()} {m.group(2)}.{m.group(3)}" if m else (model or NAMES[agent])
+
+
 def gen(wish):
-    cfg = config()
-    model = cfg.get("model") or cfg["agent"]
-    m = re.match(r"claude-(\w+)-(\d+)-(\d+)$", model)
-    who = f"{m.group(1).capitalize()} {m.group(2)}.{m.group(3)}" if m else model
     _job["job"] = "gen"
-    times = read_json(os.path.join(CACHE, "gen-times.json"), [])
-    eta = sorted(times)[len(times) // 2] if times else 360
-    status("working", M("sketching", who=who, wish=wish), p=0.05, to=0.85, eta=eta, wish=wish)
+    # pixbg cancel 送 SIGTERM 給這個行程：先停掉 agent 那一組再離開
+    signal.signal(signal.SIGTERM, lambda *_: (kill_agent(), os._exit(143)))
+    status("working", M("connecting", agent=NAMES[config()["agent"]]), p=0.02, to=0.05, eta=8, wish=wish)
+    try:
+        cfg, note = ready_agent(config())
+    except AgentError as e:
+        status("error", str(e)[:300], wish=wish, fix=e.fix)
+        sys.exit(1)
+    agent = cfg["agent"]
+    who = model_label(cfg.get("model"), agent)
+    # 每個 agent 各記最近幾次花多久，估進度用（舊版是一個清單，當成 Claude 的）
+    times = read_json(os.path.join(CACHE, "gen-times.json"), {})
+    times = {"claude": times} if isinstance(times, list) else times
+    mine = times.get(agent) or []
+    eta = sorted(mine)[len(mine) // 2] if mine else (210 if agent == "claude" else 150)
     with open(os.path.join(SCENES, "10-void.agsl")) as f:
         example = f.read()
     hdr = header()
     _, example_cost = agslcheck.check(hdr, example)
     prompt = PROMPT.format(wish=wish, wish_line=wish.replace("\n", " "), header=hdr.replace("// ── 場景 ──\n", ""),
                            example=example, budget=agslcheck.BUDGET, example_cost=round(example_cost))
+    expect = len(example) * 1.9     # 回傳的程式實測約是範例的兩倍長，用來估「寫了多少」
     sid = time.strftime("ai-%Y%m%d-%H%M%S")
     t0 = time.time()
+
+    def reporter(lo, hi, retry=""):
+        """把 agent 的串流換成進度：連上 → 構思（照 eta 慢慢推到六成，實測佔八成時間）→ 寫程式（照寫了多少字推完）。"""
+        st = {"phase": "", "at": 0}
+        lead = (note + " · " if note and not retry else "") + retry
+
+        def on(kind, text="", model=None):
+            nonlocal who
+            now = time.time()
+            if kind == "connected" and st["phase"] == "":
+                who = model_label(model, agent) if model else who
+                st["phase"] = "thinking"
+                status("working", lead + M("thinking", who=who, wish=wish), p=lo + 0.04, to=lo + (hi - lo) * 0.6, eta=eta * 0.8, wish=wish, agent=agent)
+            elif kind == "thinking" and st["phase"] == "" :
+                on("connected")
+            elif kind == "writing" and (st["phase"] != "writing" or now - st["at"] > 1):
+                st.update(phase="writing", at=now)
+                f = min(1.0, len(text) / expect)
+                parts = re.findall(r"^\s*(?:half[34]|float[234]?|void)\s+(\w+)\s*\(", text, re.M)
+                where = (parts[-1] + "()") if parts else ""
+                p = lo + (hi - lo) * (0.6 + 0.4 * f)
+                status("working", lead + M("writing", who=who, n=text.count("\n") + 1, part=where), p=p, to=min(hi, p + 0.03), eta=4, wish=wish, agent=agent)
+            else:
+                beat()
+        return on
+
     try:
         code, errs = "", []
         for attempt in range(3):
-            code = ask_agent(prompt if attempt == 0 else FIX.format(err="\n".join(errs), code=code), cfg)
+            lo = [0.05, 0.45, 0.65][attempt]
+            retry = M("retry", n=attempt) + errs[0].splitlines()[0][:50] + " · " if attempt else ""
+            status("working", (note + " · " if note and not attempt else "") + retry + M("handoffTo", who=who),
+                   p=lo, to=lo + 0.04, eta=10, wish=wish, agent=agent)
+            try:
+                code = ask_agent(prompt if attempt == 0 else FIX.format(err="\n".join(errs), code=code), cfg, reporter(lo, 0.86, retry))
+            except AgentError as e:
+                # 額度用完、登入過期：另一個 agent 能用就換它從頭接手（只換一次）
+                other = "codex" if agent == "claude" else "claude"
+                if e.kind not in ("login", "busy") or note.startswith("↪") or not probe(other)["ok"]:
+                    raise
+                note = "↪ " + M("switched", a=NAMES[agent], b=NAMES[other])
+                cfg, agent, mine = {"agent": other, "model": ""}, other, times.get(other) or []
+                who = NAMES[other]
+                status("working", note, p=lo, to=lo + 0.04, eta=10, wish=wish, agent=agent)
+                try:
+                    code = ask_agent(prompt if attempt == 0 else FIX.format(err="\n".join(errs), code=code), cfg, reporter(lo, 0.86, retry))
+                except AgentError as e2:
+                    raise AgentError(f"{e} {e2}", e.fix or e2.fix)     # 兩個都不行：兩個原因都說
             if not re.search(r"^//\s*name:", code, re.M):
                 code = f"// name: {wish[:16]}\n" + code
             if not re.search(r"^//\s*prompt:", code, re.M):
                 code = code.replace("\n", f"\n// prompt: {wish}\n", 1)
             # 先在本機檢查，通過了才存進場景、送上手機
-            status("working", M("checking"), p=0.88, wish=wish)
+            status("working", M("checking"), p=0.88, to=0.92, eta=5, wish=wish, agent=agent)
             errs, c = agslcheck.check(hdr, code)
-            print(f"[{time.strftime('%T')}] 第 {attempt + 1} 次：{time.time() - t0:.0f}s，運算量 {c:.0f}，{errs or 'ok'}", flush=True)
+            print(f"[{time.strftime('%T')}] {agent} 第 {attempt + 1} 次：{time.time() - t0:.0f}s，運算量 {c:.0f}，{errs or 'ok'}", flush=True)
             if not errs:
                 with open(os.path.join(SCENES, sid + ".agsl"), "w") as f:
                     f.write(code)
                 build_bundle()
                 notify_sel(sid)
+                status("working", M("thumbing"), p=0.95, to=0.99, eta=8, wish=wish, agent=agent)
                 try:
                     make_thumbs([sid])
                 except BaseException:
                     pass
-                write_json(os.path.join(CACHE, "gen-times.json"), (times + [int(time.time() - t0)])[-9:])
-                status("done", M("done", name=split_name(meta(code, "name"))[pack(lang())["names"] != "en"], secs=fmt_secs(time.time() - t0)), p=1, wish=wish, id=sid)
+                times[agent] = (mine + [int(time.time() - t0)])[-9:]
+                write_json(os.path.join(CACHE, "gen-times.json"), times)
+                status("done", M("done", name=split_name(meta(code, "name"))[pack(lang())["names"] != "en"], secs=fmt_secs(time.time() - t0)), p=1, wish=wish, id=sid, agent=agent)
                 return
-            status("working", M("retry", n=attempt + 1) + errs[0].splitlines()[0][:50], p=0.3 + 0.2 * attempt, to=0.85, eta=eta * 0.6, wish=wish)
-        raise RuntimeError(M("failed3") + errs[0].splitlines()[0][:160])
-    except Exception as e:
-        status("error", str(e)[:300], wish=wish)
+        raise AgentError(M("failed3") + errs[0].splitlines()[0][:160])
+    except AgentError as e:
+        status("error", str(e)[:300], wish=wish, fix=e.fix, agent=agent)
         sys.exit(1)
+    except Exception as e:
+        status("error", str(e)[:300], wish=wish, agent=agent)
+        sys.exit(1)
+
+
+def gen_running():
+    """正在跑的生成的 pid（status.json 記的那個行程還活著才算）。"""
+    st = read_json(STATUS, {})
+    pid = st.get("pid")
+    if st.get("state") != "working" or st.get("job") != "gen" or not pid:
+        return None
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return None
+    return pid
 
 
 # ── 定格成桌布 ──
@@ -612,28 +886,51 @@ def main(argv):
         build_ui()
         print(f"{len(ok)} 個場景打包好" + "".join(f"\n  ✗ {sc['id']}: {errs[0].splitlines()[0]}" for sc, errs in bad))
     elif cmd == "gen":
-        wish = " ".join(argv[1:]).strip()
+        wish = " ".join(a for a in argv[1:] if a != "--fg").strip()
         if not wish:
             sys.exit("pixbg gen <一句話>")
         if "--fg" in argv or os.environ.get("PIXBG_FG"):
-            gen(wish.replace("--fg", "").strip())
+            gen(wish)
+        elif gen_running():
+            print(M("already"))
         else:
-            # 小工具的 run() 不必等 agent：自己放到背景，進度寫進 status.json
+            # 小工具的 run() 不必等 agent：自己放到背景（自成一個行程群組，取消時整組停掉），進度寫進 status.json
             log = open(os.path.join(CACHE, "gen.log"), "a")
-            subprocess.Popen([sys.executable, os.path.abspath(__file__), "gen", "--fg", wish],
-                             stdout=log, stderr=log, start_new_session=True)
-            _job.update(job="gen", started=int(time.time()))
-            status("working", M("handoff"), p=0.02, wish=wish)
+            child = subprocess.Popen([sys.executable, os.path.abspath(__file__), "gen", "--fg", wish],
+                                     stdout=log, stderr=log, start_new_session=True)
+            _job.update(job="gen", started=int(time.time()), pid=child.pid)
+            status("working", M("handoff"), p=0.02, to=0.04, eta=5, wish=wish)
+    elif cmd == "cancel":
+        pid = gen_running()
+        if pid:
+            try:
+                os.killpg(pid, signal.SIGTERM)
+            except OSError:
+                os.kill(pid, signal.SIGTERM)
+            time.sleep(0.3)
+            st = read_json(STATUS, {})
+            _job.update(job="gen", started=st.get("started"))
+            status("error", M("cancelled"), wish=st.get("wish", ""))
+        print("cancelled" if pid else "nothing running")
+    elif cmd == "agents":
+        for a in probe_all()["list"]:
+            print(f"{'✓' if a['ok'] else '✗'} {a['id']:7} {a['version'] or '-':10} {a['state']}" + (f"   → {a['fix']}" if a["fix"] else ""))
     elif cmd == "del":
+        # 只刪 Agent 生成的場景（連縮圖），刪掉的是目前的場景就換到它前一個
         sid = argv[1] if len(argv) > 1 else current_id()
-        if not sid or not sid.startswith("ai-"):
+        if not sid or not sid.startswith("ai-") or not os.path.exists(os.path.join(SCENES, sid + ".agsl")):
             sys.exit("pixbg: 只能刪 AI 生成的場景")
+        sc = next((x for x in scenes() if x["id"] == sid), {"name": sid})
         ids = [x["id"] for x in read_json(BUNDLE, {}).get("scenes", [])]
         before = ids[ids.index(sid) - 1] if sid in ids and ids.index(sid) > 0 else (ids[0] if ids else None)
         os.remove(os.path.join(SCENES, sid + ".agsl"))
+        if os.path.exists(thumb_path(sid)):
+            os.remove(thumb_path(sid))
         build_bundle()
-        if before and before != sid:
+        if before and before != sid and current_id() == sid:
             notify_sel(before)
+        _job["job"] = "del"
+        status("done", M("deleted", name=split_name(sc["name"])[pack(lang())["names"] != "en"]), p=1)
     elif cmd == "wall":
         wall(argv[1] if len(argv) > 1 else None)
     elif cmd == "lang":
@@ -685,7 +982,8 @@ def main(argv):
         cfg["model"] = argv[2] if len(argv) > 2 else ""
         write_json(CONFIG, cfg)
         build_ui()
-        print(cfg)
+        a = probe_all()["list"][list(NAMES).index(argv[1])]
+        print(cfg, a["state"] + (f"  → {a['fix']}" if a["fix"] else ""))
     elif cmd == "check":
         # pixbg check [id ...]：本機檢查場景（不碰手機）
         ids = argv[1:] or [s["id"] for s in scenes()]

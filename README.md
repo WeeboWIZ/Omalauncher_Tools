@@ -10,7 +10,7 @@ See the [DEV LOGS README, installation guide and screenshots](dev-logs/README.md
 
 ## Trip View
 
-Animated pixel scene templates for the home screen: a rainy neon ramen stall, a kaiju film set, pastel islands, nebulae, a glowing forest, code rain and a cyber canyon. Describe a mood in one sentence and your agent generates an animated scene, which you can also set as your wallpaper. Every scene is checked offline before it reaches the phone.
+Animated pixel scene templates for the home screen: a rainy neon ramen stall, a kaiju film set, nebulae, a glowing forest and code rain. Describe a mood in one sentence and your agent generates an animated scene, which you can also set as your wallpaper. Every scene is checked offline before it reaches the phone.
 
 See the [Trip View README](trip-view/README.md). Install it independently with `python trip-view/install.py`. Trip View is licensed under MIT (see [trip-view/LICENSE](trip-view/LICENSE)).
 

@@ -12,11 +12,21 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 STORE = ROOT.parent / 'store/widgets/weebowiz/trip-view'
-VERSION = '1.5'
+VERSION = '1.0'
 
 
 def runtime_text(path):
     text = path.read_text()
+    if path.suffix == '.agsl' and path.parent.name == 'scenes':
+        # Scenes: drop indentation and comments (AGSL has no strings, so // always starts one),
+        # but keep the metadata lines pixbg reads (name, prompt, mascot, tag) and the license header.
+        out = []
+        for line in text.splitlines():
+            meta = re.match(r'\s*//\s*(name|prompt|mascot|tag|SPDX|Copyright)\b', line)
+            line = line.strip() if meta else line.split('//', 1)[0].strip()
+            if line:
+                out.append(line)
+        return '\n'.join(out) + '\n'
     if path.suffix == '.json':
         return json.dumps(json.loads(text), ensure_ascii=False, separators=(',', ':'))
     if path.suffix == '.py':
@@ -31,6 +41,20 @@ def runtime_text(path):
         text = ''.join(lines)
         tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))
         text = tokenize.untokenize(t._replace(string='') if t.type == tokenize.COMMENT and 'SPDX' not in t.string and 'Copyright' not in t.string and not t.string.startswith('#!') else t for t in tokens)
+        # Outside multi-line strings (the agent prompts stay byte for byte): drop the blank lines that removed
+        # docstrings and comments leave, and indent with one space per level instead of four.
+        inside = set()
+        for t in tokenize.generate_tokens(io.StringIO(text).readline):
+            if t.type == tokenize.STRING and t.start[0] != t.end[0]:
+                inside.update(range(t.start[0] + 1, t.end[0] + 1))
+        out = []
+        for n, line in enumerate(text.splitlines(), 1):
+            if n in inside:
+                out.append(line)
+            elif line.strip():
+                pad = len(line) - len(line.lstrip(' '))
+                out.append(' ' * (pad // 4) + line.lstrip(' '))
+        text = '\n'.join(out) + '\n'
         ast.parse(text)
     return text
 
@@ -68,16 +92,16 @@ def render():
     text = (ROOT / 'widgets/30-trip-view.owl').read_text()
     text = re.sub(r'^  (page|order):.*\n', '', text, flags=re.M)
     text = text.replace('  padding: 0\n', '  padding: 0\n  requires { pacman: ["python", "python-pillow", "glslang", "libpulse", "bash", "coreutils"] }\n', 1)
-    marker = '  onTap: { panel = true; screen() }'
+    marker = '  onTap: { panel = true; screen(); run(probeStale ? "~/.local/bin/pixbg agents" : "true") }'
     setup = '''  source installed = file("~/.cache/pixbg/store-version")
   source setupState = file("~/.cache/pixbg/setup-state")
-  let ready = installed == "__PAYLOAD_ID__" && len(bundle.scenes ?? []) >= 7
+  let ready = installed == "__PAYLOAD_ID__" && len(bundle.scenes ?? []) >= 5
   component Setup(compact = false) {
     Column {
       fill: width; padding: 18; gap: 12
       Text { text: "TRIP VIEW"; fontSize: compact ? 16 : 22; bold: true }
       if !compact {
-      Text { text: setupState == "failed" ? "Setup failed. See ~/.cache/pixbg/setup.log, then retry." : setupState == "installing" ? "Installing and checking animations…" : "Install seven pixel animations and the local animation tools."; style: small; maxLines: 4 }
+      Text { text: setupState == "failed" ? "Setup failed. See ~/.cache/pixbg/setup.log, then retry." : setupState == "installing" ? "Installing and checking animations…" : "Install five pixel animations and the local animation tools."; style: small; maxLines: 4 }
       Text { text: "Your animations and settings are preserved. No scripts are downloaded."; style: small; color: muted; maxLines: 3 }
       }
       Button { text: setupState == "installing" ? "Retry setup" : installed == "" ? "Set up" : "Update"; fill: width; onTap: run("""__SETUP_COMMAND__""") }

@@ -58,6 +58,8 @@ def main():
 
     # Every scene is checked offline (compile, AGSL rules, GPU cost) while it is bundled.
     subprocess.run([sys.executable, str(tool), 'bundle'], check=True)
+    # Whether Claude Code / Codex are installed and signed in, so the widget's agent buttons show it from the start.
+    subprocess.run([sys.executable, str(tool), 'agents'], check=False)
 
     widgets = home / '.config/omalauncher/widgets'
     widgets.mkdir(parents=True, exist_ok=True)

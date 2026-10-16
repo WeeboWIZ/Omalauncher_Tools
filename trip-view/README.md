@@ -1,10 +1,10 @@
 # Trip View
 
-Animated pixel-art scenes for the [Omalauncher](https://github.com/SimonSchubert/omalauncher) home screen. Pick one of seven hand-made scenes, or describe a new one in a sentence and your terminal agent (Claude Code or Codex) paints it.
+Animated pixel-art scenes for the [Omalauncher](https://github.com/SimonSchubert/omalauncher) home screen. Pick one of five hand-made scenes, or describe a new one in a sentence and your terminal agent (Claude Code or Codex) paints it.
 
 ![Trip View](docs/screenshots/store-preview.png)
 
-![All seven scenes](docs/screenshots/scenes.png)
+![All scenes](docs/screenshots/scenes.png)
 
 | Full-screen page | Scene cards |
 | --- | --- |
@@ -21,11 +21,9 @@ Screenshots are rendered by the launcher with the English interface.
 |---|---|
 | **Neon Ramen** (default) | Rain, rising steam, a flickering neon sign, swinging lanterns, ripples in the puddles, a train in the distance, a scrolling LED sign, lightning, a cat on the roof |
 | **Kaiju Tokyo** | A film set: a soft-vinyl dinosaur, gorilla, hero and three-eyed duck play five acts on wires |
-| **Star Land** | Pastel clouds, floating islands with waterfalls, twinkling stars, rising bubbles |
 | **Void Space** | Flowing nebula, two star layers, shooting stars, the moon |
 | **Acid Forest** | Breathing glow mushrooms, swinging vines, fireflies, spores, blinking eyes |
 | **Zion Hub** | Code rain, a rotating wireframe cube, data pulses, scan lines |
-| **Cyber Canyon** | Endless towers, neon signs, flying cars, searchlights, slanted rain |
 
 Every scene has five palettes; in Kaiju Tokyo each palette is a different act.
 
@@ -77,6 +75,7 @@ A generated scene that fails goes back to the agent with the errors, at most thr
 | `pixbg thumbs [--all] [id]` | Redraw the scene card previews |
 | `pixbg lang <code>` / `pixbg langs` | Interface language |
 | `pixbg agent <claude\|codex> [model]` | Agent used for generation |
+| `pixbg agents` / `pixbg cancel` | Check whether each agent is installed and signed in / stop a running generation |
 
 ## Add a language
 
@@ -84,7 +83,7 @@ On the full-screen page, open **Language → Custom**, type the language and cop
 
 ## Store preview
 
-The store shows one picture, both in its grid (about 165×104 dp) and on the widget's page (panel width, at most 320 dp tall). `docs/make_store_preview.py` composes it at 1600×1000 (1.6:1) from a launcher render of the full-screen page, so it reads at both sizes: Neon Ramen at a whole-pixel 2×, the title on a chamfered panel and the other six scenes in a strip. Don't add per-theme previews (`previews/<theme>.webp`): the store would show those instead.
+The store shows one picture, both in its grid (about 165×104 dp) and on the widget's page (panel width, at most 320 dp tall). `docs/make_store_preview.py` composes it at 1600×1000 (1.6:1) from a launcher render of the full-screen page, so it reads at both sizes: Neon Ramen at a whole-pixel 2×, the title on a chamfered panel and the other four scenes in a strip. Don't add per-theme previews (`previews/<theme>.webp`): the store would show those instead.
 
 ## Layout
 
@@ -109,11 +108,9 @@ install.py    standalone installer
 |---|---|
 | **霓虹拉麵**（預設） | 雨、湯鍋蒸氣、會故障的霓虹招牌、搖晃的燈籠、水窪漣漪、遠方電車、LED 跑馬燈、閃電、屋頂上的貓 |
 | **特攝片場** | 片場裡的軟膠恐龍、大猩猩、英雄、三眼鴨嘴怪吊著鋼絲演出五幕戲 |
-| **粉彩星島** | 粉彩雲朵、帶瀑布的浮空島、閃爍的星星、往上飄的泡泡 |
 | **虛空** | 流動星雲、兩層星空、流星、月亮 |
 | **螢光森林** | 會呼吸的發光蕈類、擺動的藤蔓、螢火蟲、孢子、會眨的眼睛 |
 | **代碼雨** | 代碼雨、旋轉的線框立方體、資料脈衝、掃描線 |
-| **賽博峽谷** | 無盡的摩天樓、霓虹招牌、飛車、探照燈、斜雨 |
 
 每個場景有五組配色，特攝片場的每組配色是一幕不同的戲。
 
@@ -163,6 +160,7 @@ python trip-view/install.py
 | `pixbg thumbs [--all] [id]` | 重畫場景卡片的縮圖 |
 | `pixbg lang <代碼>` / `pixbg langs` | 介面語言 |
 | `pixbg agent <claude\|codex> [model]` | 生成用的 agent |
+| `pixbg agents` / `pixbg cancel` | 檢查 agent 有沒有裝、有沒有登入／停掉正在跑的生成 |
 
 ## 新增語言
 
@@ -180,4 +178,4 @@ Trip View is free software under the [MIT License](LICENSE). This license covers
 
 The store edition bundles English only. Other languages, including Traditional Chinese, are added through Language → Custom using the English template. The source checkout retains both language packs for local development.
 
-Build with `python trip-view/tools/build_store.py` from the repository root. The generated file is `store/widgets/weebowiz/trip-view/widget.owl`; its Set up button installs the embedded runtime and validates all seven scenes without downloading code. Test with `python -m unittest discover trip-view/tests` and the store's `owl.jar review`. See the store README for installation paths and update behavior.
+Build with `python trip-view/tools/build_store.py` from the repository root. The generated file is `store/widgets/weebowiz/trip-view/widget.owl`; its Set up button installs the embedded runtime and validates all five scenes without downloading code. Test with `python -m unittest discover trip-view/tests` and the store's `owl.jar review`. See the store README for installation paths and update behavior.

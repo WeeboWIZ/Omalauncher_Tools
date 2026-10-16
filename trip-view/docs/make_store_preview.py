@@ -6,7 +6,7 @@
 The store shows one picture: in its grid at about 165×104 dp, and on the widget's page as wide as
 the panel and at most 320 dp tall. So the picture is a single hero at 1.6:1 that still reads when
 small: Neon Ramen full bleed at 2× (whole pixels, crisp), a pixel title on a chamfered glass panel,
-and a strip of the other six scenes.
+and a strip of the other four scenes.
 
   python make_store_preview.py <full-screen ramen frame.png> <screen-box.json> <scene-thumbs dir> <out.png>
 
@@ -42,6 +42,7 @@ FONT = {
     'T': ['#####', '..#..', '..#..', '..#..', '..#..', '..#..', '..#..'],
     'V': ['#...#', '#...#', '#...#', '#...#', '#...#', '.#.#.', '..#..'],
     'W': ['#...#', '#...#', '#...#', '#.#.#', '#.#.#', '##.##', '#...#'],
+    '5': ['#####', '#....', '####.', '....#', '....#', '#...#', '.###.'],
     '7': ['#####', '....#', '...#.', '..#..', '.#...', '.#...', '.#...'],
     '+': ['.....', '..#..', '..#..', '#####', '..#..', '..#..', '.....'],
     ' ': ['.....'] * 7,
@@ -84,17 +85,17 @@ def main(frame, box_json, thumbs, out):
     d = ImageDraw.Draw(img, 'RGBA')
 
     # Title panel, top left
-    title, sub = 'TRIP VIEW', '7 ANIMATED SCENES + AGENT'
+    title, sub = 'TRIP VIEW', '5 ANIMATED SCENES + AGENT'
     tpx, spx = 11, 4
     pw = max(text_width(title, tpx), text_width(sub, spx)) + 2 * 44
     chamfer_panel(d, 36, 36, 36 + pw, 36 + 7 * tpx + 7 * spx + 3 * 34, 6, GLASS + (232,), PINK + (255,))
     pixel_text(d, title, 36 + 44, 36 + 34, tpx, WHITE, shadow=PINK)
     pixel_text(d, sub, 36 + 44, 36 + 34 + 7 * tpx + 30, spx, SOFT)
 
-    # The other six scenes in a strip along the bottom
-    names = ['60-kaiju', '30-star', '10-void', '40-forest', '50-zion', '20-cyber']
+    # The other four scenes in a strip along the bottom
+    names = ['60-kaiju', '10-void', '40-forest', '50-zion']
     tw, th, gap = 236, 170, 20
-    sx = (W - (6 * tw + 5 * gap)) // 2
+    sx = (W - (len(names) * tw + (len(names) - 1) * gap)) // 2
     band_y = H - th - 2 * 26
     d.rectangle([0, band_y, W, H], fill=GLASS + (215,))
     d.rectangle([0, band_y, W, band_y + 3], fill=PINK + (255,))

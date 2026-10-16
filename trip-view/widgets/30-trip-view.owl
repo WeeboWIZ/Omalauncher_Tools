@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 // Licensed under the MIT License; see LICENSE.
 widget "trip view" {
-  meta { owl: 7; description: "Animated pixel scene templates for your home screen. Describe a mood in one sentence and your agent generates an animated scene, which you can also set as your wallpaper."; version: "1.5"; license: "MIT"; category: "fun" }
+  meta { owl: 7; description: "Animated pixel scene templates for your home screen. Describe a mood in one sentence and your agent generates an animated scene, which you can also set as your wallpaper."; version: "1.0"; license: "MIT"; category: "fun" }
   page: 3
   order: 1
   size: 6x6
@@ -18,6 +18,8 @@ widget "trip view" {
   source exp = file("~/.cache/pixbg/export.json") json
   source st = file("~/.cache/pixbg/status.json") json
   source walls = file("~/.cache/pixbg/walls.json") json
+  // 兩個 agent CLI 裝了沒、登入了沒（pixbg agents 寫的）
+  source agents = file("~/.cache/pixbg/agents.json") json
   source now = clock every 1s
   // 只用來算螢幕密度，讓角色的格子和 shader 的像素格一樣大
   source sys = android.system every 30m
@@ -36,6 +38,9 @@ widget "trip view" {
   state langOpen = false
   state poke = 0
   state copiedAt = 0
+  // 刪除要按兩次：第一次記下要刪哪個場景、什麼時候按的，10 秒內在確認框按「確認刪除」才真的刪
+  state delId = ""
+  state delAt = 0
 
   // 目前的場景。設為桌布時 export.json 指定要畫哪一個、隱藏介面
   let list = bundle.scenes ?? []
@@ -70,12 +75,24 @@ widget "trip view" {
   let mascot = cur.mascot ?? "ufo"
 
   // 進度：pixbg 給目前進度 p，以及 eta 秒內要推到的 to（等 agent 時只知道大概要多久）
-  let busy = st.state == "working" && st.t > now - 900
+  // 生成時 pixbg 每幾秒更新 beat：超過 45 秒沒更新就是行程死了，別一直顯示忙碌
+  let alive = st.job == "gen" ? (st.beat ?? st.t) > now - 45 : st.t > now - 900
+  let busy = st.state == "working" && alive
+  let stalled = st.state == "working" && st.job == "gen" && !alive && st.t > now - 3600
   let pct = busy ? clamp(st.p + (st.to - st.p) * min(1, (now - st.since) / max(st.eta, 1)), 0, 1) : 0
   let elapsed = max(0, now - (st.started ?? now))
   let jobName = st.job == "wall" ? T.setWall : T.aiGen
   let fresh = st.t > now - 12
   let doneMsg = fresh && st.state == "done" ? "✓ ${st.msg}" : fresh && st.state == "error" ? "✕ ${st.msg}" : ""
+  // 目前選的 agent 的狀態；不能用時給使用者一行可以複製到終端的指令
+  let agentId = ui.agent ?? "claude"
+  let agentInfo = (agents.list ?? []).find(x => x.id == agentId) ?? {}
+  let genErr = st.job == "gen" && st.state == "error" && st.t > now - 1800
+  let fixCmd = genErr && (st.fix ?? "") != "" ? st.fix : agentInfo.ok == false ? (agentInfo.fix ?? "") : ""
+  // 開全螢幕頁時，agent 狀態超過 10 分鐘就重查（背景跑，一兩秒）
+  let probeStale = now - (agents.t ?? 0) > 600
+  // 刪除確認框：只在 10 秒內、還是同一個場景時出現
+  let delAsking = delId == cur.id && now - delAt < 10
   let reacting = now - poke < 3
 
   // 一個像素格（shader 的 PX）有多少 dp：手機像素 ÷ 密度
@@ -439,7 +456,7 @@ Steps:
   // 卡片：深色玻璃，場景從後面透出來
   let cardEdge = alpha(P.ac, 0.35)
 
-  onTap: { panel = true; screen() }
+  onTap: { panel = true; screen(); run(probeStale ? "~/.local/bin/pixbg agents" : "true") }
 
   Box {
     fill: true
@@ -487,7 +504,7 @@ Steps:
           Box { weight: 1; onTap: { sel = nextId; run(sound ? "paplay ~/.cache/pixbg/sfx/next.wav" : "true") }; PixelBtn { label: "▶"; tone: P.ac; h: 46; size: 13; pad: 2 } }
           Box { weight: 1; onTap: { zone = (zone + 1) % 5; run(sound ? "paplay ~/.cache/pixbg/sfx/zone.wav" : "true") }; PixelBtn { label: "${T.zone} ${zone + 1}"; tone: P.ac; h: 46; size: 12; pad: 2 } }
           Box { weight: 1; onTap: { tileClean = true; haptic(); run(sound ? "paplay ~/.cache/pixbg/sfx/hide.wav" : "true") }; PixelBtn { label: T.tileHide; tone: P.ac; h: 46; size: 12; pad: 2 } }
-          Box { weight: 1; onTap: { panel = true; screen() }; PixelBtn { label: T.gen; tone: P.ac; on: true; h: 46; size: 12; pad: 2 } }
+          Box { weight: 1; onTap: { panel = true; screen(); run(probeStale ? "~/.local/bin/pixbg agents" : "true") }; PixelBtn { label: T.gen; tone: P.ac; on: true; h: 46; size: 12; pad: 2 } }
         }
       }
     }
@@ -531,6 +548,24 @@ Steps:
               Box { weight: 1; onTap: { sel = prevId; run(sound ? "paplay ~/.cache/pixbg/sfx/prev.wav" : "true") }; PixelBtn { label: T.prev; tone: P.ac } }
               Box { weight: 1; onTap: { sel = nextId; run(sound ? "paplay ~/.cache/pixbg/sfx/next.wav" : "true") }; PixelBtn { label: T.next; tone: P.ac } }
             }
+            // 刪除放在場景名旁邊：只對目前這個 Agent 場景，按鈕寫明場景名；確認框只在 10 秒內、而且還是同一個場景時出現
+            if cur.kind == "ai" {
+              if !delAsking {
+                Box { fill: width; onTap: { delId = cur.id; delAt = now; haptic() }; PixelBtn { label: replace(T.delThis ?? "{n}", "{n}", nm); tone: "#ff6a6a"; h: 46; size: 13 } }
+              } else {
+                Column {
+                  fill: width; gap: 8; padding: [12, 10]; background: "#1a0a0e"; border: 2; radius: 0; borderColor: "#ff6a6a"
+                  Text { text: replace(T.delAsk ?? "{n}", "{n}", nm); bold: true; color: "#ffb4b4"; maxLines: 2 }
+                  Text { text: T.delWarn; style: small; color: soft; maxLines: 3 }
+                  Row {
+                    gap: 8
+                    Box { weight: 1; onTap: { delId = "" }; PixelBtn { label: T.keep; tone: P.ac; h: 46; size: 13 } }
+                    Box { weight: 1; onTap: { delId = ""; run(sound ? "paplay ~/.cache/pixbg/sfx/error.wav" : "true"); run("~/.local/bin/pixbg del ${sh(cur.id)}") }; PixelBtn { label: T.delYes; on: true; tone: "#ff6a6a"; h: 46; size: 13 } }
+                  }
+                }
+              }
+            }
+            if fresh && st.job == "del" && st.state == "done" { Text { text: "✓ ${st.msg}"; style: small; color: good; maxLines: 1 } }
           }
 
           // ---------------------------------------------- Agent 生成動畫（醒目的大卡片）
@@ -542,12 +577,32 @@ Steps:
             Row {
               gap: 8
               for a in [["codex", "Codex"], ["claude", "Claude"]] {
-                Box { weight: 1; onTap: { run(busy ? "true" : "~/.local/bin/pixbg agent ${sh(a[0])}") }; PixelBtn { label: a[1]; on: (ui.agent ?? "claude") == a[0]; dim: busy; tone: P.ac; h: 44; size: 14 } }
+                let ai = (agents.list ?? []).find(x => x.id == a[0]) ?? {}
+                let tag = ai.state == "ready" ? T.agentReady : ai.state == "login" ? T.agentLogin : ai.state == "missing" ? T.agentMissing : T.agentUnknown
+                Column {
+                  weight: 1; gap: 4
+                  onTap: { run(busy ? "true" : "~/.local/bin/pixbg agent ${sh(a[0])}") }
+                  PixelBtn { label: a[1]; on: agentId == a[0]; dim: busy || ai.ok == false; tone: P.ac; h: 44; size: 14 }
+                  Text { text: ai.version != null && ai.version != "" && ai.ok ? "${tag} · v${ai.version}" : tag; font: mono; style: small; color: ai.ok ? good : ai.state == null ? soft : "#ffb04a"; align: center; fill: width; maxLines: 1 }
+                }
               }
             }
-            Text { text: T.agentHelp; style: small; color: soft; maxLines: 3 }
+            if fixCmd != "" {
+              Column {
+                fill: width; gap: 6; padding: [10, 8]; background: "#0a0e15"; border: 1; radius: 0; borderColor: alpha("#ffb04a", 0.6)
+                Text { text: T.runThis; style: small; color: soft; maxLines: 2 }
+                Row {
+                  gap: 8
+                  Text { text: "$ ${fixCmd}"; font: mono; style: small; color: "#ffd84a"; weight: 1; maxLines: 2 }
+                  Box { width: 92; onTap: { copy(fixCmd); copiedAt = now; haptic() }; PixelBtn { label: now - copiedAt < 3 ? T.copied : T.copyCmd; tone: "#ffb04a"; h: 38; size: 12; pad: 4 } }
+                }
+                Box { fill: width; onTap: run("~/.local/bin/pixbg agents"); PixelBtn { label: T.recheck; tone: "#ffb04a"; h: 38; size: 12 } }
+              }
+            } else {
+              Text { text: T.agentHelp; style: small; color: soft; maxLines: 3 }
+            }
 
-            Input { fill: width; height: 52; padding: [12, 0]; background: "#0a0e15"; border: 2; radius: 0; borderColor: alpha(P.ac, 0.7); placeholder: T.hint; text: wish; onChange: wish = value; onSubmit: { wish = value; run(sound ? "paplay ~/.cache/pixbg/sfx/gen.wav" : "true"); run("~/.local/bin/pixbg gen ${sh(value)}") } }
+            Input { fill: width; height: 52; padding: [12, 0]; background: "#0a0e15"; border: 2; radius: 0; borderColor: alpha(P.ac, 0.7); placeholder: T.hint; text: wish; onChange: wish = value; onSubmit: { wish = value; run(sound && !busy ? "paplay ~/.cache/pixbg/sfx/gen.wav" : "true"); run(trim(value) == "" || busy ? "true" : "~/.local/bin/pixbg gen ${sh(trim(value))}") } }
             Text { text: T.ideas; font: mono; style: small; color: soft }
             Flow {
               gap: 6
@@ -557,7 +612,7 @@ Steps:
             }
             Box {
               fill: width
-              onTap: { run(sound && trim(wish) != "" && !busy ? "paplay ~/.cache/pixbg/sfx/gen.wav" : "true"); run(trim(wish) == "" || busy ? "true" : "~/.local/bin/pixbg gen ${sh(wish)}") }
+              onTap: { run(sound && trim(wish) != "" && !busy ? "paplay ~/.cache/pixbg/sfx/gen.wav" : "true"); run(trim(wish) == "" || busy ? "true" : "~/.local/bin/pixbg gen ${sh(trim(wish))}") }
               PixelBtn { label: busy && st.job == "gen" ? "${T.generating} ${round(pct * 100)}%" : T.genNew; on: !busy; dim: busy; shine: trim(wish) != "" && !busy; tone: P.ac; h: 64; size: 17 }
             }
             if busy && st.job == "gen" {
@@ -566,8 +621,18 @@ Steps:
                 Text { text: st.msg; style: small; color: "#eef3fa"; weight: 1; maxLines: 2 }
                 Text { text: fmtDuration(elapsed); font: mono; style: small; color: soft; width: 70; align: end }
               }
+              Box { fill: width; onTap: run("~/.local/bin/pixbg cancel"); PixelBtn { label: T.cancel; tone: "#ff6a6a"; h: 40; size: 12 } }
             }
-            if !busy && doneMsg != "" { Text { text: doneMsg; style: small; color: st.state == "error" ? "#ff6a6a" : good; maxLines: 3 } }
+            if stalled || (genErr && fixCmd == "") {
+              Row {
+                gap: 8
+                Text { text: stalled ? T.stalled : "✕ ${st.msg}"; style: small; color: "#ff6a6a"; weight: 1; maxLines: 3 }
+                Box { width: 120; onTap: { wish = st.wish ?? wish; run("~/.local/bin/pixbg gen ${sh(st.wish ?? trim(wish))}") }; PixelBtn { label: T.retryGen; tone: P.ac; h: 40; size: 12; pad: 4 } }
+              }
+            } else if genErr && fixCmd != "" {
+              Text { text: "✕ ${st.msg}"; style: small; color: "#ff6a6a"; maxLines: 3 }
+            }
+            if !busy && !genErr && !stalled && st.job == "gen" && doneMsg != "" { Text { text: doneMsg; style: small; color: st.state == "error" ? "#ff6a6a" : good; maxLines: 3 } }
             if cur.kind == "ai" && cur.prompt != null { Text { text: replace(T.thisScene ?? "{p}", "{p}", cur.prompt); style: small; color: soft; maxLines: 2 } }
           }
 
@@ -642,7 +707,6 @@ Steps:
             Box { onTap: { showClock = !showClock; run(sound ? "paplay ~/.cache/pixbg/sfx/tap.wav" : "true") }; PixelBtn { label: showClock ? T.clockOn : T.clockOff; on: showClock; tone: P.ac; h: 54; size: 15 } }
             Box { onTap: { sound = !sound; run(!sound ? "paplay ~/.cache/pixbg/sfx/tap.wav" : "true") }; PixelBtn { label: sound ? T.sfxOn : T.sfxOff; on: sound; tone: P.ac; h: 54; size: 15 } }
             Box { onTap: { pet = !pet; haptic(); run(sound ? (mascot == "ufo" ? "paplay ~/.cache/pixbg/sfx/beam.wav" : "paplay ~/.cache/pixbg/sfx/boing.wav") : "true") }; PixelBtn { label: pet ? T.petOn : T.petOff; on: pet; tone: P.ac; h: 54; size: 15 } }
-            if cur.kind == "ai" { Box { onTap: { run(sound ? "paplay ~/.cache/pixbg/sfx/error.wav" : "true"); run("~/.local/bin/pixbg del ${sh(cur.id)}") }; PixelBtn { label: T.del; tone: "#ff6a6a"; h: 54; size: 15 } } }
           }
 
           // ---------------------------------------------- 語言（最下面）
