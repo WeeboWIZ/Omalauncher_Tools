@@ -102,7 +102,8 @@ class Agents(unittest.TestCase):
     def test_provider_and_default_model_arguments(self):
         with tempfile.TemporaryDirectory() as d:
             exes = {a: self.fake(d, a, body) for a, body in self.FAKE.items()}
-            with patch.object(pixbg, 'find_cli', side_effect=lambda a: exes[a]), patch.object(pixbg, 'AGENT_CWD', d):
+            with patch.object(pixbg, 'find_cli', side_effect=lambda a: exes[a]), patch.object(pixbg, 'AGENT_CWD', d), \
+                    patch.object(pixbg, 'MODELS', d + '/models.json'):
                 for agent in ['codex', 'claude']:
                     seen = []
                     code = pixbg.ask_agent('test', {'agent': agent, 'model': ''}, lambda kind, **kw: seen.append(kind))
@@ -119,7 +120,7 @@ class Agents(unittest.TestCase):
     def test_agent_errors_are_explained(self):
         with tempfile.TemporaryDirectory() as d:
             exe = self.fake(d, 'claude', "echo '{\"type\":\"result\",\"is_error\":true,\"result\":\"Invalid API key. Please run /login\"}'")
-            with patch.object(pixbg, 'find_cli', return_value=exe), patch.object(pixbg, 'AGENT_CWD', d):
+            with patch.object(pixbg, 'find_cli', return_value=exe), patch.object(pixbg, 'AGENT_CWD', d), patch.object(pixbg, 'MODELS', d + '/models.json'):
                 with self.assertRaises(pixbg.AgentError) as e:
                     pixbg.ask_agent('test', {'agent': 'claude', 'model': ''})
                 self.assertEqual(e.exception.kind, 'login')
@@ -131,7 +132,7 @@ class Agents(unittest.TestCase):
     def test_stalled_agent_is_stopped(self):
         with tempfile.TemporaryDirectory() as d:
             exe = self.fake(d, 'claude', 'sleep 30')
-            with patch.object(pixbg, 'find_cli', return_value=exe), patch.object(pixbg, 'AGENT_CWD', d), patch.object(pixbg, 'STALL', 1):
+            with patch.object(pixbg, 'find_cli', return_value=exe), patch.object(pixbg, 'AGENT_CWD', d), patch.object(pixbg, 'STALL', 1), patch.object(pixbg, 'MODELS', d + '/models.json'):
                 with self.assertRaises(pixbg.AgentError):
                     pixbg.ask_agent('test', {'agent': 'claude', 'model': ''})
 
