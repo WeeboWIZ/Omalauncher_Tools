@@ -12,11 +12,11 @@
 - **Set up** 把 `widget.owl` 裡的 Python 程式、場景和英文語言包寫到 `~/.local/share/pixbg`，並在 `~/.local/bin` 加上 `pixbg`／`tripview`。不下載任何東西。更新時保留生成的場景和設定，被取代的檔案先備份。
 - 每個 shader（內建或生成）送上手機前都通過離線檢查：glslangValidator、AGSL 規則、每像素 GPU 預算。生成失敗會交回 agent 修正，最多三次。
 - Agent 執行時不開工具（`claude --tools ""`、`codex -s read-only`）、不留對話紀錄、在自己的暫存資料夾、用使用者自己的帳號。`claude`、`codex` 為選用，不在 `requires`；內建場景兩者都不需要。
-- **設為桌布**只改啟動器 `style.toml` 的 `background` 一行。
+- **設為桌布**把圖複製到主題的背景資料夾（`~/.config/omarchy/backgrounds/<主題>/`，只替換它自己先前放的 `pixbg-*`），並設定啟動器 `style.toml` 的 `background` 一行。
 - 審查提示「uses eval」：是 AGSL 檢查器用正規表示式擋掉 shader 裡的 `eval` 字樣，沒有執行任何 eval。
 - `widget.owl` 161 KB；安裝指令 114 KB，在 Linux 參數長度上限內；`preview.png` 47 KB。
 
 ## 驗證
 - `owl.jar review` 通過。19 個單元測試涵蓋：暫存家目錄裡的安裝、用假 Claude／Codex 跑串流、錯誤訊息、卡住偵測、場景編輯、shader 檢查。
-- Claude Code 和 Codex 各實際生成一次，通過檢查並出現在手機上。
+- Claude Code 和 Codex 各實際生成一次，通過檢查並出現在手機上；實際用 agent 編輯生成的場景，效果符合描述。
 - 手機上檢查過：帶模型名稱的 agent 按鈕、修復指令面板、管理／編輯／刪除確認、隱藏模式、小卡。

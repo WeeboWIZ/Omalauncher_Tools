@@ -12,11 +12,11 @@ Add weebowiz/trip-view: animated pixel scenes, and new ones your agent paints
 - **Set up** writes the Python program, scenes and English pack held in `widget.owl` to `~/.local/share/pixbg`, and `pixbg`/`tripview` to `~/.local/bin`. Nothing is downloaded. Updates keep generated scenes and settings; replaced files are backed up first.
 - Every shader, built-in or generated, passes an offline check before it reaches the phone: glslangValidator, AGSL rules and a per-pixel GPU budget. A generated scene that fails goes back to the agent, at most three times.
 - Agents run without tools (`claude --tools ""`, `codex -s read-only`), without saving a session, in their own temp folder, with the user's own account. `claude` and `codex` are optional and not in `requires`; built-in scenes need neither.
-- **Set wallpaper** changes only the `background` line of the launcher's `style.toml`.
+- **Set wallpaper** copies the image into the theme's background folder (`~/.config/omarchy/backgrounds/<theme>/`, replacing only its own earlier `pixbg-*` file) and sets the `background` line in the launcher's `style.toml`.
 - Review note "uses eval": the AGSL checker rejects the shader token `eval` with a regular expression; nothing is evaluated.
 - `widget.owl` is 161 KB; the setup command is 114 KB, under Linux's argument limit; `preview.png` is 47 KB.
 
 ## Validation
 - `owl.jar review` passes. 19 unit tests cover setup in temporary homes, streaming with fake Claude and Codex CLIs, error messages, stall detection, scene editing and the shader check.
-- One live generation each with Claude Code and Codex passed the check and appeared on the phone.
+- One live generation each with Claude Code and Codex passed the check and appeared on the phone, and a live edit of a generated scene worked as described.
 - On the phone: the agent buttons with models, the fix-command panel, manage / edit / delete-confirm, hide mode, and the tile.
