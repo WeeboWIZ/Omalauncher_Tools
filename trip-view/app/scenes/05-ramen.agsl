@@ -55,7 +55,8 @@ half4 stallGlow(float2 m, float W, float glitch, float sw, half3 c2, half3 ac, h
   float side = m.x < 0.0 ? -1.0 : 1.0;
   float2 le = (m - float2(side * 67.0 + sw, -50.0)) / float2(5.5, 7.5);
   if (dot(le, le) < 1.0) return half4(ac, 1.0);
-  if (abs(m.x) < W - 1.0 && m.y >= -66.0 && m.y < -50.0) return half4(ac * 0.8, 0.6);
+  // 暖簾的倒影：紫綠交錯，和暖簾一樣
+  if (abs(m.x) < W - 1.0 && m.y >= -66.0 && m.y < -50.0) return half4((mod(floor((m.x + W - 2.0) / 22.0), 2.0) < 1.0 ? half3(0.541, 0.235, 1.0) : half3(0.243, 0.878, 0.478)) * 0.8, 0.6);
   if (abs(m.x) < W - 1.0 && m.y >= -50.0 && m.y < -26.0) return half4(warm, 0.85);
   return half4(0.0);
 }
@@ -304,16 +305,19 @@ half4 main(float2 p) {
     // 柱子
     if (abs(abs(d.x) - (W - 1.0)) < 1.5 && d.y >= -66.0 && d.y < -23.0) col = wood;
 
-    // 暖簾：五片，下緣隨風擺，中央白圈紋
+    // 暖簾：五片紫綠交錯（每組配色都一樣），下緣隨風擺，中央白圈紋帶一點另一個顏色
     if (abs(d.x) <= W - 2.0 && d.y >= -66.0) {
       float pn = floor((d.x + W - 2.0) / 22.0);
       float pl = d.x + W - 2.0 - pn * 22.0;
       float bot = -50.0 + floor(sin(t * 1.2 + pn * 1.3) * 1.5 * pl / 22.0 + 0.5);
       if (d.y < bot && pl > 0.5) {
-        col = mix(ac * 0.4, ac, band((d.y + 66.0) / 16.0, c, 4.0));
+        // 紫 #8a3cff、綠 #3ee07a（直接寫常數，不多花 hx 的運算量）
+        bool purple = mod(pn, 2.0) < 1.0;
+        half3 nc = purple ? half3(0.541, 0.235, 1.0) : half3(0.243, 0.878, 0.478);
+        col = mix(nc * 0.35, nc, band((d.y + 66.0) / 16.0, c, 4.0));
         float2 nd = float2(pl - 11.0, d.y + 58.0);
         float nr = dot(nd, nd);
-        if (nr <= 16.0 && nr >= 7.0) col = mix(white, ac, 0.2);
+        if (nr <= 16.0 && nr >= 7.0) col = mix(white, purple ? half3(0.243, 0.878, 0.478) : half3(0.541, 0.235, 1.0), 0.25);
       }
     }
 
