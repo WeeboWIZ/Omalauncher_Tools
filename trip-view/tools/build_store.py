@@ -22,7 +22,7 @@ def runtime_text(path):
         # but keep the metadata lines pixbg reads (name, prompt, mascot, tag) and the license header.
         out = []
         for line in text.splitlines():
-            meta = re.match(r'\s*//\s*(name|prompt|mascot|tag|SPDX|Copyright)\b', line)
+            meta = re.match(r'\s*//\s*(name|prompt|mascot|tag|thumb|SPDX|Copyright)\b', line)
             line = line.strip() if meta else line.split('//', 1)[0].strip()
             if line:
                 out.append(line)

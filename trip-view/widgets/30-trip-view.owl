@@ -25,7 +25,7 @@ widget "trip view" {
   source sys = android.system every 30m
   state sel = "05-ramen" persist
   state langCode = "" persist
-  state zone = 0 persist
+  state zone = 2 persist
   state speed = 1 persist
   state wish = "" persist
   state sound = false persist
@@ -344,13 +344,15 @@ Steps:
   // 場景附的 <場景>.actors.json：美術（sprite 字母圖）＋ 每一幕（配色組）的演出。位置是畫面比例：
   // x 是角色中線、y 是腳底，[基準, 振幅, 頻率, 相位]。座標都對齊 shader 的像素格。
   // live：全螢幕頁、或磚上在播動畫時用 time 每格動；磚上沒縮圖時用 tileT，每秒走一次
-  component Actors(cw = 2, live = false) {
+  // sc、z：畫別的場景、別的配色（場景卡片的縮圖一次畫好幾個）；沒給就是目前的
+  component Actors(cw = 2, live = false, sc = null, z = null) {
     Canvas {
       fill: true
-      let A = cur.actors ?? {}
+      let A = (sc ?? cur).actors ?? {}
+      let az = z ?? zn
       let art = A.art ?? {}
       let tt = (live ? time : tileT) * max(speed, 0)
-      let live = (A.acts ?? []).filter(a => (a.zones ?? [zn]).indexOf(zn) >= 0 && get(art, a.toy, null) != null)
+      let live = (A.acts ?? []).filter(a => (a.zones ?? [az]).indexOf(az) >= 0 && get(art, a.toy, null) != null)
       let s1 = live.map(a => {a: a, g: get(art, a.toy, {}), cp: cw * (get(art, a.toy, {}).cell ?? 1)})
       let s2 = s1.map(o => {
         id: o.a.id, g: o.g, cp: o.cp, wire: o.a.wire == true, sink: o.a.sink ?? 0,
@@ -369,7 +371,7 @@ Steps:
         if o.wire { line(o.x0 + o.g.ox * o.cp, 0, o.x0 + o.g.ox * o.cp, o.y0, stroke: alpha("#e8e8f0", 0.4), width: 1) }
         sprite(o.g.frames[o.fr] ?? o.g.frames[0], o.x0, o.y0, o.cp, palette: o.g.pal)
       }
-      for f in (A.fx ?? []).filter(f => (f.zones ?? [zn]).indexOf(zn) >= 0) {
+      for f in (A.fx ?? []).filter(f => (f.zones ?? [az]).indexOf(az) >= 0) {
         let ph = f.cycle != null ? tt % f.cycle : 0
         let ref = f.from ?? f.a ?? f.at
         let pa = P2.find(o => o.id == ref[0])
@@ -552,8 +554,32 @@ Steps:
     Box {
       width: screenWidth ?? 400
       height: screenHeight ?? 720
+      if exporting && exp.cards != null {
+        // pixbg thumbs：一次畫出最多 6 個場景（2×3 格，各用自己的縮圖配色），切成場景卡片的縮圖，不用一個一個拍
+        Column {
+          fill: true
+          for r in range(3) {
+            Row {
+              weight: 1
+              fill: width
+              for i in range(2) {
+                let x = list.find(s => s.id == (exp.cards[r * 2 + i] ?? ""))
+                Box {
+                  weight: 1
+                  fill: height
+                  if x != null {
+                    Shader { fill: true; fallback: background; uniforms: { zone: x.zone ?? zn, speed: speed, cellpx: 0 }; code: x.code }
+                    if x.actors != null { Actors { cw: screenCell / 2; live: true; sc: x; z: x.zone ?? zn } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else {
       Shader { fill: true; fallback: background; uniforms: { zone: zn, speed: speed, cellpx: bleedCell }; code: code; scale: bk; offset: bleedOff }
       if cur.actors != null { Actors { cw: screenCell; live: true; scale: bk; offset: bleedOff } }
+      }
       if panel && !exporting {
         Column {
           fill: width

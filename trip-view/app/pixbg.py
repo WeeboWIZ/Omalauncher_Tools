@@ -233,7 +233,8 @@ def entry(sc, body):
             # 場景卡片：縮圖（pixbg thumbs 請手機畫的）與標籤
             "tag": meta(body, "tag") or ("ai" if sc["kind"] == "ai" else "ufopump"),
             "thumb": thumb_path(sc["id"]) if os.path.exists(thumb_path(sc["id"])) else None,
-            "tile": tile_path(sc["id"]) if os.path.exists(tile_path(sc["id"])) else None}
+            "tile": tile_path(sc["id"]) if os.path.exists(tile_path(sc["id"])) else None,
+            "zone": int(meta(body, "thumb")) if (meta(body, "thumb") or "").isdigit() else None}
 
 
 def thumb_path(sid):
@@ -241,24 +242,30 @@ def thumb_path(sid):
 
 
 def make_thumbs(ids=None, force=False):
-    """請手機把每個場景畫一張全螢幕畫面（用它代表性的那一幕），裁成卡片縮圖。每張要重新載入一次小工具。"""
+    """場景卡片的縮圖：請手機在全螢幕頁一次畫出最多 6 個場景（2×3 格，各用 thumb 指定的配色），每格裁成一張。
+    一次繪製就好（約 3 秒），不用每個場景重新載入一次小工具。"""
     from PIL import Image
     os.makedirs(SCENE_THUMBS, exist_ok=True)
     box = read_json(BOX, {}).get("box")
     if not box:
         sys.exit("pixbg: 先「設為桌布」一次，量出全螢幕畫面的範圍")
-    todo = [sc for sc in scenes() if (ids is None or sc["id"] in ids) and (force or not os.path.exists(thumb_path(sc["id"])))]
+    packed = [x["id"] for x in read_json(BUNDLE, {}).get("scenes", [])]   # 小工具只畫得出打包好的場景
+    todo = [sid for sid in packed if (ids is None or sid in ids) and (force or not os.path.exists(thumb_path(sid)))]
+    if not todo:
+        return
     lock = render_lock()
     try:
-        for sc in todo:
-            z = meta(open(sc["path"]).read(), "thumb")
-            write_json(EXPORT, {"on": True, "id": sc["id"], "zone": int(z) if z and z.isdigit() else None, "t": int(time.time())})
+        for n in range(0, len(todo), 6):
+            batch = todo[n:n + 6]
+            write_json(EXPORT, {"on": True, "cards": batch, "t": int(time.time())})
             im = Image.open(render()).convert("RGB").crop(tuple(box))
-            w, h = im.size
-            ch = int(w * 0.72)                    # 卡片的比例，取畫面偏下的地方（角色和地景多在那裡）
-            top = max(0, min(h - ch, int(h * 0.62) - ch // 2))
-            im.crop((0, top, w, top + ch)).resize((360, 259), Image.NEAREST).save(thumb_path(sc["id"]))
-            print("縮圖：", sc["id"], flush=True)
+            gw, gh = im.size[0] // 2, im.size[1] // 3
+            for i, sid in enumerate(batch):
+                cell = im.crop((i % 2 * gw, i // 2 * gh, i % 2 * gw + gw, i // 2 * gh + gh))
+                ch = int(gw * 0.72)               # 卡片的比例，取格子偏下的地方（角色和地景多在那裡）
+                top = max(0, min(gh - ch, int(gh * 0.62) - ch // 2))
+                cell.crop((0, top, gw, top + ch)).save(thumb_path(sid))
+                print("縮圖：", sid, flush=True)
     finally:
         write_json(EXPORT, {"on": False})
         lock.close()
@@ -325,15 +332,19 @@ def make_tiles(ids=None, missing=False):
         lock.close()
 
 
-def tile_worker():
-    """背景拍磚：等一下再看最後要的是哪個場景，還沒有靜態圖才拍。好幾個同時排隊時，後面的看到已經拍好就直接結束。"""
+def tile_worker(cards=False):
+    """背景拍磚：等一下再看最後要的是哪個場景，還沒有靜態圖才拍。好幾個同時排隊時，後面的看到已經拍好就直接結束。
+    cards（安裝完呼叫）：拍完磚再補上全螢幕頁場景卡片的縮圖。"""
     time.sleep(1.0)
     try:
         sid = open(TILE_WANT).read().strip()
     except OSError:
-        return
+        sid = None
     if sid and not os.path.exists(tile_path(sid)) and any(sc["id"] == sid for sc in scenes()):
         make_tiles([sid], missing=True)   # 排在前面的那個可能剛拍好
+    if cards and read_json(BOX, {}).get("box"):
+        make_thumbs()
+        reload_widget()
 
 
 def reload_widget():
@@ -1107,16 +1118,16 @@ def main(argv):
             _job.update(job="wall", started=int(time.time()), pid=child.pid)
             status("working", M("wallPrep"), p=0.02)
     elif cmd == "tile":
-        # pixbg tile [id]：在背景照磚的大小拍一張靜態圖（小工具換到還沒有靜態圖的場景時呼叫）
-        args = [a for a in argv[1:] if a != "--fg"]
+        # pixbg tile [--cards] [id]：在背景照磚的大小拍一張靜態圖（小工具換到還沒有靜態圖的場景時呼叫）
+        args = [a for a in argv[1:] if not a.startswith("--")]
         if "--fg" in argv:
-            tile_worker()
+            tile_worker(cards="--cards" in argv)
         else:
             sid = args[0] if args else (current_id() or (read_json(BUNDLE, {}).get("scenes") or [{}])[0].get("id"))
             if sid:
                 with open(TILE_WANT, "w") as f:
                     f.write(sid)
-                subprocess.Popen([sys.executable, os.path.abspath(__file__), "tile", "--fg"],
+                subprocess.Popen([sys.executable, os.path.abspath(__file__), "tile", "--fg"] + (["--cards"] if "--cards" in argv else []),
                                  stdout=open(os.path.join(CACHE, "tile.log"), "a"), stderr=subprocess.STDOUT,
                                  stdin=subprocess.DEVNULL, start_new_session=True)
     elif cmd == "tiles":
