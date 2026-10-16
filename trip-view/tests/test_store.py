@@ -139,3 +139,20 @@ class Agents(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'Install Codex'):
                 pixbg.ask_agent('test', {'agent': 'codex'})
             popen.assert_not_called()
+
+    def test_model_names(self):
+        self.assertEqual(pixbg.model_label('claude-opus-5-5', 'claude'), 'Opus 5.5')
+        self.assertEqual(pixbg.model_label('claude-opus-5-5[1m]', 'claude'), 'Opus 5.5')
+        self.assertEqual(pixbg.model_label('sonnet', 'claude'), 'Sonnet')
+        self.assertEqual(pixbg.model_label('', 'codex'), 'Codex')
+        with tempfile.TemporaryDirectory() as d, patch.object(pixbg, 'HOME', d), patch.object(pixbg, 'CONFIG', d + '/config.json'), \
+                patch.object(pixbg, 'MODELS', d + '/models.json'), patch.dict(os.environ, {'ANTHROPIC_MODEL': ''}):
+            os.makedirs(d + '/.codex')
+            Path(d + '/.codex/config.toml').write_text('model = "gpt-test"\n')
+            Path(d + '/.codex/models_cache.json').write_text(json.dumps({'models': [{'slug': 'gpt-test', 'display_name': 'GPT-Test'}]}))
+            self.assertEqual(pixbg.model_label(pixbg.agent_model('codex'), 'codex'), 'GPT-Test')
+            self.assertEqual(pixbg.agent_model('claude'), '')
+            pixbg.write_json(d + '/models.json', {'claude': 'claude-sonnet-5-5'})
+            self.assertEqual(pixbg.agent_model('claude'), 'claude-sonnet-5-5')
+            pixbg.write_json(d + '/config.json', {'agent': 'claude', 'model': 'opus'})
+            self.assertEqual(pixbg.agent_model('claude'), 'opus')

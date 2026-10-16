@@ -583,7 +583,8 @@ Steps:
                   weight: 1; gap: 4
                   onTap: { run(busy ? "true" : "~/.local/bin/pixbg agent ${sh(a[0])}") }
                   PixelBtn { label: a[1]; on: agentId == a[0]; dim: busy || ai.ok == false; tone: P.ac; h: 44; size: 14 }
-                  Text { text: ai.version != null && ai.version != "" && ai.ok ? "${tag} · v${ai.version}" : tag; font: mono; style: small; color: ai.ok ? good : ai.state == null ? soft : "#ffb04a"; align: center; fill: width; maxLines: 1 }
+                  // 就緒時顯示模型名（CLI 自己的設定，或上次生成時回報的）；不知道就寫「預設模型」
+                  Text { text: ai.ok ? "● ${ai.model != null && ai.model != "" ? ai.model : T.defaultModel}" : tag; font: mono; style: small; color: ai.ok ? good : ai.state == null ? soft : "#ffb04a"; align: center; fill: width; maxLines: 1 }
                 }
               }
             }

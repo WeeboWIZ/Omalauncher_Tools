@@ -43,6 +43,7 @@ LANGS = os.path.join(DATA, "lang")
 UI = os.path.join(CACHE, "ui.json")
 STATUS = os.path.join(CACHE, "status.json")
 AGENTS = os.path.join(CACHE, "agents.json")     # 兩個 agent CLI 裝了沒、登入了沒，小工具據此畫按鈕
+MODELS = os.path.join(CACHE, "agent-models.json")   # 生成時 CLI 回報的模型（Claude 的預設模型跟著帳號，只能這樣知道）
 CONFIG = os.path.join(HOME, ".config/pixbg/config.json")
 WIDGETS = os.path.join(HOME, ".config/omalauncher/widgets")
 STYLE = os.path.join(HOME, ".config/omalauncher/style/style.toml")
@@ -453,6 +454,8 @@ def probe(agent):
         out.update(state="error", fix="")
         return out
     out.update(ok=ok, state="ready" if ok else "login", fix="" if ok else LOGIN[agent])
+    model = agent_model(agent)
+    out["model"] = model_label(model, agent) if model else ""
     return out
 
 
@@ -553,6 +556,8 @@ def ask_agent(prompt, cfg, on=lambda kind, **kw: None):
         t = e.get("type")
         if agent == "claude":
             if t == "system" and e.get("subtype") == "init":
+                if e.get("model"):
+                    write_json(MODELS, {**read_json(MODELS, {}), agent: e["model"]})
                 on("connected", model=e.get("model"))
             elif t == "stream_event":
                 d = (e.get("event") or {}).get("delta") or {}
@@ -602,9 +607,37 @@ def kill_agent(*_):
 
 
 def model_label(model, agent):
-    """claude-opus-5-5 → Opus 5.5；認不出來就用 agent 名。"""
-    m = re.match(r"claude-([a-z]+)-(\d+)-(\d+)", model or "")
-    return f"{m.group(1).capitalize()} {m.group(2)}.{m.group(3)}" if m else (model or NAMES[agent])
+    """給人看的模型名：claude-opus-5-5 → Opus 5.5、opus → Opus、gpt-6-astra → GPT-6-Astra（Codex 的模型清單）；都沒有就用 agent 名。"""
+    model = re.sub(r"\[.*\]$", "", model or "")
+    m = re.match(r"claude-([a-z]+)-(\d+)-(\d+)", model)
+    if m:
+        return f"{m.group(1).capitalize()} {m.group(2)}.{m.group(3)}"
+    if model in ("opus", "sonnet", "haiku", "fable"):
+        return model.capitalize()
+    if model and agent == "codex":
+        for x in read_json(os.path.join(HOME, ".codex/models_cache.json"), {}).get("models", []):
+            if x.get("slug") == model and x.get("display_name"):
+                return x["display_name"]
+    return model or NAMES[agent]
+
+
+def agent_model(agent):
+    """這個 agent 下次會用的模型：pixbg agent 指定的 > CLI 自己的設定 > 上次生成時 CLI 回報的；都沒有就是空字串。"""
+    cfg = read_json(CONFIG, {})
+    if cfg.get("agent") == agent and cfg.get("model"):
+        return cfg["model"]
+    if agent == "codex":
+        try:
+            m = re.search(r'^model\s*=\s*"([^"]+)"', open(os.path.join(HOME, ".codex/config.toml")).read(), re.M)
+            if m:
+                return m.group(1)
+        except OSError:
+            pass
+    else:
+        set_ = os.environ.get("ANTHROPIC_MODEL") or read_json(os.path.join(HOME, ".claude/settings.json"), {}).get("model")
+        if set_:
+            return set_
+    return read_json(MODELS, {}).get(agent, "")
 
 
 def gen(wish):
@@ -618,7 +651,7 @@ def gen(wish):
         status("error", str(e)[:300], wish=wish, fix=e.fix)
         sys.exit(1)
     agent = cfg["agent"]
-    who = model_label(cfg.get("model"), agent)
+    who = model_label(cfg.get("model") or agent_model(agent), agent)
     # 每個 agent 各記最近幾次花多久，估進度用（舊版是一個清單，當成 Claude 的）
     times = read_json(os.path.join(CACHE, "gen-times.json"), {})
     times = {"claude": times} if isinstance(times, list) else times
@@ -675,7 +708,7 @@ def gen(wish):
                     raise
                 note = "↪ " + M("switched", a=NAMES[agent], b=NAMES[other])
                 cfg, agent, mine = {"agent": other, "model": ""}, other, times.get(other) or []
-                who = NAMES[other]
+                who = model_label(agent_model(other), other)
                 status("working", note, p=lo, to=lo + 0.04, eta=10, wish=wish, agent=agent)
                 try:
                     code = ask_agent(prompt if attempt == 0 else FIX.format(err="\n".join(errs), code=code), cfg, reporter(lo, 0.86, retry))
@@ -914,7 +947,7 @@ def main(argv):
         print("cancelled" if pid else "nothing running")
     elif cmd == "agents":
         for a in probe_all()["list"]:
-            print(f"{'✓' if a['ok'] else '✗'} {a['id']:7} {a['version'] or '-':10} {a['state']}" + (f"   → {a['fix']}" if a["fix"] else ""))
+            print(f"{'✓' if a['ok'] else '✗'} {a['id']:7} {a.get('model') or '-':14} CLI {a['version'] or '-':10} {a['state']}" + (f"   → {a['fix']}" if a["fix"] else ""))
     elif cmd == "del":
         # 只刪 Agent 生成的場景（連縮圖），刪掉的是目前的場景就換到它前一個
         sid = argv[1] if len(argv) > 1 else current_id()

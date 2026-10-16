@@ -63,7 +63,7 @@
     "petOff": "Pet off",
     "tapToShow": "Tap anywhere to show the controls",
     "tileHide": "Hide",
-    "agentHelp": "Uses the CLI's default model. Claude reports progress line by line; Codex reports steps.",
+    "agentHelp": "Under each button is the model that CLI will use, from its own settings. Claude reports progress line by line; Codex reports steps.",
     "agent": "Agent",
     "agentReady": "● Ready",
     "agentLogin": "○ Sign in",
@@ -79,7 +79,8 @@
     "delAsk": "Delete “{n}”?",
     "delWarn": "Only this agent-made scene and its preview are removed; built-in scenes and the wallpaper album stay. This can't be undone.",
     "keep": "Keep",
-    "delYes": "Delete"
+    "delYes": "Delete",
+    "defaultModel": "Default model"
   },
   "msg": {
     "notPassed": "{name} failed the check, not applied: ",

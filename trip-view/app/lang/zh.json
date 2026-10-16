@@ -63,7 +63,7 @@
     "petOff": "寵物 關",
     "tapToShow": "點一下畫面顯示介面",
     "tileHide": "隱藏",
-    "agentHelp": "用所選 CLI 的預設模型。Claude 會一行行即時回報進度；Codex 只回報步驟。",
+    "agentHelp": "按鈕下是各 CLI 會用的模型，跟著 CLI 自己的設定。Claude 會一行行即時回報進度；Codex 只回報步驟。",
     "agent": "Agent",
     "agentReady": "● 已就緒",
     "agentLogin": "○ 未登入",
@@ -79,7 +79,8 @@
     "delAsk": "確定刪除「{n}」？",
     "delWarn": "只刪除這個 Agent 生成的場景和它的縮圖，內建場景和桌布相簿不受影響。刪掉就無法復原。",
     "keep": "保留",
-    "delYes": "確認刪除"
+    "delYes": "確認刪除",
+    "defaultModel": "預設模型"
   },
   "msg": {
     "notPassed": "{name} 沒通過檢查，沒有套用：",
