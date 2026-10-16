@@ -1,21 +1,22 @@
-Add Trip View: pixel animations with Codex and Claude
+Add weebowiz/trip-view: animated pixel scenes, and new ones your agent paints
 
-Trip View adds five animated pixel worlds with palettes, speed controls, pixel pets, optional clock and sound, and wallpaper capture. The full-screen generation panel lets users select Codex or Claude and request a new animation with one prompt. Selection persists; the selected CLI uses its configured default model. Each agent button shows whether that CLI is installed and signed in, and the model it will use (from the CLI's own settings, or the one it reported on the last generation); when it is not, the panel shows the one terminal command to fix it, with a copy button. Generation streams real progress from Claude (line by line) and step events from Codex, can be cancelled, stops an agent that goes silent for four minutes, and hands over to the other agent when one is signed out or out of quota. Agents run without tools and without saving a session.
+## Summary
+- **Scenes:** five hand-made pixel animations (Neon Ramen, Kaiju Tokyo, Void Space, Acid Forest, Zion Hub), five palettes each, a pixel pet, optional pixel clock and 8-bit sounds. Any size from 2×2 to a full page.
+- **Full-screen page:** the scene fills the screen; cards with previews, palettes and speed. **Hide** leaves only the scene; a tap brings the controls back.
+- **Agent:** describe a mood in one sentence and Codex or Claude writes a new scene. Each button shows whether that CLI is installed and signed in, and its model; if not, the one terminal command to fix it, with a copy button. Progress is live (Claude line by line, Codex by step), can be cancelled, and a silent agent is stopped after four minutes; if one agent is signed out or out of quota, the other takes over.
+- **Manage:** a small link under a generated scene's name opens **Edit** (the agent changes only what you describe; the old version is kept) and **Delete** (names the scene and asks to confirm).
+- **Wallpaper:** freeze any moment as the launcher background; every one is kept in `~/Pictures/pixbg`.
+- English only; **Language → Custom** gives a prompt that adds any language.
 
-The store edition includes English only. Language → Custom provides a prompt to add any other language, including Traditional Chinese, using the English pack as its template.
+## Notes for review
+- **Set up** writes the Python program, scenes and English pack held in `widget.owl` to `~/.local/share/pixbg`, and `pixbg`/`tripview` to `~/.local/bin`. Nothing is downloaded. Updates keep generated scenes and settings; replaced files are backed up first.
+- Every shader, built-in or generated, passes an offline check before it reaches the phone: glslangValidator, AGSL rules and a per-pixel GPU budget. A generated scene that fails goes back to the agent, at most three times.
+- Agents run without tools (`claude --tools ""`, `codex -s read-only`), without saving a session, in their own temp folder, with the user's own account. `claude` and `codex` are optional and not in `requires`; built-in scenes need neither.
+- **Set wallpaper** changes only the `background` line of the launcher's `style.toml`.
+- Review note "uses eval": the AGSL checker rejects the shader token `eval` with a regular expression; nothing is evaluated.
+- `widget.owl` is 161 KB; the setup command is 114 KB, under Linux's argument limit; `preview.png` is 47 KB.
 
-First use is a visible Set up action. The widget embeds its Python runtime, shader scenes, sprite data and MIT license as reviewable text. It writes these locally, checks all built-in shaders and generates sounds; it does not fetch or execute downloaded scripts. Runtime dependencies are declared in requires. Either agent CLI must be installed and signed in separately; built-in scenes do not need an agent.
-
-A generated scene can be edited or deleted from a small "Manage this scene" link under its name. Edit sends the scene and the requested change to the agent, which must keep the name, mascot and everything not mentioned; the result passes the same offline check before it replaces the scene, and the old version is backed up. Delete names the scene and asks for confirmation; built-in scenes cannot be deleted. Updates preserve generated scenes, custom language packs and settings. Replaced program files are backed up. The installer refuses linked developer installations and never writes another widget file.
-
-Validation:
-- 19 automated tests passed, including isolated clean install, repeat install, custom-data preservation, linked-directory protection, agent persistence, streaming CLI invocation through fake Claude and Codex CLIs, error explanations, model names, scene editing, stall detection and shader validation.
-- Store OWL compiled and passed the current store review checker.
-- First-use tile/full-screen views and English generation controls rendered with owl-check and were visually inspected. Ready-state rendering uses local built-in scenes with an English-only UI fixture; installation itself was exercised in isolated temporary homes.
-- The widget is below 256 KiB and the preview is below 300 KiB. The setup command is below 120 KiB to stay within Linux's argument length limit.
-- One live generation each with Claude Code and Codex went through the streaming path and passed the shader check; cancel, sign-in errors and fallback between agents were exercised with fake CLIs.
-
-Review checker warnings:
-- “uses eval”: the embedded AGSL validator rejects the shader token `eval` using a regular expression. It does not execute Python or shell eval.
-
-The store folder contains only widget.owl, README.md and preview.png. This is prepared locally; no PR has been opened.
+## Validation
+- `owl.jar review` passes. 19 unit tests cover setup in temporary homes, streaming with fake Claude and Codex CLIs, error messages, stall detection, scene editing and the shader check.
+- One live generation each with Claude Code and Codex passed the check and appeared on the phone.
+- On the phone: the agent buttons with models, the fix-command panel, manage / edit / delete-confirm, hide mode, and the tile.
