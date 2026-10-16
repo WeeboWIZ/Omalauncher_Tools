@@ -1,14 +1,14 @@
 // name: ZION HUB 代碼雨
 // mascot: sentinel
 // tag: ufopump
-// thumb: 0
+// thumb: 2
 // SPDX-License-Identifier: MIT
 // Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
 // from: UFOPUMP ZionHub.ts — 5×7 假字元代碼雨、暗字元牆、兩側導管與資料脈衝、旋轉線框體、掃描線、故障條
 void palette(float z, out half3 bg, out half3 c0, out half3 c1, out half3 c2, out half3 ac) {
-  if (z < 0.5)      { bg = hx(0x010703); c0 = hx(0x063a12); c1 = hx(0x12b83a); c2 = hx(0xb8ffc8); ac = hx(0xff3838); }
+  if (z < 0.5)      { bg = hx(0x0c0302); c0 = hx(0x4a1206); c1 = hx(0xe0521a); c2 = hx(0xffd8a0); ac = hx(0xff2040); }
   else if (z < 1.5) { bg = hx(0x01070c); c0 = hx(0x06323a); c1 = hx(0x14b8a8); c2 = hx(0xc0fff4); ac = hx(0xffe14a); }
-  else if (z < 2.5) { bg = hx(0x0c0302); c0 = hx(0x4a1206); c1 = hx(0xe0521a); c2 = hx(0xffd8a0); ac = hx(0xff2040); }
+  else if (z < 2.5) { bg = hx(0x010703); c0 = hx(0x063a12); c1 = hx(0x12b83a); c2 = hx(0xb8ffc8); ac = hx(0xff3838); }
   else if (z < 3.5) { bg = hx(0x04030c); c0 = hx(0x221a5a); c1 = hx(0x6a5af0); c2 = hx(0xd8d4ff); ac = hx(0x3dff7a); }
   else              { bg = hx(0x050505); c0 = hx(0x363636); c1 = hx(0xc4c4c4); c2 = hx(0xffffff); ac = hx(0x12e85a); }
 }
