@@ -1,0 +1,94 @@
+// name: VOID SPACE 虛空
+// mascot: ufo
+// tag: ufopump
+// thumb: 1
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
+// from: UFOPUMP VoidSpace.ts — 流動星雲、兩層星空、閃爍星、流星、月亮
+void palette(float z, out half3 bg, out half3 c0, out half3 c1, out half3 c2, out half3 ac) {
+  if (z < 0.5)      { bg = hx(0x000039); c0 = hx(0x0a1f7a); c1 = hx(0x1b4fc0); c2 = hx(0x2fd6e0); ac = hx(0xffe14a); }
+  else if (z < 1.5) { bg = hx(0x1c0a4e); c0 = hx(0x3a1078); c1 = hx(0x8a2be2); c2 = hx(0xff4fd8); ac = hx(0x5ff0ff); }
+  else if (z < 2.5) { bg = hx(0x02262e); c0 = hx(0x0b5d5a); c1 = hx(0x18c9a0); c2 = hx(0xb6ff5a); ac = hx(0xff8fd8); }
+  else if (z < 3.5) { bg = hx(0x2c0616); c0 = hx(0x7a0f2a); c1 = hx(0xff5a1f); c2 = hx(0xffe14a); ac = hx(0x5ff0ff); }
+  else              { bg = hx(0x06010f); c0 = hx(0x2b0a5e); c1 = hx(0x00c8ff); c2 = hx(0xff2fd0); ac = hx(0xb6ff5a); }
+}
+
+// 一層平鋪星空：每格一個亂數，少數格子是星，部分是十字亮星
+float starLayer(float2 c, float density, float seed) {
+  float h = hash3(float3(c, seed));
+  if (h < density) return 1.0 + floor(hash3(float3(c, seed + 7.0)) * 3.0);
+  // 十字亮星的四隻腳
+  for (int i = 0; i < 4; i++) {
+    float2 o = i == 0 ? float2(1.0, 0.0) : i == 1 ? float2(-1.0, 0.0) : i == 2 ? float2(0.0, 1.0) : float2(0.0, -1.0);
+    float2 n = c + o;
+    if (hash3(float3(n, seed)) < density && hash3(float3(n, seed + 3.0)) < 0.18) return 1.0 + floor(hash3(float3(n, seed + 7.0)) * 3.0);
+  }
+  return 0.0;
+}
+
+half4 main(float2 p) {
+  float s = PX();
+  float2 c = floor(p / s);
+  float2 G = floor(size / s);
+  float t = time * max(speed, 0.0);
+  half3 bg; half3 c0; half3 c1; half3 c2; half3 ac;
+  palette(zone, bg, c0, c1, c2, ac);
+  half3 col = bg;
+
+  // 星雲：1/4 解析度逐格計算，只有波峰顯色，量化 5 階並抖色
+  float2 q = floor(c / 4.0);
+  float rows = G.y / 4.0;
+  float wy = q.y - t * 0.5;
+  float v = (sin(q.x * 0.13 + t * 0.7) + sin(wy * 0.09 - t * 0.5) + sin((q.x + wy) * 0.07 + t * 0.3)
+           + sin(length(float2(q.x - G.x / 8.0, q.y - rows * 0.4)) * 0.16 - t * 0.9)) / 4.0;
+  float k = ((v + 1.0) / 2.0 - 0.5) / 0.5;
+  if (k > 0.0) {
+    float b = band(k, q, 5.0);
+    col = mix(col, ramp(c0, c1, c2, b), 0.7 * (0.25 + 0.6 * b));
+  }
+
+  // 兩層視差星空（遠 0.2、近 0.35），整片緩緩往下流 = 一直往上飛
+  float far = starLayer(float2(c.x, c.y - floor(t * 2.4)), 0.006, 1.0);
+  if (far > 0.0) col = mix(col, far < 1.5 ? hx(0x4a5ab8) : far < 2.5 ? hx(0x6f7fe0) : hx(0x8e9cf0), 0.6);
+  float near = starLayer(float2(c.x, c.y - floor(t * 4.2)), 0.0016, 2.0);
+  if (near > 0.0) col = near < 1.5 ? hx(0x3fe0c8) : near < 2.5 ? hx(0x8fd8ff) : half3(1.0);
+
+  // 閃爍的亮星：每 24 格一顆，各自的週期
+  float2 cell = floor(c / 24.0);
+  float2 sp = cell * 24.0 + floor(float2(hash2(cell), hash2(cell + 5.1)) * 22.0) + 1.0;
+  float ph = sin(t * (0.8 + hash2(cell + 9.0) * 1.6) + hash2(cell) * 6.28);
+  if (hash2(cell + 2.0) < 0.5 && ph > 0.0) {
+    float2 d = abs(c - sp);
+    if ((d.x + d.y < 0.5) || (ph > 0.6 && d.x + d.y < 1.5 && (d.x < 0.5 || d.y < 0.5))) col = mix(col, half3(1.0), ph);
+  }
+
+  // 月亮：像素圓、明暗交界抖色、隕石坑，整顆在畫面內輕輕浮動
+  float2 mc = float2(floor(G.x * 0.24), floor(G.y * 0.2 + sin(t * 0.4) * 1.5));
+  float2 md = c - mc;
+  float mr = 10.0;
+  if (dot(md, md) <= mr * mr + mr * 0.8) {
+    half3 mcol = hx(0xd8dcf0);
+    float lit = dot(normalize(md + 0.001), normalize(float2(-1.0, -0.6)));
+    if (!dith(lit * 0.5 + 0.75, c)) mcol = hx(0x8a90b8);
+    if (lit < -0.55) mcol = hx(0x5a6090);
+    if (length(md - float2(3.0, -2.0)) < 2.6 || length(md - float2(-3.0, 4.0)) < 1.8 || length(md - float2(5.0, 5.0)) < 1.2) mcol = mcol * 0.82;
+    col = mcol;
+  }
+
+  // 流星：每 4 秒一顆，Quad.in 加速，拖 16 格的尾巴
+  float period = 4.0;
+  float n = floor(t / period);
+  float ph2 = (t - n * period);
+  if (ph2 < 0.8) {
+    float u = ph2 / 0.8; u = u * u;
+    float left = hash1(n) < 0.5 ? 1.0 : -1.0;
+    float2 dir = normalize(float2(190.0 * left, 84.0));
+    float2 start = float2(left > 0.0 ? -10.0 : G.x + 10.0, hash1(n + 3.0) * G.y * 0.6);
+    float2 head = start + dir * 210.0 * u;
+    float2 rel = c - head;
+    float along = dot(rel, dir);
+    float perp = abs(dot(rel, float2(-dir.y, dir.x)));
+    if (perp < 0.6 && along < 0.0 && along > -16.0) col = mix(col, c2, (1.0 - u) * (1.0 + along / 16.0 * 0.7));
+  }
+  return half4(col, 1.0);
+}

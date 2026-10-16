@@ -8,6 +8,14 @@ See the [DEV LOGS README, installation guide and screenshots](dev-logs/README.md
 
 ![DEV LOGS home widget](dev-logs/docs/screenshots/dev-logs.png)
 
+## Trip View
+
+Animated pixel scene templates for the home screen: a rainy neon ramen stall, a kaiju film set, pastel islands, nebulae, a glowing forest, code rain and a cyber canyon. Describe a mood in one sentence and your agent generates an animated scene, which you can also set as your wallpaper. Every scene is checked offline before it reaches the phone.
+
+See the [Trip View README](trip-view/README.md). Install it independently with `python trip-view/install.py`. Trip View is licensed under GPL-3.0-or-later (see [trip-view/LICENSE](trip-view/LICENSE)).
+
+![Trip View scenes](trip-view/docs/screenshots/scenes.png)
+
 ## Terminal Voice & Dictation for Omalauncher
 
 Read terminal output aloud and dictate text into Codex, Claude, or another command-line program on Android Omalauncher.

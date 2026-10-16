@@ -1,0 +1,403 @@
+// name: NEON RAMEN 霓虹拉麵
+// mascot: car
+// tag: original
+// thumb: 0
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
+// 最早由 Opus 5.5 依「雨夜的霓虹拉麵攤，蒸氣往上飄」生成，後來手工加細：
+//   遠方高架電車、大樓的陽台冷氣與逃生梯、屋頂水塔、LED 跑馬燈、閃電、屋頂上的貓。
+void palette(float z, out half3 bg, out half3 c0, out half3 c1, out half3 c2, out half3 ac) {
+  if (z < 0.5)      { bg = hx(0x070a24); c0 = hx(0x1a1f4a); c1 = hx(0x3a5fb0); c2 = hx(0xff4fa8); ac = hx(0xff3a2a); }
+  else if (z < 1.5) { bg = hx(0x140726); c0 = hx(0x34145a); c1 = hx(0x7a3cc8); c2 = hx(0x5ff0ff); ac = hx(0xff5a8a); }
+  else if (z < 2.5) { bg = hx(0x03161a); c0 = hx(0x0c3a3e); c1 = hx(0x1f8f86); c2 = hx(0xb6ff5a); ac = hx(0xff8a2a); }
+  else if (z < 3.5) { bg = hx(0x1e0610); c0 = hx(0x4a0f22); c1 = hx(0xa0304a); c2 = hx(0xffd84a); ac = hx(0x5ff0ff); }
+  else              { bg = hx(0x040208); c0 = hx(0x16122a); c1 = hx(0x3c3a6a); c2 = hx(0x00e0ff); ac = hx(0xff2fd0); }
+}
+
+// 偽漢字：w×h 的格子，橫畫在頂、中、底三行，直畫在左、中、右三列，由亂數決定
+bool glyph(float2 g, float w, float h, float seed) {
+  if (g.x < 0.0 || g.y < 0.0 || g.x > w || g.y > h) return false;
+  float mx = floor(w * 0.5);
+  float my = floor(h * 0.5);
+  if (abs(g.y) < 0.5 && hash1(seed + 1.0) < 0.7) return true;
+  if (abs(g.y - my) < 0.5 && hash1(seed + 2.0) < 0.6) return true;
+  if (abs(g.y - h) < 0.5 && hash1(seed + 3.0) < 0.7) return true;
+  if (abs(g.x) < 0.5 && hash1(seed + 4.0) < 0.5) return true;
+  if (abs(g.x - mx) < 0.5 && hash1(seed + 5.0) < 0.8) return true;
+  if (abs(g.x - w) < 0.5 && hash1(seed + 6.0) < 0.5) return true;
+  return false;
+}
+
+// 直式霓虹招牌：o 為左上角，n 個字。回傳 0 無、1 底板、2 字、3 邊框
+float vsign(float2 c, float2 o, float n, float seed) {
+  float2 l = c - o;
+  float h = n * 11.0 + 2.0;
+  if (l.x < 0.0 || l.x > 8.0 || l.y < 0.0 || l.y > h) return 0.0;
+  if (l.x < 0.5 || l.x > 7.5 || l.y < 0.5 || l.y > h - 0.5) return 3.0;
+  float gi = floor((l.y - 2.0) / 11.0);
+  float2 g = float2(l.x - 2.0, l.y - 2.0 - gi * 11.0);
+  return glyph(g, 4.0, 8.0, seed + gi * 17.0) ? 2.0 : 1.0;
+}
+
+// 一層斜雨：每欄一個亂數決定有沒有雨絲，回傳 0..1（雨滴頭最亮）
+float rain(float2 c, float t, float v, float density, float len, float seed) {
+  float x = c.x + floor(c.y * 0.25);
+  if (hash2(float2(x, seed)) > density) return 0.0;
+  float P = 60.0 + floor(hash2(float2(x, seed + 1.0)) * 80.0);
+  float ph = mod(c.y - t * v + hash2(float2(x, seed + 2.0)) * P, P);
+  return ph < len ? (ph + 1.0) / len : 0.0;
+}
+
+// 攤子的發光部分（招牌、燈籠、暖簾、店內暖光），給濕地面的倒影用
+half4 stallGlow(float2 m, float W, float glitch, float sw, half3 c2, half3 ac, half3 warm) {
+  if (abs(m.x) <= 34.0 && m.y >= -92.0 && m.y <= -74.0) return half4(c2 * (glitch > 0.5 ? 0.6 : 1.0), 1.0);
+  float side = m.x < 0.0 ? -1.0 : 1.0;
+  float2 le = (m - float2(side * 67.0 + sw, -50.0)) / float2(5.5, 7.5);
+  if (dot(le, le) < 1.0) return half4(ac, 1.0);
+  if (abs(m.x) < W - 1.0 && m.y >= -66.0 && m.y < -50.0) return half4(ac * 0.8, 0.6);
+  if (abs(m.x) < W - 1.0 && m.y >= -50.0 && m.y < -26.0) return half4(warm, 0.85);
+  return half4(0.0);
+}
+
+half4 main(float2 p) {
+  float s = PX();
+  float2 c = floor(p / s);
+  float2 G = floor(size / s);
+  float t = time * max(speed, 0.0);
+  half3 bg; half3 c0; half3 c1; half3 c2; half3 ac;
+  palette(zone, bg, c0, c1, c2, ac);
+  half3 warm = hx(0xffc46a);
+  half3 white = half3(1.0);
+
+  float gy = floor(G.y * 0.78);        // 地面線
+  float cx = floor(G.x * 0.5);
+  float W = 57.0;                      // 攤子半寬
+  float2 d = c - float2(cx, gy);       // 攤子座標：原點在地面中央，y 向下
+
+  // 招牌偶發故障：每 5 秒擲一次骰，中間那個字暗掉 0.35 秒
+  float fp = floor(t / 5.0);
+  float fu = t - fp * 5.0;
+  float glitch = (hash1(fp + 11.0) < 0.55 && fu > 2.0 && fu < 2.35) ? 1.0 : 0.0;
+  // 燈籠擺動（整格移動）
+  float sw = floor(sin(t * 1.1) * 1.5 + 0.5);
+
+  // ── 天空：越近地平線越亮（城市光害），5 階抖色
+  float sy = clamp(c.y / gy, 0.0, 1.0);
+  half3 col = ramp(bg, mix(bg, c0, 0.7), mix(c0, c1, 0.45), band(sy * sy, c, 5.0));
+
+  // 閃電：每 11 秒擲一次骰，雲層連亮兩下（每次 0.1 秒，明暗交替不到每秒 3 次）
+  float lp = floor(t / 11.0);
+  float lu = t - lp * 11.0;
+  float flash = hash1(lp + 70.0) < 0.6 && (abs(lu - 4.0) < 0.06 || abs(lu - 4.35) < 0.05) ? 1.0 : 0.0;
+  if (flash > 0.5 && c.y < gy * 0.7) col = mix(col, mix(c1, white, 0.5), 0.45 * (1.0 - c.y / (gy * 0.7)));
+
+  // 雨雲：1/4 解析度，緩緩橫移
+  if (c.y < gy * 0.6) {
+    float2 q = floor(c / 4.0);
+    float cl = sin(q.x * 0.19 + t * 0.12 + sin(q.y * 0.45 + t * 0.05) * 1.6) + sin(q.x * 0.07 - t * 0.08 + q.y * 0.33);
+    float ca = (cl - 0.6) * 0.5 * (1.0 - c.y / (gy * 0.6));
+    if (dith(ca, c)) col = mix(col, flash > 0.5 ? mix(c1, white, 0.6) : mix(c0, c1, 0.3), 0.55);
+  }
+
+  // 遠方電波塔：細長塔身、觀景台、頂端航空燈慢慢閃
+  float tx = floor(G.x * 0.68);
+  float ty = floor(gy * 0.2);
+  half3 farc = mix(c0, c1, 0.15);
+  float tw = 1.0 + (c.y - ty) * 0.035;
+  if (c.y > ty && abs(c.x - tx) <= tw) col = farc;
+  if (c.y > ty - 10.0 && c.y <= ty && abs(c.x - tx) < 0.5) col = farc;
+  float deck = floor(ty + (gy - ty) * 0.22);
+  if (abs(c.y - deck) < 1.5 && abs(c.x - tx) <= 6.0) col = abs(c.y - deck) < 0.5 && mod(c.x, 2.0) < 1.0 ? mix(c1, c2, 0.3) : farc;
+  if (abs(c.x - tx) < 0.5 && abs(c.y - (ty - 10.0)) < 0.5 && sin(t * 3.14) > 0.3) col = ac;
+
+  // 電線兩條（懸垂曲線），各有一點水光滑過
+  float wu = c.x / G.x * 2.0 - 1.0;
+  float w1 = floor(gy * 0.24 + 9.0 * (1.0 - wu * wu));
+  float w2 = floor(gy * 0.29 + 6.0 * (1.0 - wu * wu) + wu * 5.0);
+  if (abs(c.y - w1) < 0.5 || abs(c.y - w2) < 0.5) col = col * 0.5;
+  if (abs(c.y - w1 - 1.0) < 0.5 && abs(c.x - floor(mod(t * 9.0, G.x + 60.0) - 30.0)) < 0.5) col = c2;
+  if (abs(c.y - w2 - 1.0) < 0.5 && abs(c.x - floor(G.x + 30.0 - mod(t * 7.0, G.x + 60.0))) < 0.5) col = c2;
+
+  // ── 遠景大樓：窄塊、偏淡、零星小窗
+  float fb = floor(c.x / 10.0);
+  float fh = gy - floor(gy * (0.22 + 0.3 * hash1(fb * 1.7 + 3.0)));
+  if (c.y >= fh) {
+    col = farc;
+    float fl = c.x - fb * 10.0;
+    if (fl > 0.5 && fl < 8.5 && mod(c.x, 3.0) < 1.0 && abs(mod(c.y - fh, 4.0) - 2.0) < 0.5 && hash2(c * 0.71 + 3.0) < 0.14) col = mix(col, c1, 0.7);
+  }
+
+  // 最遠的一排樓（更淡、更矮），被遠景樓擋住，天際線更有層次
+  float vb = floor((c.x + 4.0) / 6.0);
+  if (c.y >= gy - floor(gy * (0.12 + 0.12 * hash1(vb * 2.3))) && c.y < fh) col = mix(col, farc, 0.5);
+
+  // 高架電車：一列亮著車窗的電車從右往左駛過遠方的高架
+  float ry = floor(gy * 0.66);
+  if (abs(c.y - ry) < 0.6) col = mix(farc, bg, 0.3);
+  if (c.y > ry && mod(c.x, 30.0) < 1.5) col = mix(farc, bg, 0.3);
+  float trx = G.x + 40.0 - mod(t * 16.0, G.x + 160.0);
+  float tl = c.x - trx;
+  if (tl > 0.0 && tl < 84.0 && c.y >= ry - 5.0 && c.y < ry) {
+    col = mod(tl, 21.0) < 1.0 ? bg : mix(c0, c1, 0.5);
+    if (c.y >= ry - 4.0 && c.y < ry - 2.0 && mod(tl, 21.0) > 2.0 && mod(tl, 4.0) < 2.5) col = warm;
+    if (tl < 2.0 && c.y == ry - 3.0) col = white;
+  }
+
+  // 遠層雨（慢、淡），被中景蓋住 = 視差
+  float fr = rain(c, t, 85.0, 0.16, 5.0, 3.0);
+  if (fr > 0.0) col = mix(col, c1, 0.1 + 0.35 * fr);
+
+  // ── 中景大樓：寬塊、暗，亮窗各自隔一陣子開關
+  float nx = c.x + 7.0;
+  float nb = floor(nx / 26.0);
+  float bl = nx - nb * 26.0;
+  float nh = gy - floor(gy * (0.1 + 0.38 * hash1(nb * 3.1 + 9.0)));
+  if (bl > 1.5 && c.y >= nh) {
+    col = mix(bg, c0, 0.55);
+    if (bl < 3.5) col = mix(col, c1, 0.25);
+    if (c.y < nh + 1.0) col = mix(col, c1, 0.35);
+    float wy = c.y - nh - 3.0;
+    float ix = floor((bl - 5.0) / 5.0);
+    float iy = floor(wy / 6.0);
+    float mx = bl - 5.0 - ix * 5.0;
+    float my = wy - iy * 6.0;
+    if (bl >= 5.0 && bl < 23.0 && wy >= 0.0 && mx < 3.0 && my < 3.0) {
+      float2 id = float2(ix + nb * 7.0, iy);
+      float per = 7.0 + hash2(id + 4.0) * 9.0;
+      float on = hash3(float3(id, floor(t / per + hash2(id))));
+      if (on < 0.32) {
+        col = hash2(id + 7.0) < 0.5 ? warm * 0.75 : mix(c1, c2, 0.3);
+        if (my > 1.5) col = col * 0.75;
+      } else {
+        col = mix(bg, c0, 0.8);
+      }
+    }
+    // 冷氣機：窗戶旁邊的小方塊，底下一格暗影
+    if (bl >= 21.0 && bl < 24.0 && wy >= 0.0 && my >= 3.0 && my < 5.0 && hash2(float2(nb, iy) + 11.0) < 0.5) col = my < 4.0 ? mix(c0, c1, 0.5) : mix(bg, c0, 0.3);
+    // 逃生梯：每層一條橫桿，斜的樓梯
+    if (hash1(nb + 0.3) < 0.4 && bl >= 5.0 && bl < 23.0 && wy > 0.0) {
+      if (my == 5.0) col = mix(c0, c1, 0.45);
+      if (abs((bl - 5.0) - mod(wy, 6.0) * 3.0) < 0.6 && my < 5.0) col = mix(c0, c1, 0.35);
+    }
+  }
+  // 屋頂：水塔（木桶加支架）或天線
+  if (bl > 1.5) {
+    float rt = c.y - nh;
+    float wt = hash1(nb + 0.7);
+    if (wt < 0.45 && bl > 15.0 && bl < 22.0 && rt < 0.0 && rt >= -8.0) col = rt < -3.0 ? (mod(bl, 2.0) < 1.0 ? mix(c0, warm, 0.15) : mix(bg, c0, 0.7)) : (abs(bl - 16.0) < 0.6 || abs(bl - 21.0) < 0.6 ? mix(bg, c0, 0.7) : col);
+    if (wt >= 0.45 && wt < 0.8 && abs(bl - 8.0) < 0.6 && rt < 0.0 && rt > -12.0) col = mix(bg, c0, 0.8);
+    if (wt >= 0.45 && wt < 0.8 && abs(bl - 8.0) < 0.6 && abs(rt + 12.0) < 0.6 && mod(t + nb * 0.37, 1.6) < 0.6) col = ac;
+  }
+  // LED 跑馬燈：中景一棟樓的側面，一排點陣字從右往左捲
+  float lbx = floor(G.x * 0.3);
+  float lby = floor(gy * 0.52);
+  float2 ll = c - float2(lbx, lby);
+  if (ll.x >= 0.0 && ll.x < 34.0 && ll.y >= 0.0 && ll.y < 9.0) {
+    col = mix(bg, c0, 0.25);
+    float2 lg = float2(ll.x - 2.0 + floor(t * 10.0), ll.y - 1.0);
+    float li = floor(lg.x / 6.0);
+    float2 lgl = float2(lg.x - li * 6.0, lg.y);
+    if (ll.x > 1.0 && ll.x < 32.0 && ll.y > 0.0 && ll.y < 8.0 && lgl.x < 5.0 && lgl.y < 6.0 && hash2(float2(li, lgl.x * 7.0 + lgl.y)) < 0.42) col = mix(c2, white, 0.2);
+    if (ll.y < 1.0 || ll.y > 7.0) col = mix(c0, c1, 0.4);
+  }
+
+  // 直式霓虹招牌兩塊，慢慢呼吸
+  float2 o1 = float2(floor(G.x * 0.07), floor(gy * 0.40));
+  float2 o2 = float2(floor(G.x * 0.86), floor(gy * 0.30));
+  float pu1 = sin(t * 0.9) > -0.5 ? 1.0 : 0.45;
+  float pu2 = sin(t * 0.7 + 2.0) > -0.6 ? 1.0 : 0.45;
+  float2 e1 = max(abs(c - o1 - float2(4.0, 23.0)) - float2(4.0, 23.0), 0.0);
+  float2 e2 = max(abs(c - o2 - float2(4.0, 17.5)) - float2(4.0, 17.5), 0.0);
+  float h1 = max(e1.x, e1.y);
+  float h2 = max(e2.x, e2.y);
+  if (h1 > 0.0 && h1 < 5.0 && dith(0.4 * (1.0 - h1 / 5.0) * pu1, c)) col = mix(col, ac, 0.35);
+  if (h2 > 0.0 && h2 < 5.0 && dith(0.4 * (1.0 - h2 / 5.0) * pu2, c)) col = mix(col, c2, 0.35);
+  half3 board = mix(bg, c0, 0.3) * 0.8;
+  float v1 = vsign(c, o1, 4.0, 5.0);
+  if (v1 > 0.5) col = v1 > 2.5 ? mix(board, ac, 0.6 * pu1) : v1 > 1.5 ? mix(board, mix(ac, white, 0.3), pu1) : board;
+  float v2 = vsign(c, o2, 3.0, 9.0);
+  if (v2 > 0.5) col = v2 > 2.5 ? mix(board, c2, 0.6 * pu2) : v2 > 1.5 ? mix(board, mix(c2, white, 0.3), pu2) : board;
+
+  // 地面薄霧：慢慢橫飄
+  float fz = (c.y - (gy - 26.0)) / 26.0;
+  if (fz > 0.0 && c.y < gy) {
+    float fa = fz * (0.45 + 0.25 * sin(c.x * 0.07 + t * 0.4 + floor(c.y / 3.0)));
+    if (dith(fa, c)) col = mix(col, c1, 0.3);
+  }
+
+  // ── 濕馬路：水窪、倒影、漣漪、攤子的暖光
+  if (c.y >= gy) {
+    float gd = (c.y - gy) / max(G.y - gy, 1.0);
+    col = ramp(mix(c0, c1, 0.35), mix(bg, c0, 0.6), bg, band(gd, c, 4.0));
+    if (c.y < gy + 1.0) col = mix(c0, c1, 0.6);
+    float2 pc = floor(float2(c.x / 36.0, (c.y - gy) / 12.0));
+    float2 pctr = float2(pc.x * 36.0 + 18.0 + (hash2(pc) - 0.5) * 14.0, gy + pc.y * 12.0 + 6.0);
+    float2 pe = (c - pctr) / float2(8.0 + hash2(pc + 3.0) * 9.0, 3.0 + hash2(pc + 5.0) * 1.5);
+    bool pud = dot(pe, pe) < 1.0 && hash2(pc + 9.0) < 0.7;
+    if (pud) col = mix(col, bg, 0.5);
+    // 倒影：以地面為鏡，水波讓 x 左右抖
+    float rip = floor(sin(c.y * 0.9 + t * 1.6) * (pud ? 1.6 : 0.8) + 0.5);
+    half4 e = stallGlow(float2(d.x + rip, -d.y), W, glitch, sw, c2, ac, warm);
+    float fade = (pud ? 0.75 : 0.35) * (1.0 - clamp(d.y / 110.0, 0.0, 1.0));
+    if (!pud && mod(c.y, 2.0) > 0.5) fade = fade * 0.5;
+    if (e.a > 0.0 && dith(fade * e.a, c)) col = mix(col, e.rgb, pud ? 0.7 : 0.5);
+    // 攤子前的暖光
+    float wa = (1.0 - d.y / 16.0) * 0.5 * clamp((W + 8.0 - abs(d.x)) / 14.0, 0.0, 1.0);
+    if (dith(wa, c)) col = mix(col, warm, 0.25);
+    // 雨點打在水窪的漣漪
+    if (pud) {
+      float2 rc = floor(float2(c.x / 9.0, (c.y - gy) / 5.0));
+      float ru = fract(t * 0.7 + hash2(rc + 1.3));
+      float2 rr = (c - float2(rc.x * 9.0 + 4.0, gy + rc.y * 5.0 + 2.0)) * float2(1.0, 2.0);
+      if (hash2(rc + 2.7) < 0.5 && ru < 0.7 && abs(length(rr) - ru * 6.0) < 0.6) col = mix(col, mix(c1, white, 0.3), 0.6 * (1.0 - ru));
+    }
+  }
+
+  // ── 拉麵攤
+  if (abs(d.x) < 80.0 && d.y > -99.0 && d.y < 0.0) {
+    half3 wood = mix(c0, warm * 0.35, 0.35);
+    half3 dark = mix(bg, c0, 0.4);
+
+    // 招牌：光暈、底板、外框管、碗與筷子、三個字（中間那個會故障）
+    float2 sa = abs(d - float2(0.0, -83.0));
+    float sdist = max(sa.x - 34.0, sa.y - 9.0);
+    if (sdist > 0.0 && sdist < 6.0 && dith(0.42 * (1.0 - sdist / 6.0) * (1.0 - glitch * 0.5), c)) col = mix(col, c2, 0.4);
+    if (sdist <= 0.0) {
+      col = mix(bg, c0, 0.35) * 0.7;
+      if (abs(sdist + 2.0) < 0.5) col = ac;
+      float2 bd = d - float2(-21.0, -84.0);
+      float br = dot(bd, bd);
+      if (bd.y >= 0.0 && ((br <= 44.0 && br >= 26.0) || (bd.y < 0.5 && abs(bd.x) <= 7.0))) col = c2;
+      if (segd(d, float2(-28.0, -88.0), float2(-17.0, -85.0)) < 0.55 || segd(d, float2(-25.0, -89.0), float2(-14.0, -86.0)) < 0.55) col = c2;
+      for (int i = 0; i < 3; i++) {
+        float fi = float(i);
+        if (glyph(d - float2(-8.0 + fi * 12.0, -88.0), 8.0, 10.0, 31.0 + fi * 7.0)) col = (i == 1 && glitch > 0.5) ? mix(c2, bg, 0.7) : mix(c2, white, 0.25);
+      }
+    }
+    if (d.y > -74.5 && d.y < -71.5 && abs(abs(d.x) - 22.0) < 1.0) col = dark;
+
+    // 店內：暖光往下越亮、碗架、師傅剪影（輕輕點頭）
+    if (abs(d.x) < W - 1.0 && d.y >= -66.0 && d.y < -26.0) {
+      col = ramp(warm * 0.25, warm * 0.6, warm, band((d.y + 66.0) / 40.0, c, 5.0));
+      if (abs(d.y + 44.0) < 0.5) col = wood * 0.7;
+      if (d.y >= -47.0 && d.y < -44.0 && mod(d.x + 3.0, 7.0) < 4.0 && abs(d.x) < W - 6.0) col = mix(white, warm, 0.4);
+      float hb = floor(sin(t * 1.8) * 0.5 + 0.5);
+      float2 hd = d - float2(-6.0, -38.0 + hb);
+      bool head = dot(hd, hd) < 13.0;
+      if (head || (d.y > -35.0 + hb && abs(d.x + 6.0) < 5.0 + (d.y + 35.0) * 0.35)) col = mix(bg, c0, 0.5) * 0.6;
+      if (head && hd.y < -1.5) col = white * 0.85;
+    }
+    // 柱子
+    if (abs(abs(d.x) - (W - 1.0)) < 1.5 && d.y >= -66.0 && d.y < -23.0) col = wood;
+
+    // 暖簾：五片，下緣隨風擺，中央白圈紋
+    if (abs(d.x) <= W - 2.0 && d.y >= -66.0) {
+      float pn = floor((d.x + W - 2.0) / 22.0);
+      float pl = d.x + W - 2.0 - pn * 22.0;
+      float bot = -50.0 + floor(sin(t * 1.2 + pn * 1.3) * 1.5 * pl / 22.0 + 0.5);
+      if (d.y < bot && pl > 0.5) {
+        col = mix(ac * 0.4, ac, band((d.y + 66.0) / 16.0, c, 4.0));
+        float2 nd = float2(pl - 11.0, d.y + 58.0);
+        float nr = dot(nd, nd);
+        if (nr <= 16.0 && nr >= 7.0) col = mix(white, ac, 0.2);
+      }
+    }
+
+    // 屋頂：上緣被招牌照亮
+    if (d.y >= -72.0 && d.y < -66.0 && abs(d.x) <= W + 4.0 + (d.y + 72.0)) col = d.y < -71.0 ? mix(c1, c2, 0.25) : wood * (d.y > -67.5 ? 0.6 : 1.0);
+
+    // 櫃台與車身
+    if (abs(d.x) <= W + 3.0 && d.y >= -26.0 && d.y < -22.0) col = d.y < -25.0 ? mix(warm, white, 0.2) : wood;
+    if (abs(d.x) <= W - 1.0 && d.y >= -22.0 && d.y < -1.0) {
+      col = d.y < -20.0 ? wood * 0.8 : wood * 0.55;
+      if (mod(d.x + W, 8.0) < 1.0) col = col * 0.7;
+      if (d.y >= -18.0 && d.y < -16.0) col = ac * 0.7;
+    }
+    // 湯鍋（蒸氣從這裡冒）
+    float2 pd = d - float2(30.0, -30.0);
+    if (abs(pd.x) <= (pd.y < -3.0 ? 9.0 : 8.0) && pd.y >= -4.0 && pd.y <= 3.0) {
+      col = mix(c1, white, 0.15);
+      if (pd.x < -6.0) col = mix(c1, white, 0.6);
+      if (pd.x > 5.0) col = c1 * 0.6;
+      if (pd.y < -3.0) col = mix(c1, white, 0.45);
+    }
+    // 客人的碗
+    float bx = d.x + 36.0 - 14.0 * clamp(floor((d.x + 43.0) / 14.0), 0.0, 1.0);
+    if (d.y >= -29.0 && d.y <= -27.0 && abs(bx) <= 4.0 - (d.y + 29.0)) col = d.y < -28.5 ? white * 0.9 : d.y < -27.5 ? ac : white * 0.7;
+    // 車輪
+    float2 wd = float2(abs(d.x) - (W - 12.0), d.y + 6.0);
+    float wr = length(wd);
+    if (wr < 5.6) col = (wr > 4.2 || wr < 1.2 || abs(wd.x) < 0.5 || abs(wd.y) < 0.5) ? mix(c0, c1, 0.4) : col * 0.6;
+    // 板凳三張
+    float sc = -34.0 + 24.0 * clamp(floor((d.x + 46.0) / 24.0), 0.0, 2.0);
+    float sd = d.x - sc;
+    if (abs(sd) <= 4.0 && d.y >= -13.0 && d.y < -11.0) col = d.y < -12.5 ? mix(ac, white, 0.3) : ac * 0.7;
+    if ((abs(sd) < 0.5 && d.y >= -11.0) || (abs(sd) <= 2.0 && abs(d.y + 4.0) < 0.5)) col = dark;
+
+    // 紅燈籠兩顆：掛在屋簷兩角，一起擺
+    float side = d.x < 0.0 ? -1.0 : 1.0;
+    if (d.y >= -66.0 && d.y < -57.0 && abs(d.x - side * 67.0 - floor(sw * (d.y + 66.0) / 8.0 + 0.5)) < 0.5) col = dark;
+    float2 ld = d - float2(side * 67.0 + sw, -50.0);
+    float2 le = ld / float2(5.5, 7.5);
+    float lr = dot(le, le);
+    if (lr >= 1.0 && lr < 2.6 && dith(0.35 * (2.6 - lr) / 1.6, c)) col = mix(col, ac, 0.35);
+    if (lr < 1.0) {
+      col = ramp(ac * 0.45, ac, mix(ac, white, 0.55), band(1.0 - lr, c, 4.0));
+      if (mod(ld.y, 3.0) < 1.0 && lr > 0.15) col = col * 0.75;
+      if (abs(ld.y) > 6.0) col = dark;
+    }
+    if (abs(ld.x) < 0.5 && ld.y > 7.5 && ld.y < 10.5) col = ac * 0.6;
+  }
+
+  // ── 蒸氣：8 團從湯鍋往上飄，越高越大越淡，被風吹向左
+  if (d.x > -24.0 && d.x < 58.0 && d.y > -128.0 && d.y < -26.0) {
+    float sa2 = 0.0;
+    for (int i = 0; i < 5; i++) {
+      float fi = float(i);
+      float k = t * 0.2 + fi / 5.0;
+      float u = fract(k);
+      float sh = hash1(floor(k) * 5.0 + fi);
+      float2 sp = float2(30.0 + (sh - 0.5) * 8.0 + sin(u * 5.0 + sh * 6.28 + t * 0.5) * (1.0 + u * 5.0) - u * u * 22.0, -34.0 - u * 80.0);
+      float r = 2.5 + u * 8.0;
+      float2 dv = d - sp;
+      float f = 1.0 - dot(dv, dv) / (r * r);
+      if (f > 0.0) sa2 += f * min(u * 6.0, 1.0) * (1.0 - u);
+    }
+    sa2 = min(sa2, 1.0);
+    if (dith(sa2 * 1.1, c)) {
+      half3 st = mix(mix(white, c1, 0.25), warm, clamp((d.y + 50.0) / 20.0, 0.0, 1.0) * 0.5);
+      col = mix(col, st, sa2 > 0.55 ? 0.85 : 0.5);
+    }
+  }
+
+  // 屋簷滴水：每 9 格一條，加速落下
+  if (abs(d.x) < 68.0 && d.y > -66.0 && d.y < 0.0) {
+    float dc = floor(d.x / 9.0);
+    if (abs(d.x - dc * 9.0 - floor(hash1(dc + 40.0) * 8.0)) < 0.5) {
+      float du = fract(t / (1.6 + hash1(dc + 41.0) * 1.8) + hash1(dc + 42.0));
+      float dyp = -66.0 + du * du * 75.0;
+      if (abs(d.y - dyp) < 1.0 + du * 2.0 && dyp < 0.0) col = mix(col, mix(c1, white, 0.5), 0.8);
+    }
+  }
+
+  // 屋頂上的貓：坐著，尾巴左右甩
+  float2 ct = d - float2(-40.0, -73.0);
+  if (abs(ct.x) < 6.0 && ct.y > -9.0 && ct.y < 1.0) {
+    bool catb = (ct.x * ct.x) / 9.0 + ((ct.y + 2.5) * (ct.y + 2.5)) / 9.0 < 1.0;
+    bool cath = (ct.x - 1.0) * (ct.x - 1.0) + (ct.y + 6.5) * (ct.y + 6.5) < 4.0;
+    bool ears = ct.y < -8.0 && (abs(ct.x - 0.0) < 0.6 || abs(ct.x - 2.0) < 0.6);
+    float tw2 = floor(abs(mod(t * 1.4, 4.0) - 2.0) * 2.0 - 1.5);   // 三角波：尾巴左右甩
+    bool tail = ct.x < -2.0 && ct.x > -6.0 && abs(ct.y - (-1.0 - (ct.x + 2.0) * 0.3 * tw2)) < 0.6;
+    if (catb || cath || ears || tail) col = hx(0x0a0a14);
+    if (cath && abs(ct.y + 6.5) < 0.6 && abs(ct.x - 2.0) < 0.6 && mod(t, 5.0) < 4.8) col = c2;
+  }
+
+  // ── 前景雨（快、亮），靠近招牌的雨絲染上霓虹色
+  float nrn = rain(c, t, 150.0, 0.12, 9.0, 7.0);
+  if (nrn > 0.0) {
+    float tint = clamp(1.0 - length(d - float2(0.0, -83.0)) / 80.0, 0.0, 1.0);
+    half3 rcol = mix(mix(c1, white, 0.35), c2, band(tint, c, 4.0));
+    col = mix(col, rcol, 0.25 + 0.5 * nrn);
+  }
+  return half4(col, 1.0);
+}

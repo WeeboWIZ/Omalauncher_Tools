@@ -1,0 +1,182 @@
+// name: KAIJU TOKYO 特攝片場
+// mascot: ufo
+// tag: ufopump
+// thumb: 3
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
+// from: UFOPUMP KaijuTokyo.ts — 特攝片場的東京：五組配色各是一幕（黃昏片場、怪獸警報、大樓攻防、英雄登場、高空決戰）。
+//       軟膠玩具角色由小工具的 Canvas 疊在上面（60-kaiju.actors.json），這裡畫天空、大樓、鐵塔、電車、探照燈、火光。
+void palette(float z, out half3 bg, out half3 c0, out half3 c1, out half3 c2, out half3 ac) {
+  if (z < 0.5)      { bg = hx(0x4a2a6a); c0 = hx(0xc0486a); c1 = hx(0xf08a4a); c2 = hx(0xffd87a); ac = hx(0xff3a2a); }
+  else if (z < 1.5) { bg = hx(0x0a0a2a); c0 = hx(0x1a2a6a); c1 = hx(0x3a5ab0); c2 = hx(0xa8d8ff); ac = hx(0xff2a3a); }
+  else if (z < 2.5) { bg = hx(0x2a6ac8); c0 = hx(0x5a9ae8); c1 = hx(0x9accf4); c2 = hx(0xf0faff); ac = hx(0xffb82a); }
+  else if (z < 3.5) { bg = hx(0x7a1430); c0 = hx(0xd8403a); c1 = hx(0xff8a3a); c2 = hx(0xfff0a0); ac = hx(0x3af0c0); }
+  else              { bg = hx(0x05041a); c0 = hx(0x2a1a6a); c1 = hx(0x6a3ac0); c2 = hx(0xff8ad0); ac = hx(0x5ff0ff); }
+}
+
+// 一層大樓：x 切成寬 slot 的欄位，每欄一棟；回傳 (在樓內?, 樓內 x, 樓寬, 欄位編號)
+float4 tower(float x, float slot, float minW, float maxW, float seed) {
+  float id = floor(x / slot);
+  float w = floor(minW + hash1(id * 3.1 + seed) * (maxW - minW + 1.0));
+  float x0 = floor(hash1(id * 7.7 + seed) * (slot - w));
+  float lx = x - id * slot - x0;
+  return float4(lx >= 0.0 && lx < w ? 1.0 : 0.0, lx, w, id);
+}
+
+half4 main(float2 p) {
+  float s = PX();
+  float2 c = floor(p / s);
+  float2 G = floor(size / s);
+  float t = time * max(speed, 0.0);
+  half3 bg; half3 c0; half3 c1; half3 c2; half3 ac;
+  palette(zone, bg, c0, c1, c2, ac);
+  half3 ink = hx(0x120c26);
+  float v = c.y / G.y;           // 0 天頂 → 1 地面
+  float2 q = floor(c / 4.0);
+  half3 col;
+
+  // ── 天空：bg 是天頂，三段色往下到地平線 ──
+  if (zone > 3.5) {
+    col = mix(bg, c0, band(v * 0.8, q, 5.0));
+  } else if (zone > 2.5) {
+    // 英雄登場：從地平線放射出來的紅橘光芒，慢慢轉
+    float2 o = float2(G.x * 0.5, G.y * 0.95);
+    float ang = atan(c.x - o.x, o.y - c.y);
+    float ray = step(0.5, fract(ang * 3.0 + t * 0.05));
+    col = ramp(bg, c0, c1, band(v * 0.9, q, 5.0));
+    if (ray > 0.5) col = mix(col, c1, 0.35);
+  } else {
+    col = ramp(bg, c0, c1, band(clamp(v * 1.15, 0.0, 1.0), q, 5.0));
+  }
+  if (zone < 0.5) {
+    // 黃昏：切成橫條的夕陽
+    float2 so = float2(G.x * 0.7, G.y * 0.5);
+    float2 d = c - so;
+    if (dot(d, d) < 26.0 * 26.0 && mod(c.y - so.y + 40.0, 6.0) < 4.0 - max(0.0, d.y) / 9.0) col = mix(c2, hx(0xffffff), 0.25);
+  }
+  if (zone > 0.5 && zone < 1.5 || zone > 3.5) {
+    // 夜空與高空：星星（格子分桶）
+    float2 sc = floor(c / 7.0);
+    float2 sp = sc * 7.0 + floor(float2(hash2(sc), hash2(sc + 1.7)) * 6.0);
+    if (all(equal(c, sp)) && hash2(sc + 3.1) < 0.45 && v < 0.6) col = mix(col, c2, 0.5 + 0.5 * sin(t * 1.3 + hash2(sc) * 9.0));
+  }
+  if (zone > 1.5 && zone < 2.5) {
+    // 白天：飄過的雲
+    float cx = mod(c.x + t * 3.0, G.x + 60.0) - 30.0;
+    float2 cl = float2(cx - G.x * 0.3, c.y - G.y * 0.16);
+    if (dot(cl * float2(0.18, 0.45), cl * float2(0.18, 0.45)) < 4.0 && cl.y < 3.0) col = cl.y > 1.0 ? mix(c1, c2, 0.5) : c2;
+  }
+  if (zone > 0.5 && zone < 1.5) {
+    // 警報：兩道探照燈從底下掃
+    for (int i = 0; i < 2; i++) {
+      float fi = float(i);
+      float2 base = float2(G.x * (0.25 + 0.5 * fi), G.y + 2.0);
+      float ang = sin(t * (0.35 + 0.1 * fi) + fi * 2.4) * 0.55;
+      float2 dir = float2(sin(ang), -cos(ang));
+      float2 rel = c - base;
+      float along = dot(rel, dir);
+      float perp = abs(rel.x * dir.y - rel.y * dir.x);
+      if (along > 0.0 && perp < 1.5 + along * 0.07 && dith(0.5 * (1.0 - along / G.y), c)) col = mix(col, c2, 0.3);
+    }
+  }
+
+  // ── 遠景：紅白鐵塔、遠景樓 ──
+  float ground = G.y - floor(G.y * 0.08);
+  float tx = G.x * 0.22;
+  float th = G.y * 0.42;
+  float ty = c.y - (ground - th);
+  if (ty > 0.0) {
+    float half_ = 3.0 + ty * 0.13;
+    float dx = abs(c.x - tx);
+    if (dx < half_) {
+      bool edge = dx > half_ - 1.6 || mod(ty + floor(dx), 5.0) < 1.0 || mod(ty - floor(dx), 5.0) < 1.0;
+      if (edge) col = mod(floor(ty / 14.0), 2.0) == 0.0 ? hx(0xe8482a) : hx(0xf4ece0);
+      if (abs(ty - th * 0.38) < 1.5 || abs(ty - th * 0.62) < 1.0) col = hx(0xe8482a);
+    }
+    if (ty < 0.0 + 3.0 && dx < 0.6) col = hx(0xf4ece0);
+  }
+  if (c.y < ground - th + 1.0 && c.y > ground - th - 6.0 && abs(c.x - tx) < 0.6) col = hx(0xc0c8d0);
+  if (abs(c.y - (ground - th - 6.0)) < 1.0 && abs(c.x - tx) < 1.0 && sin(t * 2.5) > 0.0) col = hx(0xff3a2a);
+
+  float4 f = tower(c.x, 13.0, 6.0, 11.0, 5.0);
+  float fh = G.y * (0.22 + hash1(f.w * 1.9) * 0.18);
+  if (f.x > 0.0 && c.y > ground - fh) {
+    col = mix(ink, c0, zone > 1.5 && zone < 2.5 ? 0.45 : 0.22);
+    if (mod(f.y, 3.0) == 1.0 && mod(c.y, 4.0) == 1.0 && hash3(float3(f.w, f.y, floor(c.y / 4.0))) < (zone > 1.5 && zone < 2.5 ? 0.06 : 0.25)) col = mix(c1, c2, 0.6);
+  }
+
+  // ── 高架電車：一列車廂沿著高架橫過 ──
+  float rail = ground - floor(G.y * 0.16);
+  if (abs(c.y - rail) < 0.6) col = mix(ink, c0, 0.4);
+  if (c.y > rail && c.y < ground && mod(c.x, 34.0) < 2.0) col = mix(ink, c0, 0.35);
+  float trainX = mod(t * 18.0, G.x + 120.0) - 100.0;
+  float lx = c.x - trainX;
+  if (lx > 0.0 && lx < 96.0 && c.y > rail - 7.0 && c.y < rail) {
+    col = mod(lx, 24.0) < 1.0 ? ink : mix(mix(c1, c2, 0.5), hx(0x9ad84a), 0.45);
+    if (c.y > rail - 5.0 && c.y < rail - 2.0 && mod(lx, 6.0) > 1.0 && mod(lx, 24.0) > 2.0) col = zone > 0.5 && zone < 1.5 ? hx(0xffe8a0) : mix(c2, hx(0xffffff), 0.4);
+  }
+
+  // ── 中景樓：窗、招牌（警報時一起明滅）、被咬出來的破洞與火 ──
+  float4 m = tower(c.x + 9.0, 30.0, 14.0, 22.0, 2.0);
+  float mh = G.y * (0.12 + hash1(m.w * 2.3) * 0.16);
+  if (m.x > 0.0 && c.y > ground - mh) {
+    float my = c.y - (ground - mh);
+    col = mix(ink, c0, zone > 1.5 && zone < 2.5 ? 0.85 : 0.62);
+    if (m.y < 1.0) col = mix(c0, c1, 0.6);
+    if (my < 1.0) col = mix(c0, c2, 0.4);
+    if (mod(m.y, 3.0) != 0.0 && mod(my, 5.0) > 1.0 && mod(my, 5.0) < 4.0 && m.y > 1.0 && m.y < m.z - 1.0) {
+      float h = hash3(float3(m.w, floor(m.y / 3.0), floor(my / 5.0)));
+      if (h < 0.3) col = zone > 1.5 && zone < 2.5 ? mix(c0, c2, 0.5) : mix(c1, c2, 0.7);
+    }
+    // 招牌：每棟一塊，警報區跟著警報明滅
+    if (hash1(m.w + 0.4) < 0.5 && my > 4.0 && my < 10.0 && m.y > 2.0 && m.y < m.z - 2.0) {
+      bool alarm = zone > 0.5 && zone < 1.5;
+      col = alarm && sin(t * 3.1) < 0.0 ? mix(ink, ac, 0.4) : ac;
+      if (mod(m.y + my, 3.0) == 0.0) col = mix(col, hx(0xffffff), 0.5);
+    }
+    // 破洞與火：怪獸警報那一幕才有
+    if (zone > 0.5 && zone < 1.5 && hash1(m.w + 0.8) < 0.5) {
+      float2 hole = float2(m.z * 0.5, mh * 0.35);
+      float2 hd = float2(m.y, my) - hole;
+      float r2 = dot(hd * float2(1.0, 1.3), hd * float2(1.0, 1.3));
+      if (r2 < 16.0) col = ink;
+      float fl = hash3(float3(m.w, floor(t * 6.0), floor(m.y / 2.0)));
+      if (r2 < 30.0 && r2 > 9.0 && hd.y < 1.0 && fl < 0.6) col = fl < 0.25 ? hx(0xffe14a) : hx(0xff7a1a);
+    }
+  }
+  // 煙：從破洞往上飄
+  if (zone > 0.5 && zone < 1.5) {
+    float2 sc = floor(float2(c.x, c.y + t * 5.0) / float2(5.0, 6.0));
+    if (hash2(sc) < 0.12 && v > 0.45 && v < 0.85 && dith(0.4, c)) col = mix(col, hx(0x6a6070), 0.5);
+  }
+
+  // ── 戰鬥機：吊著鋼絲飛過（片場感） ──
+  if (zone > 0.5 && zone < 1.5) {
+    for (int i = 0; i < 2; i++) {
+      float fi = float(i);
+      float jx = mod(t * (22.0 + 8.0 * fi) + fi * 90.0, G.x + 60.0) - 30.0;
+      float jy = floor(G.y * (0.18 + 0.12 * fi));
+      float2 r = c - float2(floor(jx), jy);
+      if (r.y >= 0.0 && r.y < 3.0 && r.x > -8.0 && r.x < 3.0 && !(r.y == 0.0 && r.x > -6.0) && !(r.y == 2.0 && r.x > -2.0)) col = mix(c2, hx(0xffffff), 0.3);
+      if (r.y == 1.0 && r.x == 2.0) col = ac;
+      if (abs(c.x - floor(jx - 3.0)) < 0.6 && c.y < jy) col = mix(col, hx(0xd0d0d0), 0.35);
+    }
+  }
+
+  // ── 近景：兩側貼邊的暗樓 ──
+  float edgeW = floor(max(8.0, G.x * 0.07));
+  float nlx = c.x < edgeW ? edgeW - 1.0 - c.x : c.x > G.x - edgeW - 1.0 ? c.x - (G.x - edgeW) : -1.0;
+  if (nlx >= 0.0 && c.y > G.y * 0.3) {
+    col = mix(ink, c0, 0.18);
+    if (nlx == 0.0) col = mix(ink, c1, 0.35);
+    if (nlx > 1.0 && mod(nlx, 3.0) == 0.0 && mod(c.y, 6.0) == 2.0 && hash2(float2(nlx, floor(c.y / 6.0))) < 0.3) col = mix(c1, c2, 0.5);
+  }
+
+  // ── 地面：片場的微縮街道 ──
+  if (c.y >= ground) {
+    col = mix(ink, c0, 0.25);
+    if (c.y == ground) col = mix(ink, c1, 0.5);
+    if (mod(c.x + floor(c.y) * 2.0, 12.0) < 1.0) col = mix(ink, c0, 0.4);
+  }
+  return half4(col, 1.0);
+}

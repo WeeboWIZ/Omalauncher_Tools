@@ -1,0 +1,116 @@
+// name: STAR LAND 粉彩星島
+// mascot: star
+// tag: ufopump
+// thumb: 1
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
+// from: UFOPUMP StarLand.ts — 粉彩波浪天空、圓滾滾的雲、浮空島和小瀑布、四角星、泡泡
+void palette(float z, out half3 bg, out half3 c0, out half3 c1, out half3 c2, out half3 ac) {
+  if (z < 0.5)      { bg = hx(0x8fe0c0); c0 = hx(0x52bd9c); c1 = hx(0xb8f0d8); c2 = hx(0xf4fff8); ac = hx(0xffb0d8); }
+  else if (z < 1.5) { bg = hx(0xf29ec0); c0 = hx(0xde6f9f); c1 = hx(0xf7b6d2); c2 = hx(0xffeef5); ac = hx(0xfff2a8); }
+  else if (z < 2.5) { bg = hx(0x8fc7f2); c0 = hx(0x5c9be0); c1 = hx(0xb5dcfa); c2 = hx(0xf2fbff); ac = hx(0xffe08a); }
+  else if (z < 3.5) { bg = hx(0xf7b58a); c0 = hx(0xea8a66); c1 = hx(0xfbd0a8); c2 = hx(0xfff6e6); ac = hx(0xff9fc0); }
+  else              { bg = hx(0x8f86d8); c0 = hx(0x5e54b4); c1 = hx(0xb0a8f0); c2 = hx(0xf4f0ff); ac = hx(0xffe46a); }
+}
+
+// 一層雲：x 每 slot 格一朵，三個圓堆成，平底；回傳 0 沒有、1 雲身、2 底部陰影
+float cloud(float2 c, float slot, float yBase, float sp, float seed, float t, float sc) {
+  float x = c.x + t * sp;
+  float id = floor(x / slot);
+  float lx = x - id * slot - slot * 0.5;
+  float cy = yBase + floor(hash1(id + seed) * 30.0 - 15.0) + floor(sin(t * 0.5 + id) * 1.5);
+  float r = floor((7.0 + hash1(id * 2.3 + seed) * 5.0) * sc);
+  float2 d = float2(lx, c.y - cy);
+  if (d.y > r * 0.35) return 0.0;
+  bool in1 = length(d) < r;
+  bool in4 = length(d - float2(r * 0.35, -r * 0.55)) < r * 0.8;
+  bool in2 = length(d - float2(-r * 0.9, r * 0.25)) < r * 0.7;
+  bool in3 = length(d - float2(r * 0.95, r * 0.2)) < r * 0.62;
+  if (!(in1 || in2 || in3 || in4)) return 0.0;
+  return d.y > r * 0.35 - 1.5 ? 2.0 : 1.0;
+}
+
+half4 main(float2 p) {
+  float s = PX();
+  float2 c = floor(p / s);
+  float2 G = floor(size / s);
+  float t = time * max(speed, 0.0);
+  half3 bg; half3 c0; half3 c1; half3 c2; half3 ac;
+  palette(zone, bg, c0, c1, c2, ac);
+
+  // 大塊的波浪色帶：上淺下深，整體壓在中間明度
+  float2 q = floor(c / 2.0);
+  float w = c.y / G.y + 0.05 * sin(c.x * 0.045 + t * 0.35) + 0.03 * sin(c.x * 0.11 - t * 0.2);
+  float b = band(clamp(w, 0.0, 1.0), q, 5.0);
+  half3 col = ramp(c1, bg, c0, b);
+
+  // 四角星：小中大輪流閃
+  float2 cell = floor(c / 22.0);
+  float2 sp = cell * 22.0 + floor(float2(hash2(cell), hash2(cell + 3.3)) * 18.0) + 2.0;
+  float2 d = abs(c - sp);
+  float ph = mod(t * 0.7 + hash2(cell) * 3.0, 3.0);
+  float r = floor(ph);
+  if (hash2(cell + 7.0) < 0.3 && ((d.x < 0.5 && d.y <= r) || (d.y < 0.5 && d.x <= r))) col = hash2(cell + 1.0) < 0.5 ? c2 : ac;
+
+  // 遠層雲（慢）
+  float k = cloud(c, 70.0, G.y * 0.32, 2.0, 1.0, t, 0.8);
+  if (k > 0.0) col = k > 1.5 ? mix(c1, bg, 0.5) : mix(c1, c2, 0.5);
+
+  // 浮空島：扇貝邊草皮＋倒三角土塊＋圓樹＋小瀑布，緩慢上下浮動
+  for (int i = 0; i < 2; i++) {
+    float fi = float(i);
+    float2 ic = float2(floor(G.x * (0.3 + 0.42 * fi)), floor(G.y * (0.5 + 0.17 * fi) + sin(t * 0.6 + fi * 2.0) * 2.0));
+    float hw = 26.0 - fi * 8.0;
+    float2 l = c - ic;
+    // 土塊：倒三角
+    if (l.y >= 0.0 && abs(l.x) < hw * (1.0 - l.y / (hw * 0.9))) col = mod(l.x + l.y, 5.0) == 0.0 ? mix(c0, bg, 0.3) : mix(c0, half3(0.25, 0.15, 0.2), 0.35);
+    // 草皮：上緣扇貝邊
+    float scal = floor(abs(sin(l.x * 0.5)) * 2.0);
+    if (abs(l.x) <= hw && l.y < 0.0 && l.y >= -3.0 - scal) col = l.y < -2.0 - scal + 1.0 ? mix(hx(0x8ee08a), c2, 0.3) : hx(0x5cbf6a);
+    // 圓樹
+    float2 tr = l - float2(-hw * 0.4, -12.0);
+    if (length(tr) < 7.0) col = tr.y < -1.0 && tr.x < 0.0 ? hx(0x9ff0a0) : hx(0x6fd07a);
+    if (abs(l.x + hw * 0.4) < 1.0 && l.y > -7.0 && l.y < -3.0) col = hx(0x8a5a5a);
+    // 小花
+    if (abs(l.x) < hw - 1.0 && l.y == -4.0 - scal && mod(l.x, 7.0) == 3.0) col = ac;
+    // 瀑布：從島邊往下流
+    float wx = l.x - (hw * 0.5);
+    if (wx >= 0.0 && wx < 2.0 && l.y > 0.0 && l.y < 26.0) {
+      if (mod(l.y - floor(t * 8.0) + wx * 2.0, 4.0) < 2.0) col = c2; else col = mix(c1, c2, 0.5);
+      if (dith(l.y / 26.0, c)) col = mix(col, ramp(c1, bg, c0, b), 0.7);
+    }
+  }
+
+  // 近層雲（快、較大）
+  float k2 = cloud(c, 95.0, G.y * 0.82, 4.0, 5.0, t, 1.3);
+  if (k2 > 0.0) col = k2 > 1.5 ? c1 : c2;
+
+  // 泡泡：搖晃著往上升，空心圓加一個亮點
+  for (int i = 0; i < 6; i++) {
+    float fi = float(i);
+    float spd = 6.0 + hash1(fi) * 8.0;
+    float by = G.y + 10.0 - mod(t * spd + hash1(fi + 9.0) * G.y, G.y + 20.0);
+    float bx = floor(hash1(fi + 4.0) * G.x + sin(t * 1.3 + fi) * 3.0);
+    float br = 2.0 + floor(hash1(fi + 2.0) * 3.0);
+    float dd = length(c - float2(bx, floor(by)));
+    if (abs(dd - br) < 0.6) col = mix(col, c2, 0.85);
+    if (c.x == bx - 1.0 && c.y == floor(by) - 1.0 && br > 2.5) col = c2;
+  }
+
+  // 流星：一顆星沿拋物線飛過，後面一串逐漸縮小的彩色方塊
+  float n = floor(t / 7.0);
+  float u = (t - n * 7.0) / 2.2;
+  if (u < 1.0) {
+    for (int j = 0; j < 6; j++) {
+      float fj = float(j);
+      float uu = u - fj * 0.035;
+      if (uu > 0.0) {
+        float2 pos = float2(-10.0 + uu * (G.x + 20.0), G.y * (0.12 + hash1(n) * 0.2) + 60.0 * (uu - 0.5) * (uu - 0.5) - 15.0);
+        float2 e = abs(c - floor(pos));
+        float sz = j == 0 ? 2.0 : max(0.0, 2.0 - fj * 0.4);
+        if (j == 0 ? (e.x + e.y <= 2.0) : (e.x <= sz * 0.5 && e.y <= sz * 0.5)) col = j == 0 ? hx(0xfff2a8) : mix(ac, c2, fj / 6.0);
+      }
+    }
+  }
+  return half4(col, 1.0);
+}

@@ -1,0 +1,123 @@
+// name: ACID FOREST 螢光森林
+// mascot: firefly
+// tag: ufopump
+// thumb: 2
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
+// from: UFOPUMP AcidForest.ts — 年輪波紋天空、巨樹樹幹、發光蕈類、擺動藤蔓、孢子、8 字螢火蟲、會眨的眼睛
+void palette(float z, out half3 bg, out half3 c0, out half3 c1, out half3 c2, out half3 ac) {
+  if (z < 0.5)      { bg = hx(0x061226); c0 = hx(0x123a6a); c1 = hx(0x1fb0b8); c2 = hx(0x7dffe0); ac = hx(0xffd84a); }
+  else if (z < 1.5) { bg = hx(0x06140c); c0 = hx(0x12402a); c1 = hx(0x2f9a4a); c2 = hx(0xb6ff5a); ac = hx(0xff7ad0); }
+  else if (z < 2.5) { bg = hx(0x180828); c0 = hx(0x4a1470); c1 = hx(0xb030c8); c2 = hx(0xff8af0); ac = hx(0x8dff5a); }
+  else if (z < 3.5) { bg = hx(0x1e1004); c0 = hx(0x6a3a0c); c1 = hx(0xe08a1a); c2 = hx(0xffe86a); ac = hx(0x4af0d0); }
+  else              { bg = hx(0x0c0522); c0 = hx(0x2a1a80); c1 = hx(0x7a4aff); c2 = hx(0x9ff8ff); ac = hx(0xff4f9a); }
+}
+
+half4 main(float2 p) {
+  float s = PX();
+  float2 c = floor(p / s);
+  float2 G = floor(size / s);
+  float t = time * max(speed, 0.0);
+  half3 bg; half3 c0; half3 c1; half3 c2; half3 ac;
+  palette(zone, bg, c0, c1, c2, ac);
+  float scroll = floor(t * 3.0); // 慢慢往上飛
+
+  // 天空：以緩慢遊走的點為中心的同心波紋（年輪），再被正弦扭曲
+  float2 q = floor(c / 4.0);
+  float2 ctr = float2(G.x / 8.0 + sin(t * 0.13) * G.x / 14.0, G.y / 9.0 + cos(t * 0.11) * G.y / 16.0);
+  float rr = length(q - ctr) + sin(q.y * 0.25 + t * 0.6) * 1.8 + sin(q.x * 0.3 - t * 0.4) * 1.2;
+  float v = sin(rr * 0.55 - t * 0.9) * 0.5 + 0.5;
+  float k = (v - 0.45) / 0.55;
+  half3 col = bg;
+  if (k > 0.0) { float b = band(k, q, 4.0); col = mix(bg, ramp(c0, c1, c2, b * 0.6), 0.2 + 0.25 * b); }
+
+  // 遠景細樹幹
+  float fy = c.y - floor(t * 1.5);
+  float slot = 34.0;
+  float fid = floor((c.x + 11.0) / slot);
+  float flx = c.x + 11.0 - fid * slot - 10.0 - floor(hash1(fid) * 8.0);
+  float fw = 8.0 + floor(hash1(fid + 2.0) * 6.0);
+  if (flx >= 0.0 && flx < fw) {
+    col = mix(bg, c0, 0.55);
+    if (mod(flx + floor(fy / 9.0), 4.0) == 0.0) col = mix(bg, c0, 0.35);
+    if (flx < 1.0) col = mix(c0, c1, 0.3);
+    if (flx > fw - 3.0 && !dith((flx - fw + 3.0) / 3.0, c)) col = mix(bg, c0, 0.2);
+  }
+
+  // 孢子：小光點搖晃著往上飄
+  float2 sc = floor(float2(c.x, c.y + t * 6.0) / float2(12.0, 16.0));
+  float2 spos = sc * float2(12.0, 16.0) + floor(float2(hash2(sc) * 10.0 + sin(t + hash2(sc) * 6.0) * 2.0, hash2(sc + 1.0) * 14.0));
+  if (hash2(sc + 4.0) < 0.35 && all(equal(float2(c.x, c.y + floor(t * 6.0)), spos))) col = mix(c2, ac, step(0.8, hash2(sc + 5.0)));
+
+  // 藤蔓：兩側巨樹之間的懸垂線，整條擺動；花苞明滅
+  float edgeW = floor(max(18.0, G.x * 0.17));
+  for (int i = 0; i < 3; i++) {
+    float fi = float(i);
+    float y0 = mod(fi * G.y / 3.0 + 20.0 - floor(t * 3.0), G.y + 40.0) - 20.0;
+    float x = (c.x - edgeW) / (G.x - edgeW * 2.0);
+    float sag = 18.0 + fi * 6.0;
+    float vy = y0 + sag * (1.0 - (2.0 * x - 1.0) * (2.0 * x - 1.0)) + sin(t * 0.8 + fi) * 4.0 * sin(x * 3.1416);
+    if (x > 0.0 && x < 1.0 && abs(c.y - floor(vy)) < 1.0) {
+      col = mix(c0, c1, 0.4);
+      if (mod(c.x + fi * 5.0, 13.0) == 0.0) col = sin(t * 1.4 + c.x) > 0.0 ? ac : c1;
+    }
+    // 垂下的鬚
+    if (x > 0.0 && x < 1.0 && mod(c.x + fi * 3.0, 9.0) == 0.0 && c.y > vy && c.y < vy + 3.0 + hash1(c.x + fi) * 8.0) col = mix(c0, c1, 0.3);
+  }
+
+  // 螢火蟲：8 字形路徑，拖短尾跡
+  for (int i = 0; i < 5; i++) {
+    float fi = float(i);
+    for (int j = 0; j < 4; j++) {
+      float tt = t * 0.5 - float(j) * 0.06 + fi * 1.7;
+      float2 fp = float2(G.x * (0.5 + 0.3 * sin(tt + fi)), G.y * (0.3 + 0.12 * fi + 0.06 * sin(2.0 * tt)));
+      if (all(equal(c, floor(fp)))) col = mix(col, j == 0 ? c2 : c1, 1.0 - float(j) * 0.25);
+    }
+  }
+
+  // 兩側巨樹：直向樹皮紋、樹瘤、層架狀蕈類（會呼吸的光）、螢光斑點、暗處眨眼的眼睛
+  float ny = c.y - scroll;
+  float wob = floor(sin(ny * 0.05) * 2.0);
+  bool left = c.x < edgeW + wob;
+  bool right = c.x > G.x - edgeW - 1.0 - wob;
+  if (left || right) {
+    float lx = left ? edgeW + wob - 1.0 - c.x : c.x - (G.x - edgeW - wob);  // 0 = 靠內側的樹皮邊
+    col = mix(c0, bg, 0.15);
+    if (mod(c.x * 3.0 + floor(ny / 14.0) * 2.0, 7.0) < 1.0) col = mix(bg, c0, 0.35);
+    if (lx < 1.0) col = mix(c0, c1, 0.45);
+    if (lx < 3.0 && lx >= 1.0 && !dith(0.5, c)) col = mix(bg, c0, 0.4);
+    // 樹瘤
+    float kid = floor(ny / 40.0);
+    if (length(float2(lx - 6.0 - hash1(kid) * 6.0, mod(ny, 40.0) - 20.0)) < 3.0) col = mix(bg, c0, 0.3);
+    // 螢光斑點
+    if (hash2(floor(float2(c.x, ny) / 2.0)) < 0.008) col = mix(c1, c2, 0.5 + 0.5 * sin(t + c.x));
+    // 眼睛：一對，會眨、左右瞄
+    float eid = floor(ny / 70.0) + (left ? 0.0 : 50.0);
+    float ey = mod(ny, 70.0) - 35.0;
+    float ex = lx - 8.0;
+    float blink = mod(t + hash1(eid) * 5.0, 5.0) < 0.15 ? 1.0 : 0.0;
+    if (hash1(eid + 0.5) < 0.5 && abs(ey) < 1.0 - blink && (abs(ex - 2.0) < 1.5 || abs(ex + 2.0) < 1.5)) {
+      col = hx(0xfff4c0);
+      float look = floor(sin(t * 0.7 + eid) * 1.5);
+      if (ex == 2.0 + look || ex == -2.0 + look) col = bg;
+    }
+  }
+  // 蕈傘：長在樹幹內側邊緣，半圓，光在慢週期呼吸
+  for (int i = 0; i < 2; i++) {
+    float side = i == 0 ? 1.0 : -1.0;
+    float mid = floor((c.y - scroll) / 34.0);
+    float my = mid * 34.0 + 10.0 + floor(hash1(mid + float(i)) * 14.0) + scroll;
+    float mx = i == 0 ? edgeW + floor(sin((my - scroll) * 0.05) * 2.0) : G.x - edgeW - 1.0 - floor(sin((my - scroll) * 0.05) * 2.0);
+    float2 dm = float2(c.x - mx, c.y - my);
+    float rad = 7.0 + floor(hash1(mid * 3.0 + float(i)) * 4.0);
+    if (dm.x * side >= -1.0 && dm.y <= 0.0 && length(float2(dm.x - side * rad * 0.6, dm.y * 1.6)) < rad) {
+      float breath = 0.5 + 0.5 * sin(t * 0.9 + mid);
+      col = mix(c1, ac, breath * 0.8);
+      if (dm.y == 0.0) col = mix(c0, c1, 0.5);
+    }
+  }
+
+  // 地面附近的苔光
+  if (c.y > G.y - 6.0 && dith((c.y - (G.y - 6.0)) / 6.0 * 0.6, c)) col = mix(col, c1, 0.4);
+  return half4(col, 1.0);
+}

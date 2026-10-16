@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
+// ── pixbg 共用標頭（由 pixbg 自動加在每個場景前面）──
+// size（像素）與 time（秒）由啟動器提供。
+uniform float zone;   // 配色組 0..4
+uniform float speed;  // 動畫速度倍率，1 為正常
+uniform float cellpx; // 全螢幕頁滿版時由小工具給：放大後剛好是整數像素的格子大小；0 表示自己算
+// 一個「像素格」在螢幕上的大小：邏輯寬約 216 格，取整數倍，邊緣不會糊
+float PX() { return cellpx > 0.0 ? cellpx : max(2.0, floor(size.x / 216.0)); }
+// 不用 sin 的雜湊（Dave Hoskins）：比 sin 版便宜，在手機 GPU 上也不會因精度出現條紋
+float hash1(float n) { n = fract(n * 0.1031); n *= n + 33.33; n *= n + n; return fract(n); }
+float hash2(float2 p) { float3 q = fract(float3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
+float hash3(float3 p) { p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
+// 2×2 Bayer 抖色（和 UFOPUMP 同一套順序）
+float bayer2(float2 c) {
+  float i = mod(c.x, 2.0) + 2.0 * mod(c.y, 2.0);
+  return i < 0.5 ? 0.0 : i < 1.5 ? 0.5 : i < 2.5 ? 0.75 : 0.25;
+}
+// 0..1 量化成 n 個色階，交界抖色
+float band(float q, float2 c, float n) { return clamp(floor(q * n + bayer2(c)), 0.0, n - 1.0) / (n - 1.0); }
+// 抖色的透明度：a 越大，格子越密
+bool dith(float a, float2 c) { return a > bayer2(c) + 0.125; }
+half3 hx(float v) { return half3(floor(v / 65536.0), mod(floor(v / 256.0), 256.0), mod(v, 256.0)) / 255.0; }
+half3 ramp(half3 a, half3 b, half3 c, float q) { return q < 0.5 ? mix(a, b, q * 2.0) : mix(b, c, q * 2.0 - 1.0); }
+// 線段距離（畫逐格的線）
+float segd(float2 p, float2 a, float2 b) {
+  float2 pa = p - a, ba = b - a;
+  float h = clamp(dot(pa, ba) / max(dot(ba, ba), 0.0001), 0.0, 1.0);
+  return length(pa - ba * h);
+}
+// ── 場景 ──

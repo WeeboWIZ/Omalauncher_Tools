@@ -1,0 +1,124 @@
+// name: ZION HUB 代碼雨
+// mascot: sentinel
+// tag: ufopump
+// thumb: 0
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 WeeboWIZ. Part of Trip View; see LICENSE.
+// from: UFOPUMP ZionHub.ts — 5×7 假字元代碼雨、暗字元牆、兩側導管與資料脈衝、旋轉線框體、掃描線、故障條
+void palette(float z, out half3 bg, out half3 c0, out half3 c1, out half3 c2, out half3 ac) {
+  if (z < 0.5)      { bg = hx(0x010703); c0 = hx(0x063a12); c1 = hx(0x12b83a); c2 = hx(0xb8ffc8); ac = hx(0xff3838); }
+  else if (z < 1.5) { bg = hx(0x01070c); c0 = hx(0x06323a); c1 = hx(0x14b8a8); c2 = hx(0xc0fff4); ac = hx(0xffe14a); }
+  else if (z < 2.5) { bg = hx(0x0c0302); c0 = hx(0x4a1206); c1 = hx(0xe0521a); c2 = hx(0xffd8a0); ac = hx(0xff2040); }
+  else if (z < 3.5) { bg = hx(0x04030c); c0 = hx(0x221a5a); c1 = hx(0x6a5af0); c2 = hx(0xd8d4ff); ac = hx(0x3dff7a); }
+  else              { bg = hx(0x050505); c0 = hx(0x363636); c1 = hx(0xc4c4c4); c2 = hx(0xffffff); ac = hx(0x12e85a); }
+}
+
+// 48 個 5×7 假字元：幾種筆畫隨機組合，像片假名但不是真的字
+bool glyph(float gi, float2 g) {
+  gi = mod(gi, 48.0);
+  bool on = false;
+  if (hash1(gi + 0.11) > 0.5 && g.y == 0.0) on = true;
+  if (hash1(gi + 0.23) > 0.55 && g.y == 3.0 && g.x > 0.0) on = true;
+  if (hash1(gi + 0.37) > 0.6 && g.y == 6.0) on = true;
+  if (hash1(gi + 0.41) > 0.55 && g.x == 0.0 && g.y < 4.0) on = true;
+  if (hash1(gi + 0.53) > 0.45 && g.x == 2.0 && g.y > 0.0) on = true;
+  if (hash1(gi + 0.67) > 0.55 && g.x == 4.0) on = true;
+  if (hash1(gi + 0.79) > 0.6 && abs(4.0 - g.x - g.y * 0.6) < 0.5) on = true;
+  if (hash1(gi + 0.83) > 0.7 && abs(g.x - (g.y - 3.0) * 1.3) < 0.5 && g.y > 2.0) on = true;
+  return on;
+}
+
+half4 main(float2 p) {
+  float s = PX();
+  float2 c = floor(p / s);
+  float2 G = floor(size / s);
+  float t = time * max(speed, 0.0);
+  half3 bg; half3 c0; half3 c1; half3 c2; half3 ac;
+  palette(zone, bg, c0, c1, c2, ac);
+  half3 col = bg;
+
+  // 遠景：一面靜態的暗字元牆，視差較慢
+  float2 wc = float2(c.x, c.y + floor(t * 2.0));
+  float2 wcell = floor(wc / float2(6.0, 9.0));
+  float2 wg = wc - wcell * float2(6.0, 9.0);
+  if (wg.x < 5.0 && wg.y < 7.0 && hash2(wcell) < 0.55 && glyph(floor(hash2(wcell + 3.0) * 48.0), wg)) col = mix(bg, c0, 0.32);
+
+  // 代碼雨：每一行自己的速度與長度，最前面的字最亮，後面漸暗；字元隨機跳動
+  float2 cell = floor(c / float2(6.0, 9.0));
+  float2 g = c - cell * float2(6.0, 9.0);
+  float id = cell.x;
+  float rows = ceil(G.y / 9.0);
+  float spd = 3.0 + hash1(id * 1.37) * 7.0;
+  float len = 6.0 + floor(hash1(id * 2.11) * 14.0);
+  float head = floor(mod(t * spd + hash1(id * 5.3) * 100.0, rows + len + 10.0));
+  float dist = head - cell.y;
+  if (hash1(id * 7.9) < 0.8 && dist >= 0.0 && dist < len && g.x < 5.0 && g.y < 7.0) {
+    float gi = floor(hash2(float2(id, cell.y + floor(t * (dist < 1.0 ? 8.0 : 1.5) + hash2(cell) * 9.0))) * 48.0);
+    if (glyph(gi, g)) {
+      float f = 1.0 - dist / len;
+      col = dist < 1.0 ? c2 : mix(c0, c1, band(f, c, 4.0));
+    }
+  }
+
+  // 兩側成束的導管：固定環、鉚釘、沿導管流動的資料脈衝
+  float pw = floor(max(10.0, G.x * 0.08));
+  float lx = c.x < pw ? c.x : c.x > G.x - pw - 1.0 ? G.x - 1.0 - c.x : -1.0;
+  if (lx >= 0.0) {
+    float py = c.y + floor(t * 4.0);
+    float tube = floor(lx / (pw / 3.0));
+    float tx = lx - tube * (pw / 3.0);
+    float tw = floor(pw / 3.0);
+    if (tx < tw - 1.0) {
+      col = mix(bg, c0, 0.5 + 0.4 * sin(tx / (tw - 1.0) * 3.1416));
+      if (tx < 1.0) col = mix(bg, c0, 0.3);
+      if (mod(py + tube * 11.0, 48.0) < 3.0) {
+        col = mix(c0, c1, 0.35);
+        if (mod(py + tube * 11.0, 48.0) == 1.0 && mod(tx, 3.0) == 1.0) col = mix(c1, c2, 0.5);
+      }
+      float pulse = mod(c.y + t * (30.0 + tube * 12.0) + tube * 37.0 + (c.x < pw ? 0.0 : 50.0), 90.0);
+      if (abs(tx - floor(tw / 2.0) + 0.5) < 1.0 && pulse < 4.0) col = mix(c1, c2, 1.0 - pulse / 4.0);
+    }
+  }
+
+  // 旋轉的線框立方體，線條逐格畫出
+  float2 cc = float2(floor(G.x * 0.5), floor(G.y * 0.4 + sin(t * 0.3) * 6.0));
+  float R = floor(min(G.x, G.y) * 0.13);
+  float a1 = t * 0.4; float a2 = t * 0.27;
+  float ca = cos(a1); float sa = sin(a1); float cb = cos(a2); float sb = sin(a2);
+  float hit = 0.0;
+  // 只有立方體附近的格子才逐邊計算，其他像素直接跳過
+  if (length(c - cc) < R * 2.0) {
+  for (int e = 0; e < 12; e++) {
+    float fe = float(e);
+    // 第 e 條邊的兩端（立方體 12 條邊：沿 x、y、z 各 4 條）
+    float axis = floor(fe / 4.0);
+    float k = mod(fe, 4.0);
+    float u = mod(k, 2.0) * 2.0 - 1.0;
+    float w = floor(k / 2.0) * 2.0 - 1.0;
+    float3 A = axis < 0.5 ? float3(-1.0, u, w) : axis < 1.5 ? float3(u, -1.0, w) : float3(u, w, -1.0);
+    float3 B = axis < 0.5 ? float3(1.0, u, w) : axis < 1.5 ? float3(u, 1.0, w) : float3(u, w, 1.0);
+    // 繞 y 再繞 x
+    A = float3(A.x * ca + A.z * sa, A.y, -A.x * sa + A.z * ca);
+    B = float3(B.x * ca + B.z * sa, B.y, -B.x * sa + B.z * ca);
+    A = float3(A.x, A.y * cb - A.z * sb, A.y * sb + A.z * cb);
+    B = float3(B.x, B.y * cb - B.z * sb, B.y * sb + B.z * cb);
+    float2 pa = cc + floor(A.xy * R * (1.0 + A.z * 0.15));
+    float2 pb = cc + floor(B.xy * R * (1.0 + B.z * 0.15));
+    if (segd(c, pa, pb) < 0.55) hit = max(hit, 0.6 + 0.2 * (A.z + B.z) * 0.5);
+  }
+  }
+  if (hit > 0.0) col = mix(c1, c2, hit - 0.4);
+
+  // 掃描線：每 6 秒由下往上掃過
+  float sl = G.y - mod(t, 6.0) / 6.0 * (G.y + 20.0);
+  if (abs(c.y - floor(sl)) < 1.0) col = mix(col, c1, 0.5);
+  if (c.y > sl && c.y < sl + 6.0 && dith(0.3 * (1.0 - (c.y - sl) / 6.0), c)) col = mix(col, c1, 0.3);
+
+  // 故障條：偶爾幾條橫向色塊閃一下
+  float gt = floor(t * 3.0);
+  if (hash1(gt) > 0.9) {
+    float gy = floor(hash1(gt + 1.0) * G.y);
+    if (abs(c.y - gy) < 2.0 + floor(hash1(gt + 2.0) * 3.0) && hash2(float2(floor(c.x / 9.0), gt)) < 0.6) col = mix(col, ac, 0.55);
+  }
+  return half4(col, 1.0);
+}
