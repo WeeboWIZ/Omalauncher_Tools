@@ -1,0 +1,175 @@
+// name: ATLAS BLOOM 皇蛾羽化
+// prompt: 熱帶 棕櫚樹 一支巨大的羽化的皇蛾
+// mascot: firefly
+void palette(float z, out half3 bg, out half3 c0, out half3 c1, out half3 c2, out half3 ac) {
+if (z < 0.5)      { bg = hx(0x2b0d4f); c0 = hx(0x2a0a1c); c1 = hx(0xc8461e); c2 = hx(0xffcf6a); ac = hx(0xff7bb5); }
+else if (z < 1.5) { bg = hx(0x1f6fd6); c0 = hx(0x0c3326); c1 = hx(0xc0501c); c2 = hx(0xfff3b0); ac = hx(0x2fe6c8); }
+else if (z < 2.5) { bg = hx(0x040824); c0 = hx(0x0a1830); c1 = hx(0x9a3c58); c2 = hx(0xa8e6ff); ac = hx(0xffe14a); }
+else if (z < 3.5) { bg = hx(0x0b2e22); c0 = hx(0x05150e); c1 = hx(0xd8701e); c2 = hx(0xd8ff7a); ac = hx(0xff4f7a); }
+else              { bg = hx(0x1a0536); c0 = hx(0x0e0326); c1 = hx(0xff3f8f); c2 = hx(0x5ff0ff); ac = hx(0xffe14a); }
+}
+half4 main(float2 p) {
+float s = PX();
+float2 c = floor(p / s);
+float2 G = floor(size / s);
+float t = time * max(speed, 0.0);
+half3 bg; half3 c0; half3 c1; half3 c2; half3 ac;
+palette(zone, bg, c0, c1, c2, ac);
+float hz = floor(G.y * 0.72);
+// 天空：量化漸層
+float sq = clamp(c.y / hz, 0.0, 1.0);
+half3 col = ramp(bg, mix(bg, ac, 0.4), c2, band(sq, c, 6.0));
+// 星點
+if (c.y < hz * 0.45) {
+float st = hash2(c);
+if (st < 0.004 && sin(t * 1.3 + st * 1500.0) > 0.0) col = mix(col, c2, 0.5 + 0.5 * (1.0 - sq));
+}
+// 飄移的長條雲
+if (c.y < hz - 4.0 && mod(c.y, 6.0) < 2.0) {
+float ch = hash1(floor(c.y / 6.0) + 11.0);
+float cv = sin(c.x * (0.03 + ch * 0.03) + ch * 40.0 - t * (0.08 + ch * 0.1));
+if (ch > 0.35 && cv > 0.55) col = mix(col, mod(c.y, 6.0) < 1.0 ? c2 : ac, 0.4);
+}
+// 夕陽：下半部有往下捲的切線
+float2 sc = float2(floor(G.x * 0.5), hz - floor(G.y * 0.05));
+float sr = floor(min(G.x, G.y) * 0.2);
+float2 sd = c - sc;
+if (c.y < hz && dot(sd, sd) < sr * sr) {
+float sy = (sd.y + sr) / (2.0 * sr);
+bool cut = sd.y > 0.0 && mod(c.y - hz + floor(t * 2.0), 5.0) < 1.0 + sy * 2.0;
+if (!cut) col = ramp(c2, mix(c2, ac, 0.5), ac, band(sy, c, 4.0));
+}
+// 海面與日光倒影
+if (c.y >= hz) {
+float sy2 = (c.y - hz) / max(G.y - hz, 1.0);
+col = ramp(mix(c0, c2, 0.35), mix(c0, bg, 0.5), c0, band(sy2, c, 5.0));
+float rw = floor((c.y - hz) / 2.0);
+float sx = c.x + floor(sin(rw * 0.7 + t * 1.2) * 3.0);
+float spread = sr * (0.6 + sy2 * 1.2);
+float gl = hash2(float2(floor(sx / 3.0), rw));
+float ax = abs(sx - sc.x);
+if (ax < spread && gl > 0.45 + ax / spread * 0.5 && mod(c.y, 2.0) < 1.0) col = mix(col, c2, 0.7);
+if (c.y < hz + 1.0) col = mix(col, c2, 0.5);
+}
+// 前景沙丘
+float dy = G.y - floor(G.y * 0.05 + 3.0 + 3.0 * sin(c.x * 0.045) + 2.0 * sin(c.x * 0.11 + 1.0));
+if (c.y >= dy) col = c.y < dy + 1.0 ? mix(c0, c1, 0.4) : c0;
+// 棕櫚樹：左右各一棵，只算靠近的那棵
+bool lft = c.x < G.x * 0.5;
+float H = min(G.y * 0.55, G.x * 0.95) * (lft ? 1.0 : 0.82);
+float bx = lft ? G.x * 0.08 : G.x * 0.94;
+float sw = sin(t * 0.7 + (lft ? 0.0 : 2.1));
+float2 cw = float2(floor((lft ? G.x * 0.17 : G.x * 0.83) + sw * 1.5), floor(G.y - H));
+if (c.y > cw.y && c.y < G.y) {
+float tt = (c.y - cw.y) / (G.y - cw.y);
+float tx = mix(cw.x, bx, tt * (2.0 - tt));
+float tw = 1.5 + 2.5 * tt;
+float ox = c.x - tx;
+if (abs(ox) < tw) col = mod(c.y + floor(ox * 0.5), 4.0) < 1.0 ? c0 * 0.7 : (ox < -tw * 0.2 ? mix(c0, c1, 0.35) : c0);
+}
+float L = floor(min(G.x * 0.3, G.y * 0.24));
+float2 rel = c - cw;
+if (dot(rel, rel) < L * L * 1.32) {
+float a0 = -3.35 + sw * 0.06;
+float2 d = float2(cos(a0), sin(a0));
+float k = (0.35 + 0.05 * sw) / L;
+for (int i = 0; i < 8; i++) {
+float sa = dot(rel, d);
+if (sa > 0.0 && sa < L * 1.1) {
+float2 r2 = rel - float2(0.0, k * sa * sa);
+float s2 = dot(r2, d);
+float pp = dot(r2, float2(-d.y, d.x));
+float fu = s2 / L;
+float w = L * 0.13 * (1.0 - fu) * min(fu * 5.0, 1.0);
+float ap = abs(pp);
+if (s2 > 0.0 && s2 < L && ap < w + 0.6) {
+if (ap < 0.8 || mod(s2 - ap * 0.9, 3.0) < 1.6) col = pp * d.x < 0.0 ? mix(c0, c1, 0.3) : c0;
+}
+}
+d = float2(d.x * 0.87758 - d.y * 0.47943, d.x * 0.47943 + d.y * 0.87758);
+}
+float2 nut = rel - float2(0.0, 3.0);
+if (dot(nut, nut) < 7.0) col = mod(nut.x + 4.0, 3.0) < 1.0 ? c0 : mix(c0, c1, 0.3);
+}
+// 繭與絲線
+float R = floor(min(G.x * 0.4, G.y * 0.34));
+float2 mc = float2(floor(G.x * 0.5), floor(G.y * 0.4 + sin(t * 0.5) * 1.5));
+float2 kc = float2(mc.x, mc.y - floor(R * 0.62));
+if (abs(c.x - kc.x) < 0.5 && c.y < kc.y) col = mix(col, c2, 0.5);
+float2 kd = (c - kc) / float2(R * 0.11, R * 0.22);
+if (dot(kd, kd) < 1.0) {
+col = mod(c.y + floor(c.x * 0.5), 3.0) < 1.0 ? mix(c1, c0, 0.6) : mix(c2, c1, 0.6);
+if (kd.y > 0.55 && abs(kd.x) < 0.6) col = c0;
+}
+// 巨大皇蛾：翅膀緩慢開合
+float2 md = c - mc;
+if (abs(md.x) < R && md.y > -R * 0.5 && md.y < R * 0.6) {
+float f = 0.84 + 0.16 * sin(t * 1.1);
+float u0 = abs(md.x) / R;
+float2 w = float2(u0 / f, md.y / R);
+half3 mcol = col;
+float2 pa = w - float2(0.06, -0.08);
+float2 ba = float2(0.80, -0.32);
+float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+float fd = length(pa - ba * h);
+float th = mix(0.29, 0.10, h);
+float tdd = length(w - float2(0.86, -0.33));
+float eg = max(th - fd, 0.085 - tdd);
+float2 eu = (w - float2(0.30, 0.23)) / float2(0.33, 0.27);
+float e = dot(eu, eu);
+float scal = 0.05 * sin(w.x * 46.0 + w.y * 9.0);
+bool wing = false;
+if (eg > 0.0) {
+wing = true;
+mcol = ramp(c0, c1, c2, 0.3 + 0.45 * band(0.15 + 0.6 * h, c, 5.0));
+if (h > 0.62 && dith((h - 0.62) * 2.5, c)) mcol = mix(mcol, ac, 0.6);
+if (abs(h - 0.45 - 0.025 * sin(fd * 50.0)) < 0.022) mcol = mix(c2, half3(1.0), 0.5);
+float2 wd = w - float2(0.36, -0.17);
+float wn = abs(wd.x) / 0.075 + abs(wd.y) / 0.04;
+if (wn < 1.0) mcol = mix(c2, half3(1.0), 0.7); else if (wn < 1.5) mcol = c0;
+if (eg < 0.025) mcol = c0;
+else if (abs(eg - 0.06) < 0.012 && mod(abs(md.x) + c.y, 3.0) < 2.0) mcol = mix(c2, c1, 0.4);
+float2 ey = w - float2(0.89, -0.35);
+if (dot(ey, ey) < 0.0006) mcol = c0;
+} else if (e < 0.94 + scal) {
+wing = true;
+mcol = ramp(c0, c1, c2, 0.3 + 0.35 * band(e, c, 5.0));
+if (abs(e - 0.45 - 0.04 * sin(w.x * 30.0)) < 0.04) mcol = mix(c2, half3(1.0), 0.4);
+else if (e > 0.72) mcol = mix(c1, c2, 0.55);
+if (e > 0.78 && e < 0.86 && mod(abs(md.x), 6.0) < 2.0) mcol = c0;
+float2 hd = w - float2(0.27, 0.17);
+float hn = abs(hd.x) / 0.06 + abs(hd.y) / 0.05;
+if (hn < 1.0) mcol = mix(c2, half3(1.0), 0.7); else if (hn < 1.5) mcol = c0;
+if (e > 0.88 + scal) mcol = c0;
+}
+if (wing && !dith((f - 0.68) * 3.0 + 0.4, c)) mcol = mcol * 0.85;
+float2 bd = float2(u0 / 0.06, (w.y - 0.02) / 0.28);
+if (dot(bd, bd) < 1.0) mcol = mod(md.y, 3.0) < 1.0 ? c0 : mix(c1, c2, 0.2 + 0.4 * band(1.0 - abs(bd.x), c, 3.0));
+float ad = segd(float2(u0, w.y), float2(0.015, -0.25), float2(0.15, -0.43));
+if (ad < 0.012 || (ad < 0.035 && mod(md.y + abs(md.x), 2.0) < 1.0)) mcol = mix(c0, c1, 0.5);
+col = mcol;
+}
+// 往上飄的鱗粉
+float dyq = c.y + floor(t * 6.0);
+float dxq = c.x + floor(2.0 * sin(t * 0.6 + floor(dyq / 7.0) * 1.3));
+float2 dc = floor(float2(dxq, dyq) / 7.0);
+float dh = hash2(dc + 17.0);
+if (dh < 0.22) {
+float2 dp = dc * 7.0 + floor(float2(hash2(dc + 3.3), hash2(dc + 8.8)) * 6.0);
+if (abs(dxq - dp.x) < 0.5 && abs(dyq - dp.y) < 0.5 && sin(t * 1.6 + dh * 28.0) > -0.3) col = mix(col, dh < 0.08 ? ac : c2, 0.85);
+}
+// 下半部的螢火蟲
+if (c.y > G.y * 0.5) {
+float2 fc = floor(c / 20.0);
+float fh = hash2(fc + 41.0);
+if (fh < 0.35) {
+float2 fp = fc * 20.0 + 3.0 + floor(float2(hash2(fc + 1.7), hash2(fc + 6.2)) * 14.0)
++ floor(float2(sin(t * 0.5 + fh * 30.0), cos(t * 0.4 + fh * 20.0)) * 2.5);
+float fb = sin(t * (0.9 + fh * 2.0) + fh * 50.0);
+float2 fq = abs(c - fp);
+if (fb > 0.2 && fq.x + fq.y < 0.5) col = ac;
+else if (fb > 0.6 && fq.x + fq.y < 1.5 && (fq.x < 0.5 || fq.y < 0.5)) col = mix(col, ac, 0.5);
+}
+}
+return half4(col, 1.0);
+}

@@ -1,0 +1,172 @@
+// name: RINGPORT 環下港
+// prompt: 土星環下的太空港
+// mascot: ufo
+void palette(float z, out half3 bg, out half3 c0, out half3 c1, out half3 c2, out half3 ac) {
+if (z < 0.5)      { bg = hx(0x07061a); c0 = hx(0x33285e); c1 = hx(0xc8884a); c2 = hx(0xffe2a6); ac = hx(0x4af0ff); }
+else if (z < 1.5) { bg = hx(0x02141e); c0 = hx(0x0e4656); c1 = hx(0x3fb4c4); c2 = hx(0xdafff4); ac = hx(0xff7a3a); }
+else if (z < 2.5) { bg = hx(0x120626); c0 = hx(0x4a1a6a); c1 = hx(0xc452b0); c2 = hx(0xffc8ea); ac = hx(0x8aff5a); }
+else if (z < 3.5) { bg = hx(0x1c0708); c0 = hx(0x5c1c1c); c1 = hx(0xe2642c); c2 = hx(0xffd47e); ac = hx(0x5ad8ff); }
+else              { bg = hx(0x020c06); c0 = hx(0x103c20); c1 = hx(0x34b25e); c2 = hx(0xcaffa0); ac = hx(0xff4fd8); }
+}
+half4 main(float2 p) {
+float s = PX();
+float2 c = floor(p / s);
+float2 G = floor(size / s);
+float t = time * max(speed, 0.0);
+half3 bg; half3 c0; half3 c1; half3 c2; half3 ac;
+palette(zone, bg, c0, c1, c2, ac);
+float gy = floor(G.y - max(34.0, G.y * 0.2));
+half3 fg = mix(bg, c0, 0.22);
+half3 rim = mix(c0, c1, 0.45);
+float sk = clamp(c.y / gy, 0.0, 1.0);
+half3 col = mix(bg, c0, band(sk * sk, c, 5.0) * 0.5);
+// ── 遠景：星空（格子分桶，緩慢飄移）──
+float2 sc = float2(c.x + floor(t * 0.5), c.y);
+float sh = hash2(sc);
+if (sh < 0.007) {
+float tw = sin(t * (0.6 + sh * 120.0) + hash2(sc + 4.0) * 6.28);
+col = mix(col, sh < 0.0025 ? c2 : half3(0.85, 0.88, 1.0), 0.4 + 0.3 * tw);
+}
+float2 cell = floor(c / 20.0);
+float2 sp = cell * 20.0 + floor(float2(hash2(cell), hash2(cell + 5.1)) * 18.0) + 1.0;
+float sph = sin(t * (0.7 + hash2(cell + 9.0)) + hash2(cell) * 6.28);
+if (hash2(cell + 2.0) < 0.45 && sph > 0.0) {
+float2 ad = abs(c - sp);
+if (ad.x + ad.y < 0.5 || (sph > 0.6 && ad.x + ad.y < 1.5)) col = mix(col, half3(1.0), sph);
+}
+// ── 土星與環 ──
+float R = floor(min(G.x, G.y * 0.8) * 0.22);
+float2 pc = float2(floor(G.x * 0.5), floor(G.y * 0.3));
+float2 d = c - pc;
+float2 r = float2(d.x * 0.97 + d.y * 0.24, d.y * 0.97 - d.x * 0.24) / R;
+float pr2 = dot(d, d) / (R * R);
+bool inP = pr2 <= 1.0 + 0.6 / R;
+float er = length(float2(r.x, r.y * 3.4));
+bool front = r.y > 0.0;
+if (inP) {
+float3 nn = float3(d / R, sqrt(max(1.0 - pr2, 0.0)));
+float lit = clamp(dot(nn, float3(-0.51, -0.41, 0.76)), 0.0, 1.0);
+float st = hash1(floor(r.y * 8.0 + sin(r.x * 3.0 + t * 0.25) * 0.35) + 40.0);
+float q = lit * (0.7 + 0.4 * st);
+float es = length(float2(r.x, (r.y - 0.12) * 3.4));
+if (front && es > 1.25 && es < 2.3) q *= 0.5;
+col = q < 0.06 ? mix(bg, c0, 0.5) : ramp(c0, c1, c2, band(q, c, 5.0));
+}
+if (er > 1.25 && er < 2.3 && (front || !inP)) {
+float rl = hash1(floor(er * 15.0) + 7.0);
+bool gap = er > 1.84 && er < 1.95;
+float ang = fract(atan(r.y * 3.4, r.x) / 6.2832 + t * 0.012 / er);
+float gr = hash2(float2(floor(ang * 160.0), floor(er * 30.0)));
+float q = 0.3 + 0.45 * rl + 0.25 * gr;
+if (!front && length(float2(r.x - 0.5, r.y * 1.5)) < 1.0) q *= 0.35;
+if (!gap && dith(0.35 + 0.65 * rl, c)) col = ramp(c0, c1, c2, band(q, c, 5.0));
+}
+// ── 中景：航道上的穿梭機 ──
+for (int i = 0; i < 3; i++) {
+float fi = float(i);
+float dy = c.y - (gy - 14.0 - fi * 13.0);
+if (abs(dy) < 1.5) {
+float span = G.x + 60.0;
+float sx = mod(t * (4.0 + fi * 2.5) + hash1(fi + 2.0) * span, span) - 30.0;
+float dir = 1.0;
+if (fi > 0.5 && fi < 1.5) { sx = G.x - sx; dir = -1.0; }
+float dx = (c.x - floor(sx)) * dir;
+if (dy < -0.5 && dx >= -2.0 && dx <= 0.0) col = (dx < -1.5 && fract(t * 0.8 + fi * 0.37) < 0.3) ? ac : mix(c0, c2, 0.4);
+else if (abs(dy) < 0.5 && dx >= -4.0 && dx <= 3.0) col = dx > 1.5 ? mix(c1, c2, 0.5) : mix(c0, c2, 0.6);
+else if (dy > 0.5 && dx >= -3.0 && dx <= 1.0) col = c0;
+else if (abs(dy) < 0.5 && dx >= -7.0 && dx < -4.0 && dith(1.0 + (dx + 4.0) * 0.3, c)) col = mix(col, ac, 0.8);
+}
+}
+// ── 中景：遠方港城天際線 ──
+if (c.y < gy) {
+float bx = floor(c.x / 6.0);
+float wx = mod(c.x, 6.0);
+float bh = hash1(bx + 5.0) < 0.15 ? 2.0 : floor(5.0 + hash1(bx + 11.0) * hash1(bx + 23.0) * 26.0);
+if (wx < 4.5 && c.y >= gy - bh) {
+col = mix(bg, c0, 0.8);
+float wy = mod(gy - c.y, 3.0);
+if (wx > 0.5 && wx < 3.5 && wy > 1.5 && c.y > gy - bh + 1.0
+&& hash2(float2(c.x, c.y + floor(t * 0.15 + hash1(bx) * 7.0) * 17.0)) < 0.28) col = mix(c1, c2, 0.3);
+} else if (bh > 20.0 && abs(wx - 2.0) < 0.5 && c.y >= gy - bh - 4.0 && c.y < gy - bh) {
+col = (c.y < gy - bh - 3.0 && fract(t * 0.5 + hash1(bx + 3.0)) < 0.3) ? ac : mix(bg, c0, 0.8);
+}
+} else {
+// ── 前景：港區甲板 ──
+float gd = (c.y - gy) / max(G.y - gy, 1.0);
+col = mix(bg, c0, 0.45 - band(gd, c, 4.0) * 0.3);
+float zz = c.y - gy + 6.0;
+float u = (c.x - G.x * 0.5) / zz;
+if (abs(fract(u * 0.25 + 0.5) - 0.5) * 4.0 * zz < 0.6) col = mix(c0, c1, 0.25);
+if (c.y < gy + 0.5) col = rim;
+if (abs(c.y - gy - 3.0) < 0.5 && mod(c.x, 8.0) < 0.5)
+col = mod(floor(c.x / 8.0) - floor(t * 3.0), 6.0) < 0.5 ? ac : mix(c0, ac, 0.35);
+}
+// 居住穹頂
+float2 dd = c - float2(floor(G.x * 0.1), gy);
+float dr = dot(dd, dd);
+if (c.y < gy && dr < 175.0) {
+col = fg;
+if (dr > 130.0 && dd.x < 0.0) col = rim;
+if (abs(dd.y + 5.0) < 0.5 && mod(c.x, 3.0) < 0.5) col = mix(c1, c2, 0.4);
+}
+// 發射台與鐵塔
+float padx = floor(G.x * 0.3);
+float ph = mod(t, 14.0);
+float px = c.x - padx;
+if (abs(px) <= 12.0 && c.y >= gy - 3.0 && c.y < gy) {
+col = c.y < gy - 2.5 ? rim : fg;
+if (abs(abs(px) - 12.0) < 0.5 && c.y < gy - 2.5) col = fract(t * 0.6) < 0.4 ? ac : rim;
+}
+if (px >= 6.0 && px <= 8.0 && c.y >= gy - 30.0 && c.y < gy - 3.0) {
+if (px < 6.5 || px > 7.5 || mod(c.y + c.x, 4.0) < 0.5) col = px < 6.5 ? rim : fg;
+}
+if (abs(px - 7.0) < 0.5 && abs(c.y - gy + 31.0) < 0.5) col = fract(t * 0.9) < 0.35 ? ac : fg;
+if ((ph < 2.4 || ph > 13.5) && px >= 3.0 && px < 6.0 && abs(c.y - gy + 16.0) < 0.5) col = rim;
+// 管制塔
+float tx = floor(G.x * 0.78);
+float ax = abs(c.x - tx);
+if (c.y < gy && c.y >= gy - 50.0 && ax <= 7.0) {
+float ty = gy - c.y;
+if (ty <= 34.0 && ax <= 2.0) col = c.x < tx - 1.5 ? rim : fg;
+else if (ty > 34.0 && ty <= 41.0 && ax <= ((ty < 35.5 || ty > 40.5) ? 5.0 : 7.0)) {
+col = fg;
+if (abs(ty - 38.0) < 0.5 && mod(c.x, 2.0) < 0.5) col = c2;
+if (abs(ty - 37.0) < 0.5 && ax < 6.5) col = mix(c1, c2, 0.3);
+}
+else if (ty > 41.0 && ty <= 48.0 && ax < 0.5) col = fg;
+}
+float2 bd = abs(c - float2(tx, gy - 50.0));
+if (fract(t * 0.7) < 0.35 && (bd.x + bd.y < 0.5 || (bd.x + bd.y < 1.5 && fract(t * 0.7) < 0.2))) col = ac;
+// 發射煙塵
+if (ph > 2.6 && ph < 8.0) {
+float a = ph - 2.6;
+float rr = min(a * 9.0, 20.0);
+float2 rel = float2(px / 1.7, (c.y - gy + 2.0) * 1.3);
+if (dot(rel, rel) < rr * rr && c.y < gy + 1.0) {
+float h = hash2(floor(c / 3.0) + floor(a * 1.5));
+if (dith((1.0 - a / 5.4) * (0.5 + 0.6 * h), c)) col = mix(c0, c2, 0.35 + 0.3 * h);
+}
+}
+// ── 前景：升空的太空梭（偶發事件）──
+float lift = ph > 3.0 ? (ph - 3.0) * (ph - 3.0) * 4.5 : 0.0;
+float sy = gy - 17.0 - floor(lift);
+if (ph < 1.0) sy += floor((1.0 - ph) * 15.0);
+float sx2 = px;
+float sy2 = c.y - sy;
+if (ph > 2.6 && sy2 >= 14.0) {
+float fl = 3.0 + min(ph - 2.6, 1.2) * 10.0;
+float fy = sy2 - 14.0;
+if (fy < fl && abs(sx2) <= 2.0 - floor(fy / fl * 2.5)
+&& dith(1.05 - fy / fl * 0.8, c + float2(0.0, floor(t * 2.5)))) col = fy < 2.0 ? half3(1.0, 0.96, 0.85) : fy < fl * 0.5 ? c2 : mix(c1, ac, 0.4);
+}
+if (sy2 >= 0.0 && sy2 <= 13.0 && (ph >= 1.0 || c.y < gy - 3.0)) {
+float ax2 = abs(sx2);
+bool hit = (sy2 < 3.5 && ax2 <= floor(sy2 * 0.7)) || (sy2 >= 3.5 && ax2 <= 2.0) || (sy2 >= 10.0 && ax2 <= min(sy2 - 7.0, 4.0));
+if (hit) {
+col = ax2 > 2.5 ? ac : sx2 < -0.5 ? c2 : sx2 < 0.5 ? mix(c1, c2, 0.5) : c1;
+if (abs(sy2 - 5.0) < 0.5 && ax2 < 0.5) col = mix(bg, ac, 0.7);
+if (abs(sy2 - 8.0) < 0.5 && ax2 < 2.5) col = ac;
+}
+}
+return half4(col, 1.0);
+}

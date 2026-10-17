@@ -1,0 +1,323 @@
+// name: NEON PYRAMID 螢月金字塔
+// prompt: 螢光綠粉色月光下的金字塔 上面充滿了圖騰 有很多埃及 印地安小人在做日常的事
+// edit: 把月球放大五倍 加一支隱藏閃現的雷電貓咪
+// mascot: firefly
+void palette(float z, out half3 bg, out half3 c0, out half3 c1, out half3 c2, out half3 ac) {
+if (z < 0.5)      { bg = hx(0x0a0322); c0 = hx(0x2e1050); c1 = hx(0xff4fb8); c2 = hx(0x8cff4a); ac = hx(0x3ff0ff); }
+else if (z < 1.5) { bg = hx(0x021a14); c0 = hx(0x0d4034); c1 = hx(0x2fe08a); c2 = hx(0xdcff5a); ac = hx(0xff5fd0); }
+else if (z < 2.5) { bg = hx(0x1c0322); c0 = hx(0x520e48); c1 = hx(0xff5aa8); c2 = hx(0xffc4ec); ac = hx(0x7dff5a); }
+else if (z < 3.5) { bg = hx(0x050822); c0 = hx(0x18245a); c1 = hx(0xc04fff); c2 = hx(0x9cff8a); ac = hx(0xff6ad0); }
+else              { bg = hx(0x160806); c0 = hx(0x40200e); c1 = hx(0xe0783a); c2 = hx(0xb6ff5a); ac = hx(0xff4fd8); }
+}
+// 地上的小人：6×11（y -3..7，7 是腳）；kind 0 埃及 1 印地安；act 0 走路 1 頂罐 2 打鼓 3 鋤地
+// 回傳 0 無、1 皮膚、2 布／木、3 飾色、4 頭髮
+float person(float x, float y, float kind, float act, float f) {
+if (x < 0.0 || x > 5.0 || y < -3.0 || y > 7.0) return 0.0;
+bool walk = act < 1.5;
+if (act > 0.5 && act < 1.5) {
+if (y < -0.5) return (x >= 1.0 && x <= 3.0 && (y > -2.5 || x == 2.0)) ? 3.0 : 0.0;
+if ((x == 0.0 || x == 4.0) && y > 0.5 && y < 2.5) return 1.0;
+} else if (act > 1.5 && act < 2.5) {
+if (x > 3.5 && y > 3.5 && y < 6.5) return (x < 4.5 && y > 4.5 && y < 5.5) ? 2.0 : 3.0;
+if (x == 4.0 && y == (f > 0.5 ? 2.0 : 3.0)) return 1.0;
+} else if (act > 2.5) {
+float top = f > 0.5 ? 0.0 : 2.0;
+if (x == 4.0 && y >= top && y <= top + 3.0) return 2.0;
+if (x == 5.0 && y == top + (f > 0.5 ? 0.0 : 4.0)) return 3.0;
+}
+if (y > 5.5) {
+if (walk && f > 0.5) return (y < 6.5 ? (x == 1.0 || x == 3.0) : (x == 0.0 || x == 4.0)) ? 1.0 : 0.0;
+return (x == 1.0 || x == 3.0) ? 1.0 : 0.0;
+}
+if (y > 2.5) {
+if (x >= 1.0 && x <= 3.0) {
+if (kind < 0.5) return y < 3.5 ? 3.0 : y < 4.5 ? 1.0 : 2.0;
+return (y > 3.5 && y < 4.5) ? 3.0 : 2.0;
+}
+if (act < 0.5 && y == 4.0 && x == (f > 0.5 ? 4.0 : 0.0)) return 1.0;
+if (act > 1.5 && x == 0.0 && y == 4.0) return 1.0;
+if (kind < 0.5 && (x == 0.0 || x == 4.0) && y < 3.5) return 3.0;
+return 0.0;
+}
+if (y > -0.5) {
+if (x > 4.5) return 0.0;
+if (kind < 0.5) {
+if (y < 0.5) return (x >= 1.0 && x <= 3.0) ? 3.0 : 0.0;
+if (x == 0.0 || x == 4.0) return mod(y, 2.0) < 0.5 ? 3.0 : 2.0;
+return 1.0;
+}
+if (y < 0.5) return x == 2.0 ? 3.0 : 0.0;
+if (x == 0.0) return 4.0;
+if (x <= 3.0) return y < 1.5 ? 3.0 : 1.0;
+return 0.0;
+}
+if (kind > 0.5 && x == 2.0 && y > -2.5) return y < -1.5 ? 2.0 : 3.0;
+return 0.0;
+}
+// 金字塔上的小小人：3×6，y 0 是腳
+float tiny(float x, float y, float kind, float f) {
+if (x < 0.0 || x > 2.0 || y < 0.0 || y > 5.0) return 0.0;
+if (y < 0.5) return f > 0.5 ? (x == 1.0 ? 1.0 : 0.0) : (x != 1.0 ? 1.0 : 0.0);
+if (y < 2.5) return 2.0;
+if (y < 3.5) return x == 1.0 ? 1.0 : 0.0;
+if (y < 4.5) return kind < 0.5 ? 3.0 : (x == 1.0 ? 3.0 : 0.0);
+return (kind > 0.5 && x == 1.0) ? 2.0 : 0.0;
+}
+// 雷電貓咪：16×14（y 13 是腳）；回傳 0 無、1 身體、2 耳內／鼻、3 眼睛、4 閃電（尾巴、鬍鬚、胸口）
+float cat(float x, float y) {
+if (x < 0.0 || x > 15.0 || y < 0.0 || y > 13.0) return 0.0;
+if (x > 11.5) {
+if (y > 4.5 && y < 5.5 && x < 13.5) return 4.0;
+float tx = y > 11.5 ? 12.0 : y > 10.5 ? 13.0 : y > 9.5 ? 14.0 : y > 8.5 ? 13.0 : y > 7.5 ? 12.0 : y > 6.5 ? 13.0 : y > 5.5 ? 14.0 : y > 4.5 ? 15.0 : 99.0;
+return (x >= tx && x <= tx + 1.0) ? 4.0 : 0.0;
+}
+if (y < 0.5) return (x == 3.0 || x == 10.0) ? 1.0 : 0.0;
+if (y < 1.5) {
+if (x == 3.0 || x == 10.0) return 2.0;
+return ((x >= 2.0 && x <= 4.0) || x >= 9.0) ? 1.0 : 0.0;
+}
+if (y < 6.5) {
+if (y > 4.5 && y < 5.5 && x < 1.5) return 4.0;
+if (x < 2.0 || (y > 5.5 && (x < 2.5 || x > 10.5))) return 0.0;
+if (y > 3.5 && y < 4.5 && (x == 4.0 || x == 5.0 || x == 8.0 || x == 9.0)) return 3.0;
+if (y > 4.5 && y < 5.5 && (x == 6.0 || x == 7.0)) return 2.0;
+return 1.0;
+}
+if (y < 12.5) {
+float w = floor((y - 7.0) * 0.5);
+if (x < 4.0 - w || x > 9.0 + w) return 0.0;
+if ((y == 8.0 && x == 7.0) || (y == 9.0 && (x == 6.0 || x == 7.0)) || (y == 10.0 && x == 6.0) || (y == 11.0 && x == 5.0)) return 4.0;
+return 1.0;
+}
+return ((x >= 3.0 && x <= 5.0) || (x >= 8.0 && x <= 10.0)) ? 1.0 : 0.0;
+}
+half3 figCol(float id, float kind, half3 bg, half3 c0, half3 c1, half3 c2, half3 ac) {
+if (id < 1.5) return mix(hx(0xa0603c), c0, 0.3);
+if (id < 2.5) return mix(hx(0xf2ead8), c2, 0.2);
+if (id < 3.5) return kind < 0.5 ? ac : c1;
+return mix(bg, c0, 0.4);
+}
+half4 main(float2 p) {
+float s = PX();
+float2 c = floor(p / s);
+float2 G = floor(size / s);
+float t = time * max(speed, 0.0);
+half3 bg; half3 c0; half3 c1; half3 c2; half3 ac;
+palette(zone, bg, c0, c1, c2, ac);
+float by = floor(G.y * 0.64);
+float cx = floor(G.x * 0.5);
+float ns = clamp(floor(min(G.x * 0.36, G.y * 0.4) / 6.0), 6.0, 16.0);
+float hw = ns * 5.0 + 10.0;
+float H = ns * 6.0;
+float topY = by - H - 9.0;
+float per = 9.0;
+float en = floor(t / per);
+float eph = t - en * per;
+float ea = eph < 2.0 ? sin(eph / 2.0 * 3.14159) : 0.0;
+float cn = floor((t + 5.0) / 13.0);
+float cph = t + 5.0 - cn * 13.0;
+bool flash = cph < 0.3 || (cph > 0.6 && cph < 1.8);
+bool bolt = cph < 0.3 || (cph > 0.6 && cph < 0.85);
+bool peek = (cph > 1.8 && cph < 2.6) || cph > 11.8;
+float x1 = floor(G.x * 0.13);
+float x2 = floor(G.x * 0.84);
+half3 col = bg;
+if (c.y <= by) {
+float v = clamp(c.y / max(by, 1.0), 0.0, 1.0);
+col = ramp(bg, mix(bg, c0, 0.7), mix(c0, c1, 0.45), band(v * v * 0.85, c, 5.0));
+float mr = (floor(min(G.x, G.y) * 0.06) + 4.0) * 5.0;
+float2 mc = float2(floor(G.x * 0.3), floor(max(mr * 0.75, min(G.y * 0.2, topY - mr * 0.5))));
+float2 md = c - mc;
+float dm = length(md);
+float halo = clamp(1.0 - (dm - mr) / (mr * 0.6), 0.0, 1.0);
+if (halo > 0.0) col = mix(col, mix(c1, c2, 0.35), band(halo * halo, c, 5.0) * 0.5);
+float sh = hash2(c + 13.0);
+if (sh < 0.012 * (1.0 - v)) {
+float tw = sin(t * (1.0 + sh * 120.0) + sh * 900.0);
+col = mix(col, sh < 0.004 ? c2 : sh < 0.008 ? hx(0xfff4ff) : c1, 0.5 + 0.4 * tw);
+}
+if (dm <= mr + 0.3) {
+float mq = clamp(0.5 + 0.5 * (-md.x * 0.5 - md.y * 0.8) / mr, 0.0, 1.0);
+half3 mcol = ramp(c1, mix(c1, c2, 0.5), mix(c2, half3(1.0), 0.45), band(mq, c, 4.0));
+if (length(md - float2(0.25, -0.19) * mr) < 0.19 * mr || length(md - float2(-0.25, 0.31) * mr) < 0.13 * mr
+ || length(md - float2(0.12, 0.52) * mr) < 0.09 * mr || length(md - float2(-0.48, -0.22) * mr) < 0.1 * mr) mcol = mcol * 0.85;
+col = mcol;
+}
+float cy = floor(c.y / 3.0);
+if (c.y < by - 10.0 && mod(cy, 4.0) < 2.5) {
+float cl = sin(c.x * 0.045 + cy * 1.9 - t * (0.12 + hash1(cy) * 0.1)) + 0.6 * sin(c.x * 0.13 - cy * 0.8 + t * 0.07);
+if (cl > 1.15) col = mix(col, cl > 1.4 ? c2 : c1, cl > 1.4 ? 0.3 : 0.22);
+}
+float hd = 5.0 + 2.5 * sin(c.x * 0.07 + 1.0) + 1.5 * sin(c.x * 0.19);
+float p1 = 24.0 - abs(c.x - x1);
+float p2 = 17.0 - abs(c.x - x2);
+float hh = max(hd, max(p1, p2));
+if (by - c.y < hh) {
+bool lit = (p1 > hd && c.x < x1) || (p2 > hd && c.x < x2);
+col = mix(bg, c0, lit ? 0.8 : 0.5);
+if (by - c.y >= hh - 1.0) col = mix(col, c1, 0.35);
+}
+if (bolt && dith(0.3, c)) col = mix(col, hx(0xfff4ff), 0.18);
+} else {
+float gq = (c.y - by) / max(G.y - by, 1.0);
+col = ramp(mix(bg, c0, 0.4), c0, mix(c0, c1, 0.35), band(1.0 - gq, c, 5.0));
+if (hash2(c + 3.0) < 0.05) col = mix(col, c2, 0.15);
+float gy = c.y - by - 1.0;
+float L = floor(gy / 13.0);
+float ly = gy - L * 13.0 - 3.0;
+float lh = hash1(L * 7.31 + 2.0);
+float mv = lh < 0.55 ? 1.0 : 0.0;
+float dir = hash1(L * 3.17 + 9.0) < 0.5 ? 1.0 : -1.0;
+float off = floor(t * (3.0 + lh * 3.0)) * dir * mv;
+float bx = c.x - off;
+float b = floor(bx / 13.0);
+float bh = hash2(float2(b, L) + 4.0);
+if (bh < 0.6 && ly < 7.5) {
+float lx = bx - b * 13.0 - 2.0 - floor(hash2(float2(b, L) + 8.0) * 5.0);
+if (dir < 0.0) lx = 5.0 - lx;
+float kind = bh < 0.3 ? 0.0 : 1.0;
+float ah = hash2(float2(b, L) + 1.0);
+float act = mv > 0.5 ? (ah < 0.5 ? 0.0 : 1.0) : (ah < 0.5 ? 2.0 : 3.0);
+float f = mod(floor(t * (mv > 0.5 ? 3.0 : 2.0) + bh * 7.0), 2.0);
+float id = person(lx, ly, kind, act, f);
+if (id > 0.5) col = figCol(id, kind, bg, c0, c1, c2, ac);
+}
+}
+float dx = c.x - cx;
+float ax = abs(dx);
+float dy = by - c.y;
+if (dy >= 0.0 && dy < H + 10.0 && ax < hw + 6.0) {
+half3 sDark = mix(bg, c0, 0.6);
+half3 sLit = mix(c0, c1, 0.5);
+float k = floor(dy / 6.0);
+float r = dy - k * 6.0;
+float hk = hw - k * 5.0;
+if (k < ns && ax <= hk) {
+float q = (dx < 0.0 ? 0.55 : 0.28) + dy / H * 0.18 + (r > 4.5 ? 0.22 : 0.0);
+float glyph = 0.0;
+float ti = 0.0;
+if (ax <= 4.0) {
+q = (dx < 0.0 ? 0.5 : 0.35) + mod(dy, 2.0) * 0.18;
+} else if (ax < 5.5) {
+q = 0.75;
+} else if (r > 0.5 && r < 4.5) {
+ti = floor((ax - 6.0) / 6.0);
+float lx = ax - 6.0 - ti * 6.0;
+if (lx > 0.5 && lx < 4.5 && ax < hk - 1.0) {
+float m = lx < 2.5 ? lx - 1.0 : 4.0 - lx;
+float bits = floor(hash2(float2(ti, k) + 21.0) * 256.0);
+glyph = mod(floor(bits / exp2(m + 2.0 * (r - 1.0))), 2.0);
+} else if (lx < 0.5) q -= 0.12;
+} else if (r < 0.5) q -= 0.1;
+col = ramp(sDark, c0, sLit, band(clamp(q, 0.0, 1.0), c, 5.0));
+if (glyph > 0.5) {
+float gw = max(0.5 + 0.5 * sin(t * 1.1 - k * 0.55 + ti * 0.4), ea);
+half3 gc = hash2(float2(ti, k) + 5.0) < 0.5 ? c2 : ac;
+col = mix(sDark, gc, (0.25 + 0.6 * band(gw * gw, c, 4.0)) * (dx < 0.0 ? 1.0 : 0.7));
+}
+if (ax > hk - 0.5) col = dx < 0.0 ? mix(col, c2, 0.55) : mix(col, c1, 0.35);
+else if (r > 4.5 && dx < 0.0) col = mix(col, c2, 0.2);
+if (ax <= 2.0) {
+float u = dy - floor(t * 2.5);
+float bk = floor(u / 11.0);
+float ul = u - bk * 11.0;
+float chh = hash1(bk * 1.37 + 40.0);
+if (chh < 0.5) {
+float kind = chh < 0.25 ? 0.0 : 1.0;
+float id = tiny(dx + 1.0, ul, kind, mod(floor(t * 2.5), 2.0));
+if (id > 0.5) col = figCol(id, kind, bg, c0, c1, c2, ac);
+}
+}
+} else if (dy >= H && ax <= 8.0) {
+float sy = dy - H;
+if (sy < 9.5 && ax <= (sy > 7.5 ? 6.0 : 8.0)) {
+float q = (dx < 0.0 ? 0.6 : 0.3) + ((sy > 6.5 && sy < 7.5) ? 0.25 : 0.0);
+col = ramp(sDark, c0, sLit, band(q, c, 5.0));
+if (ax <= 1.0 && sy < 5.5) col = mix(c0, ac, 0.45 + 0.5 * band(max(0.5 + 0.5 * sin(t * 1.2), ea), c, 4.0));
+else if (ax < 2.5 && sy < 6.5) col = sDark;
+if (sy > 7.5 && ax < 0.5) col = c2;
+if (ax > 7.5 && dx < 0.0) col = mix(col, c2, 0.5);
+}
+} else if (k >= 1.0 && k <= ns && ax > hk && ax <= hk + 5.0) {
+float sd = dx < 0.0 ? 0.0 : 1.0;
+float lh2 = hash2(float2(k, sd) + 50.0);
+if (lh2 < 0.5) {
+float kind = lh2 < 0.25 ? 0.0 : 1.0;
+float id = tiny(ax - hk - 1.0 - floor(lh2 * 4.0), r, kind, mod(floor(t * 1.5 + lh2 * 9.0), 2.0));
+if (id > 0.5) col = figCol(id, kind, bg, c0, c1, c2, ac);
+}
+}
+}
+if (ea > 0.0 && c.y < topY && ax < 3.5) {
+float w = ax < 0.5 ? 1.0 : ax < 1.5 ? 0.7 : 0.35;
+float fade = clamp(c.y / max(topY, 1.0), 0.0, 1.0);
+if (dith(ea * w * (0.3 + 0.7 * fade), c)) col = mix(col, hash1(en) < 0.5 ? c2 : c1, 0.7);
+}
+float tx = floor(G.x * 0.075) + 2.0;
+float tcx = c.x < cx ? tx : G.x - 1.0 - tx;
+float pdx = c.x - tcx;
+float pax = abs(pdx);
+float tb = by + min(floor((G.y - by) * 0.45), 40.0);
+float py = tb - c.y;
+if (py >= 0.0 && py < 45.0 && pax <= 10.0) {
+float sg = floor(py / 9.0);
+float sy = 8.0 - (py - sg * 9.0);
+bool wing = sg > 3.5 && pax > 4.5 && sy > 0.5 && sy < 6.5 && pax <= 11.0 - sy;
+if (pax <= 4.0 || wing) {
+half3 pd = mix(bg, c0, 0.5);
+half3 pl = mix(c0, c1, 0.5);
+float side = c.x < cx ? 0.0 : 1.0;
+if (wing) {
+col = mod(pax, 2.0) < 0.5 ? pl : c0;
+if (pax > 9.5 - sy) col = c2;
+} else {
+col = ramp(pd, c0, pl, band((pdx < 0.0 ? 0.6 : 0.3) - (pax > 3.5 ? 0.15 : 0.0), c, 4.0));
+float th = hash2(float2(sg, side) + 70.0);
+float ew = 0.5 + 0.5 * sin(t * 1.2 + sg * 1.3 + side * 2.0);
+if (sy < 0.5) col = pd;
+else if (sy > 1.5 && sy < 2.5 && pax <= 3.0) col = pl;
+else if (sy > 2.5 && sy < (th < 0.5 ? 3.5 : 4.5) && pax > 0.5 && pax < 3.5) col = (pax > 1.5 && pax < 2.5) ? mix(c0, ac, 0.4 + 0.6 * band(max(ew, ea), c, 4.0)) : hx(0xf0e8ff);
+else if (sy > 4.5 && sy < 6.5 && pax < (sy > 5.5 ? 1.5 : 0.5)) col = c2;
+else if (sy > 6.5 && sy < 7.5 && pax <= (th < 0.5 ? 2.0 : 3.0)) col = th < 0.25 ? c1 : pd;
+if (pdx < 0.0 && pax > 3.5) col = mix(col, c2, 0.3);
+}
+}
+}
+if (flash || peek) {
+float cid = cph > 11.8 ? cn + 1.0 : cn;
+float lc = hash1(cid * 5.7 + 3.0);
+float2 co = lc < 0.34 ? float2(x1 - 7.0, by - 37.0) : lc < 0.67 ? float2(x2 - 7.0, by - 30.0) : float2(cx - 7.0, by - H - 23.0);
+float2 lq = c - co;
+if (lq.x >= -1.0 && lq.x <= 16.0 && lq.y >= -1.0 && lq.y <= 14.0) {
+float id = cat(lq.x, lq.y);
+if (flash) {
+if (id > 0.5) col = id < 1.5 ? mix(bg, c0, 0.55) : id < 2.5 ? c1 : id < 3.5 ? c2 : mix(c2, hx(0xfff4ff), 0.5);
+else if (cat(lq.x - 1.0, lq.y) + cat(lq.x + 1.0, lq.y) + cat(lq.x, lq.y - 1.0) + cat(lq.x, lq.y + 1.0) > 0.5) col = mix(col, ac, 0.75);
+} else if (id > 2.5 && id < 3.5) col = mix(col, c2, 0.55);
+}
+float bcx = co.x + 6.0;
+if (bolt && c.y < co.y && abs(c.x - bcx) < 10.0) {
+float bk = floor(c.y / 7.0);
+float ya = bk * 7.0;
+float yb = ya + 7.0;
+float xa = bcx + (hash1(bk + cid * 17.0) - 0.5) * 14.0 * clamp((co.y - ya) / 30.0, 0.0, 1.0);
+float xb = bcx + (hash1(bk + 1.0 + cid * 17.0) - 0.5) * 14.0 * clamp((co.y - yb) / 30.0, 0.0, 1.0);
+float bd = segd(c, float2(xa, ya), float2(xb, yb));
+if (bd < 0.75) col = hx(0xfff4ff);
+else if (bd < 1.6) col = mix(col, ac, 0.6);
+}
+}
+float2 mp = float2(c.x, c.y + floor(t * 5.0));
+float2 mcell = floor(mp / 12.0);
+float mh = hash2(mcell + 31.0);
+if (mh < 0.22) {
+float2 mpos = mcell * 12.0 + floor(float2(hash2(mcell + 2.0), mh * 4.5) * 10.0) + 1.0;
+mpos.x += floor(sin(t * 0.9 + mh * 40.0) * 1.5 + 0.5);
+float2 d = abs(mp - mpos);
+float tw = 0.5 + 0.5 * sin(t * 1.7 + mh * 60.0);
+half3 mcl = mh < 0.11 ? c2 : c1;
+if (d.x + d.y < 0.5) col = mix(col, mcl, 0.5 + 0.5 * tw);
+else if (tw > 0.6 && d.x + d.y < 1.5) col = mix(col, mcl, 0.35);
+}
+return half4(col, 1.0);
+}

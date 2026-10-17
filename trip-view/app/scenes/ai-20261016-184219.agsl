@@ -1,0 +1,219 @@
+// name: CHIANG MAI 清邁晴山
+// prompt: 清邁 晴朗 層層疊疊的山脈 大白雲朵
+// edit: 飛過更飛的鳥群 雲朵更加變幻
+// mascot: star
+
+void palette(float z, out half3 bg, out half3 c0, out half3 c1, out half3 c2, out half3 ac) {
+  if (z < 0.5) {
+    bg = hx(0x439ED5); c0 = hx(0x173F38); c1 = hx(0x43876B); c2 = hx(0xB7DAD0); ac = hx(0xFFD470);
+  } else if (z < 1.5) {
+    bg = hx(0x55BCCB); c0 = hx(0x174B48); c1 = hx(0x369B83); c2 = hx(0xC7E7CE); ac = hx(0xFFE49A);
+  } else if (z < 2.5) {
+    bg = hx(0x7CACE0); c0 = hx(0x303E63); c1 = hx(0x687EAB); c2 = hx(0xD3DBEA); ac = hx(0xFFD389);
+  } else if (z < 3.5) {
+    bg = hx(0x65ACD2); c0 = hx(0x384D2D); c1 = hx(0x819B58); c2 = hx(0xDBE3B5); ac = hx(0xFFBE66);
+  } else {
+    bg = hx(0x428CC2); c0 = hx(0x183B53); c1 = hx(0x3F808F); c2 = hx(0xB5DCE0); ac = hx(0xFFE8AB);
+  }
+}
+
+// 折線山脊：大小峰交錯，不使用連續色彩漸層。
+float ridge(float x, float width, float seed) {
+  float u = x / width;
+  float k = floor(u);
+  float f = fract(u);
+  float a = hash1(k + seed);
+  float b = hash1(k + seed + 1.0);
+  float shoulder = 1.0 - abs(f * 2.0 - 1.0);
+  return mix(a, b, f) * 0.75 + shoulder * 0.25;
+}
+
+float ellipseFill(float2 p, float2 center, float2 radius) {
+  float2 d = (p - center) / radius;
+  return step(dot(d, d), 1.0);
+}
+
+// 五瓣積雲緩慢鼓起、收攏；各瓣錯相變形，保留原本的大白雲構圖。
+float cumulus(float2 q, float a, float b, float e) {
+  if (q.x < -55.0 || q.x > 55.0 ||
+      q.y < -35.0 || q.y > 15.0) return 0.0;
+
+  float m = ellipseFill(q,
+      float2(-29.0 + a, 1.0),
+      float2(19.0 + b, 11.0));
+  m = max(m, ellipseFill(q,
+      float2(-15.0 + b, -9.0 - a),
+      float2(19.0 + e, 18.0 + a)));
+  m = max(m, ellipseFill(q,
+      float2(7.0 + e, -11.0 - b),
+      float2(23.0 - a, 17.0 + b)));
+  m = max(m, ellipseFill(q,
+      float2(29.0 - a, -1.0 - e),
+      float2(19.0 - b, 12.0 + e)));
+  m = max(m, ellipseFill(q,
+      float2(0.0, 3.0),
+      float2(37.0 + e, 10.0)));
+  return m;
+}
+
+half4 main(float2 p) {
+  float s = PX();
+  float2 c = floor(p / s);
+  float2 G = floor(size / s);
+  float t = time * max(speed, 0.0);
+
+  half3 bg;
+  half3 c0;
+  half3 c1;
+  half3 c2;
+  half3 ac;
+  palette(zone, bg, c0, c1, c2, ac);
+
+  // 所有動態共用每秒至多兩次的格動畫時鐘。
+  // speed 超過 1 時限制更新頻率，0 時完全靜止。
+  float tick = floor(t / max(max(speed, 0.0), 1.0) * 2.0);
+  float at = tick * 0.5;
+  float W = max(G.x, 1.0);
+  float H = max(G.y, 1.0);
+
+  half3 white = hx(0xFFFEF5);
+  half3 cloudShade = mix(hx(0xD4E5ED), c2, 0.25);
+  half3 horizon = mix(c2, white, 0.52);
+  float skyBand = band(clamp(c.y / (H * 0.73), 0.0, 1.0), c, 5.0);
+  half3 col = mix(bg, horizon, skyBand * 0.76);
+
+  // 晴日：沒有模糊光暈，只有一圈稀疏抖色暖光。
+  float2 sun = c - floor(float2(W * 0.79, H * 0.13));
+  float sr = clamp(W * 0.045, 6.0, 12.0);
+  float sd = dot(sun, sun);
+  if (sd < (sr + 3.0) * (sr + 3.0) && dith(0.25, c)) {
+    col = mix(col, ac, 0.3);
+  }
+  if (sd <= sr * sr) col = mix(ac, white, 0.58);
+
+  // 三團大白雲保留原來的飄移視差，增加雲瓣生長與內部陰影流動。
+  for (int i = 0; i < 3; i++) {
+    float fi = float(i);
+    float span = W + 120.0;
+    float cx = floor(mod(W * (0.22 + fi * 0.39)
+                     + floor(at * (0.65 + fi * 0.18))
+                     + 60.0, span) - 60.0);
+    float cy = floor(H * (0.19 + fi * 0.115));
+    float2 q = c - float2(cx, cy);
+
+    if (abs(q.x) <= 55.0 && q.y >= -35.0 && q.y <= 15.0) {
+      float a = floor(sin(at * 0.27 + fi * 2.1) * 3.0 + 0.5);
+      float b = floor(sin(at * 0.21 + fi * 1.7 + 1.4) * 3.0 + 0.5);
+      float e = floor(sin(at * 0.34 + fi * 2.8 + 3.0) * 2.0 + 0.5);
+
+      if (cumulus(q, a, b, e) > 0.5) {
+        float shade = band(clamp((q.y + 5.0 + b) / 19.0, 0.0, 1.0), c, 4.0);
+        col = mix(white, cloudShade, shade * 0.70);
+
+        // 隨雲瓣伸縮的短階梯陰影，仍保持硬邊與固定色塊。
+        if (q.y > 2.0 + e && q.y < 6.0 + e &&
+            ((q.x > -34.0 + a && q.x < -17.0 + b) ||
+             (q.x > 13.0 + e && q.x < 34.0 - a))) {
+          col = mix(white, cloudShade, 0.42);
+        }
+      }
+    }
+  }
+
+  // 五重山脈：遠山淡藍、近山深綠，峰線和山腹均為硬像素。
+  for (int i = 0; i < 5; i++) {
+    float fi = float(i);
+    float seed = 13.0 + fi * 29.0;
+    float width = W * (0.25 - fi * 0.024);
+    float r = ridge(c.x + fi * W * 0.17, max(width, 9.0), seed);
+    float peak = floor(H * (0.49 + fi * 0.092)
+                     - r * H * (0.13 - fi * 0.009));
+
+    if (c.y >= peak) {
+      float depth = clamp((c.y - peak) / (H * 0.23), 0.0, 1.0);
+      float b = band(depth, c, 5.0);
+      float distanceTone = 1.0 - fi / 4.0;
+      half3 mountain = ramp(c0, c1, c2, distanceTone * 0.88);
+      half3 foot = mix(mountain, c0, 0.22);
+      col = mix(mountain, foot, b);
+
+      // 朝陽側的大片折面，固定色塊，不使用逐格噪點。
+      float facet = ridge(c.x + 11.0, max(width * 0.58, 7.0), seed + 9.0);
+      if (c.y < peak + floor(H * 0.045 * facet) && facet > 0.43) {
+        col = mix(mountain, c2, 0.16);
+      }
+
+      if (fi < 1.5) col = mix(col, horizon, 0.18 - fi * 0.07);
+    }
+  }
+
+  // 清邁山間小金塔：基座嵌入最近一層山脊。
+  float tx = floor(W * 0.66);
+  float tr = ridge(tx + W * 0.68, max(W * 0.154, 9.0), 129.0);
+  float base = floor(H * 0.858 - tr * H * 0.094) + 2.0;
+  float dx = abs(c.x - tx);
+  float up = base - c.y;
+  float tower = 0.0;
+
+  if (up >= 0.0 && up < 3.0 && dx <= 9.0) tower = 1.0;
+  if (up >= 3.0 && up < 6.0 && dx <= 6.0) tower = 1.0;
+  if (up >= 6.0 && up < 13.0 && dx <= floor((14.0 - up) * 0.55)) tower = 1.0;
+  if (up >= 13.0 && up < 16.0 && dx <= 2.0) tower = 1.0;
+  if (up >= 16.0 && up <= 22.0 && dx < 0.5) tower = 1.0;
+  if (tower > 0.5) {
+    col = c.x <= tx ? ac : mix(ac, c0, 0.38);
+    if (up < 2.0) col = c0;
+  }
+
+  // 分桶鳥群：每群五隻排成雁行，快速掠過並沿氣流起伏。
+  // 直接由橫向子格定位一隻鳥，不逐隻迴圈搜尋。
+  if (c.y > H * 0.29 && c.y < H * 0.44) {
+    float laneHeight = max(24.0, floor(H * 0.15));
+    float2 flight = float2(c.x + floor(at * 7.0), c.y - floor(H * 0.29));
+    float2 bucketSize = float2(96.0, laneHeight);
+    float2 bucket = floor(flight / bucketSize);
+    float h = hash2(bucket + 31.0);
+    float2 local = flight - bucket * bucketSize;
+
+    if (h > 0.30 && local.x >= 12.0 && local.x < 72.0) {
+      float bird = floor((local.x - 12.0) / 12.0);
+      float trail = abs(bird - 2.0);
+      float rise = floor(sin(at * 0.65 + h * 6.0) * 2.0 + 0.5);
+      float bob = floor(sin(at * 0.9 + bird * 0.8 + h * 4.0) + 0.5);
+      float2 center = float2(18.0 + bird * 12.0,
+          floor(laneHeight * 0.5) - 4.0 + trail * 3.0 + rise + bob);
+      float2 d = local - center;
+
+      if (abs(d.x) <= 4.0 && abs(d.y) <= 3.0) {
+        // 上揚、展平、下拍、展平；同群錯開拍翼，穿插滑翔。
+        float phase = mod(tick + bird + floor(h * 4.0), 4.0);
+        float wing = phase < 0.5 ? -1.0 : (phase < 2.5 && phase > 1.5 ? 1.0 : 0.0);
+        float glide = mod(floor(at * 0.25 + h * 5.0), 4.0);
+        if (glide < 0.5) wing = 0.0;
+
+        float wingY = abs(d.x) < 1.0 ? 1.0 :
+                      wing * floor((abs(d.x) + 1.0) * 0.5);
+        if (d.y == wingY || (d.x == 0.0 && d.y == 0.0)) {
+          col = mix(c0, bg, 0.25);
+        }
+      }
+    }
+  }
+
+  // 底部疏落草葉，風只改變葉尖一格。
+  if (c.y >= H * 0.94) {
+    float bx = floor(c.x / 9.0);
+    float h = hash1(bx + 81.0);
+    float root = H - 1.0;
+    float height = 3.0 + floor(h * 8.0);
+    float lean = mod(floor(at * 0.4 + h * 3.0), 2.0);
+    float gy = root - c.y;
+    float stemX = bx * 9.0 + 4.0;
+    float bend = gy > height * 0.55 ? lean : 0.0;
+    if (gy >= 0.0 && gy < height && c.x == stemX + bend) col = c0;
+    if (gy >= 1.0 && gy < height * 0.6 &&
+        abs(c.x - stemX) == floor(gy * 0.5) + 1.0) col = c0;
+  }
+
+  return half4(col, 1.0);
+}
