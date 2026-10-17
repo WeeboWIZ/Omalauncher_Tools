@@ -8,23 +8,21 @@ The store edition ships with **English only**. For Traditional Chinese or any ot
 
 ## First use
 
-1. Install the declared packages through the launcher.
-2. Tap **Set up**. This writes the embedded, reviewed Python programs and five scenes locally, generates sounds, and validates the shaders. Setup does not download or run external scripts.
-3. Tap the tile to open the controls. The optional pixel clock and sound start off; the pixel pet starts on.
+It works as soon as it's on your home screen: the five scenes are built into the widget. Tap the tile to open the full-screen page: the scene fills the screen, with ◀ **Hide UI** ▶ at the bottom and **▼ More** for the agent, wallpapers and settings.
+
+The first tap also installs the local tools in the background (about 2 seconds, nothing to confirm): the embedded, reviewed Python programs, which write the scenes from the widget, generate sounds and validate the shaders. Nothing is downloaded. Once they're in, the full-screen page fills the whole screen and the scene cards get previews. The agent, wallpapers and sounds need them. The optional pixel clock and sound start off; the pixel pet starts on.
 
 To save battery, the home tile shows a still of the scene and animates for a few seconds when you tap it. Settings can switch it to always animated. The still for each scene is taken in the background the first time you switch to it.
-
-Scene card thumbnails are rendered in the background right after setup. New agent animations get one automatically.
 
 ## Local files and updates
 
 - Programs, scenes, English strings and MIT license: `~/.local/share/pixbg/`.
 - Commands: `~/.local/bin/pixbg` and `~/.local/bin/tripview`.
 - Agent selection and optional model override: `~/.config/pixbg/config.json`.
-- Generated data, sounds, thumbnails and setup log: `~/.cache/pixbg/`.
+- Generated data, sounds, thumbnails and install log (`setup.log`): `~/.cache/pixbg/`.
 - Saved wallpapers: `~/Pictures/pixbg/`. Applying wallpaper updates the launcher's background setting and theme wallpaper files.
 
-**Update** preserves generated scenes, added language packs, language choice and agent settings. Replaced program files are backed up under `~/.cache/pixbg/install-backups/`. Setup refuses to write through a linked installation directory; update a developer checkout from its source instead. Installation does not create a second widget.
+After an update, the next tap installs the new tools the same way. It preserves generated scenes, added language packs, language choice and agent settings, and backs up replaced program files under `~/.cache/pixbg/install-backups/`. It refuses to write through a linked installation directory; update a developer checkout from its source instead. Installation does not create a second widget.
 
 The widget invokes only the selected agent when you request generation. Your prompt and shader instructions are sent to that agent. Every generated scene is checked for syntax, AGSL restrictions and GPU cost before it is displayed. Deleting an animation removes only the selected generated scene; built-in scenes cannot be deleted from the controls.
 

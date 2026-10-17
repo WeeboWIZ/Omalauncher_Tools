@@ -92,7 +92,8 @@
     "tileLiveOff": "主畫面的磚：靜態",
     "tileLiveOn": "主畫面的磚：動畫",
     "tileLiveOffHelp": "主畫面平常顯示場景的靜態圖，點一下會播幾秒動畫。比較省電。",
-    "tileLiveOnHelp": "主畫面一直播動畫，比較耗電。"
+    "tileLiveOnHelp": "主畫面一直播動畫，比較耗電。",
+    "scrollHint": "▼ 更多"
   },
   "msg": {
     "notPassed": "{name} 沒通過檢查，沒有套用：",

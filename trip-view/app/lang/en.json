@@ -92,7 +92,8 @@
     "tileLiveOff": "Home tile: still",
     "tileLiveOn": "Home tile: animated",
     "tileLiveOffHelp": "The home screen shows the scene's preview and plays for a few seconds after you tap it. Saves battery.",
-    "tileLiveOnHelp": "The home screen animates all the time. Uses more battery."
+    "tileLiveOnHelp": "The home screen animates all the time. Uses more battery.",
+    "scrollHint": "▼ More"
   },
   "msg": {
     "notPassed": "{name} failed the check, not applied: ",

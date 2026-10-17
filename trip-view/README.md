@@ -85,7 +85,7 @@ On the full-screen page, open **Language → Custom**, type the language and cop
 
 ## Store preview
 
-The store shows one picture, both in its grid (about 165×104 dp) and on the widget's page (panel width, at most 320 dp tall). `docs/make_store_preview.py` composes it at 1600×1000 (1.6:1) from a launcher render of the full-screen page, so it reads at both sizes: Neon Ramen at a whole-pixel 2× with the title on a chamfered panel in the sky, and nothing else. Don't add per-theme previews (`previews/<theme>.webp`): the store would show those instead.
+The store renders a freshly installed tile at its default size (4×2) in every Omarchy theme. Before the local tools exist, that tile is `store/cover.png`: Neon Ramen in the default palette with TRIP VIEW on its sign. `docs/make_cover.py` makes it from a launcher render of the full-screen page (palette 3, export mode), at 4 px per shader cell, about 6 KB. `preview.png` and `previews/<theme>.webp` are that tile in each theme's frame. `docs/make_store_preview.py` still composes the wide 1600×1000 picture at the top of this README.
 
 ## Layout
 
@@ -182,4 +182,4 @@ Trip View is free software under the [MIT License](LICENSE). This license covers
 
 The store edition bundles English only. Other languages, including Traditional Chinese, are added through Language → Custom using the English template. The source checkout retains both language packs for local development.
 
-Build with `python trip-view/tools/build_store.py` from the repository root. The generated file is `store/widgets/weebowiz/trip-view/widget.owl`; its Set up button installs the embedded runtime and validates all five scenes without downloading code. Test with `python -m unittest discover trip-view/tests` and the store's `owl.jar review`. See the store README for installation paths and update behavior.
+Build with `python trip-view/tools/build_store.py` from the repository root. The generated file is `store/widgets/weebowiz/trip-view/widget.owl`. It carries the five scenes, the shader header and the English pack (`let tripBuiltin`), so it works before anything is installed; the first tap installs the embedded runtime in the background, which writes the scenes from the widget file and validates them, without downloading code. Before that, the tile shows `store/cover.png` (Neon Ramen with TRIP VIEW on its sign), which is also what the store's previews show. Test with `python -m unittest discover trip-view/tests` and the store's `owl.jar review`. See the store README for installation paths and update behavior.

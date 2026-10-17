@@ -259,12 +259,12 @@ def make_thumbs(ids=None, force=False):
             batch = todo[n:n + 6]
             write_json(EXPORT, {"on": True, "cards": batch, "t": int(time.time())})
             im = Image.open(render()).convert("RGB").crop(tuple(box))
-            gw, gh = im.size[0] // 2, im.size[1] // 3
+            # 每格已經是卡片的比例（小工具照 360:259 排的），整格就是一張縮圖
+            gw = im.size[0] / 2
+            gh = gw * 259 / 360
             for i, sid in enumerate(batch):
-                cell = im.crop((i % 2 * gw, i // 2 * gh, i % 2 * gw + gw, i // 2 * gh + gh))
-                ch = int(gw * 0.72)               # 卡片的比例，取格子偏下的地方（角色和地景多在那裡）
-                top = max(0, min(gh - ch, int(gh * 0.62) - ch // 2))
-                cell.crop((0, top, gw, top + ch)).save(thumb_path(sid))
+                x, y = i % 2 * gw, i // 2 * gh
+                im.crop((round(x), round(y), round(x + gw), round(y + gh))).save(thumb_path(sid))
                 print("縮圖：", sid, flush=True)
     finally:
         write_json(EXPORT, {"on": False})

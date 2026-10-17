@@ -15,12 +15,19 @@ sys.path.insert(0, str(ROOT / 'tools'))
 import build_store
 sys.path.insert(0, str(ROOT / 'app'))
 import pixbg
+# The program's own read-only data (shader header, language packs) comes from this checkout, not an installed copy.
+pixbg.DATA, pixbg.LANGS = str(ROOT / 'app'), str(ROOT / 'app/lang')
 
 
 class Store(unittest.TestCase):
     def run_setup(self, home, check=True):
+        # Setup reads the built-in scenes from the installed widget file, as on a phone.
+        widgets = home / '.config/omalauncher/widgets'
+        widgets.mkdir(parents=True, exist_ok=True)
+        (widgets / 'market-weebowiz-trip-view.owl').write_text(build_store.render())
         return subprocess.run(['bash', '-c', build_store.setup_script()],
-                              env=dict(os.environ, HOME=str(home)), capture_output=True, text=True, check=check)
+                              env=dict(os.environ, HOME=str(home), TRIP_VIEW_NO_BACKGROUND='1'),
+                              capture_output=True, text=True, check=check)
 
     def test_clean_install_update_and_agent_choice(self):
         with tempfile.TemporaryDirectory(prefix='trip-view-test-') as d:
@@ -58,7 +65,7 @@ class Store(unittest.TestCase):
             self.assertEqual(json.loads((home / '.config/pixbg/config.json').read_text())['agent'], 'claude')
             backups = list((cache / 'install-backups').glob('*/.local/share/pixbg/pixbg.py'))
             self.assertTrue(any(p.read_text() == '# older installed program\n' for p in backups))
-            self.assertFalse((home / '.config/omalauncher/widgets').exists())
+            self.assertEqual([p.name for p in (home / '.config/omalauncher/widgets').iterdir()], ['market-weebowiz-trip-view.owl'])
 
     def test_linked_checkout_is_not_modified(self):
         with tempfile.TemporaryDirectory() as d:
@@ -178,7 +185,7 @@ class Agents(unittest.TestCase):
                     patch.object(pixbg, 'ready_agent', return_value=({'agent': 'claude', 'model': ''}, '')), \
                     patch.object(pixbg, 'agent_model', return_value=''), patch.object(pixbg, 'ask_agent', side_effect=agent), \
                     patch.object(pixbg, 'build_bundle'), patch.object(pixbg, 'notify_sel'), patch.object(pixbg, 'make_thumbs'), \
-                    patch.object(pixbg.signal, 'signal'):
+                    patch.object(pixbg, 'make_tiles'), patch.object(pixbg.signal, 'signal'):
                 pixbg.gen('add a moon', 'ai-1')
             self.assertIn('add a moon', seen['prompt'])
             self.assertIn('mountains', seen['prompt'])
