@@ -39,25 +39,26 @@ widget "TRIP VIEW" {
   // 主畫面的磚：預設放場景縮圖（不耗電），使用者可在設定裡改成一直播動畫
   state tileLive = false persist
   state langWish = "" persist
-  state panel = true
+  state panel = true persist
   state hiddenAt = 0
-  state langOpen = false
+  state langOpen = false persist
   state poke = 0
   // 在磚上點按鈕或吉祥物的時間：之後幾秒磚上播動畫
   state liveAt = 0
-  // 打開全螢幕頁的時間：當作捲動區的 key，每次打開都從頭開始（目前場景的卡片在底部），不停在上次捲到的地方
-  state openedAt = 0
+  // 打開全螢幕頁的時間：當作捲動區的 key，每次打開都從頭開始（目前場景的卡片在底部），不停在上次捲到的地方。
+  // 這幾個介面狀態都要 persist：pixbg 拍圖時會重新載入小工具，不 persist 的會被重設，畫面就自己跳
+  state openedAt = 0 persist
   // 點了「▼ 更多」的時間：比這次打開晚才展開，所以每次打開都回到第一層
-  state moreAt = 0
+  state moreAt = 0 persist
   let more = moreAt > 0 && moreAt >= openedAt
   state copiedAt = 0
   // 刪除要按兩次：第一次記下要刪哪個場景、什麼時候按的，10 秒內在確認框按「確認刪除」才真的刪
   state delId = ""
   state delAt = 0
   // 場景名下的小字「管理這個場景」點開才有編輯、刪除；editOpen 是正在寫修改要求的場景
-  state manageId = ""
-  state editOpen = ""
-  state editWish = ""
+  state manageId = "" persist
+  state editOpen = "" persist
+  state editWish = "" persist
 
   // 目前的場景。設為桌布時 export.json 指定要畫哪一個、隱藏介面。
   // 只認 2 分鐘內寫的：pixbg 萬一在匯出中途被殺，介面也不會一直藏著
@@ -65,8 +66,10 @@ widget "TRIP VIEW" {
   let exporting = exp.on == true && exp.tile != true && (exp.t ?? 0) > now - 120
   // 拍磚的靜態圖（pixbg tile）時只動磚：照磚的大小播 shader、藏起磚上的介面，全螢幕頁照常
   let tileShot = exp.on == true && exp.tile == true && (exp.t ?? 0) > now - 120
-  let curIdx = max(0, list.map(x => x.id).indexOf((exporting || tileShot) && exp.id != null ? exp.id : sel))
+  let curIdx = max(0, list.map(x => x.id).indexOf(exporting && exp.id != null ? exp.id : sel))
   let cur = list[curIdx] ?? {}
+  // 拍磚的靜態圖時只有磚畫被拍的場景：目前的場景（全螢幕頁、選擇）不跟著換，連按 ▶ 時畫面才不會被拉回去
+  let tileCur = tileShot && exp.id != null ? (list.find(x => x.id == exp.id) ?? cur) : cur
   let total = len(list)
   let nextId = total > 0 ? list[(curIdx + 1) % total].id : sel
   let prevId = total > 0 ? list[(curIdx + total - 1) % total].id : sel
@@ -699,8 +702,8 @@ TRIP_VIEW_SETUP""") }
   Box {
     fill: true
     if tileAnim {
-      Shader { fill: true; fallback: background; uniforms: { zone: zn, speed: speed, cellpx: 0 }; code: code }
-      if cur.actors != null { Actors { cw: tileCell; live: true } }
+      Shader { fill: true; fallback: background; uniforms: { zone: zn, speed: speed, cellpx: 0 }; code: tileShot ? tileCur.code ?? code : code }
+      if tileCur.actors != null { Actors { cw: tileCell; live: true; sc: tileCur } }
     } else if (cur.tile ?? cur.thumb ?? (cur.id == "05-ramen" ? tripCover : null)) != null {
       // 靜態圖裡已經有角色，不再疊一層。cur.tile 是照磚的大小拍的，構圖和播動畫時一樣
       Image { src: cur.tile ?? cur.thumb ?? tripCover; fill: true; fit: cover }
